@@ -58,7 +58,7 @@ export const TOOLS: Tool[] = [
     category: "privacy",
     icon: ScanSearch,
     accepts: ["pdf", "image"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "merge",

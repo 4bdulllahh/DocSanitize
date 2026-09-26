@@ -20,6 +20,8 @@ export interface WorkspaceFile {
   mimeType: string;
   kind: FileKind;
   addedAt: number;
+  /** Bumped whenever the tab's content is replaced, so views keyed on it re-read the file. */
+  revision: number;
   status: FileStatus;
   /** 0–100 while status is "processing". */
   progress?: number;
@@ -54,6 +56,7 @@ function toWorkspaceFile(file: File): WorkspaceFile {
     mimeType: file.type,
     kind: detectFileKind(file),
     addedAt: Date.now(),
+    revision: 0,
     status: "idle",
   };
 }
@@ -106,6 +109,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
           name: nextName,
           size: file.size,
           mimeType: file.type,
+          revision: f.revision + 1,
           status: "idle",
           progress: undefined,
           error: undefined,
