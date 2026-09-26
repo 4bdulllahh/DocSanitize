@@ -1,3 +1,5 @@
+import { ProcessingError, type ProcessingErrorCode } from "../errors";
+
 /**
  * How revealing a piece of metadata is.
  * - high: identifies a person, place or device (GPS, author, serial numbers, hidden history…)
@@ -50,12 +52,10 @@ export interface StripResult {
   verification: MetadataReport;
 }
 
-export class MetadataError extends Error {
-  constructor(
-    message: string,
-    readonly code: "encrypted" | "unsupported" | "corrupt",
-  ) {
-    super(message);
+/** Metadata-engine failures; `code` tells the UI how to explain them. */
+export class MetadataError extends ProcessingError {
+  constructor(message: string, code: ProcessingErrorCode) {
+    super(message, code);
     this.name = "MetadataError";
   }
 }

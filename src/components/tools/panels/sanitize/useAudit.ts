@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { auditFile } from "@/lib/metadata/client";
-import { MetadataError, type MetadataReport } from "@/lib/metadata/types";
+import { ProcessingError, type ProcessingErrorCode } from "@/lib/errors";
+import type { MetadataReport } from "@/lib/metadata/types";
 
 export type AuditState =
   | { status: "loading" }
   | { status: "ready"; report: MetadataReport }
-  | { status: "error"; message: string; code?: MetadataError["code"] };
+  | { status: "error"; message: string; code?: ProcessingErrorCode };
 
 /** Audit a blob in the metadata worker. Returns null when there is nothing to audit. */
 export function useAudit(blob: Blob | undefined): AuditState | null {
@@ -27,7 +28,7 @@ export function useAudit(blob: Blob | undefined): AuditState | null {
           state: {
             status: "error",
             message: error instanceof Error ? error.message : "This file couldn't be read.",
-            code: error instanceof MetadataError ? error.code : undefined,
+            code: error instanceof ProcessingError ? error.code : undefined,
           },
         });
       });

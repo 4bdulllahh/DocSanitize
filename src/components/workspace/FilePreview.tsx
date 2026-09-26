@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Lock } from "lucide-react";
 import { KindIcon } from "@/components/files/KindIcon";
+import { PageThumbnail } from "@/components/pdf/PageThumbnail";
+import { usePdfDocument } from "@/components/pdf/usePdfDocument";
 import type { WorkspaceFile } from "@/store/workspace";
 
 export function FilePreview({ file }: { file: WorkspaceFile }) {
@@ -12,11 +15,41 @@ export function FilePreview({ file }: { file: WorkspaceFile }) {
       </div>
       {file.kind === "image" ? (
         <ImagePreview file={file.file} />
+      ) : file.kind === "pdf" ? (
+        <PdfPreview file={file.file} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
           <KindIcon kind={file.kind} className="size-12 text-fg-subtle" strokeWidth={1.25} />
-          <p className="text-sm text-fg-muted">Page previews are coming soon.</p>
+          <p className="text-sm text-fg-muted">No preview for this file type yet.</p>
         </div>
+      )}
+    </div>
+  );
+}
+
+function PdfPreview({ file }: { file: File }) {
+  const pdf = usePdfDocument(file);
+  if (pdf.status === "error") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <Lock className="size-10 text-fg-subtle" strokeWidth={1.5} aria-hidden="true" />
+        <p className="max-w-xs text-sm text-fg-muted">{pdf.message}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 items-center justify-center bg-surface-muted p-4">
+        {pdf.status === "ready" ? (
+          <PageThumbnail doc={pdf.doc} pageNumber={1} width={300} height={380} />
+        ) : (
+          <div style={{ width: 300, height: 380 }} />
+        )}
+      </div>
+      {pdf.status === "ready" && (
+        <p className="border-t border-line px-4 py-2 text-xs text-fg-subtle">
+          Page 1 of {pdf.doc.numPages}
+        </p>
       )}
     </div>
   );

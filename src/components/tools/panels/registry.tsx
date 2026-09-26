@@ -22,4 +22,7 @@ function PanelSkeleton() {
  */
 export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>> = {
   sanitize: dynamic(() => import("./sanitize/SanitizePanel"), { ssr: false, loading: PanelSkeleton }),
+  merge: dynamic(() => import("./merge/MergePanel"), { ssr: false, loading: PanelSkeleton }),
+  split: dynamic(() => import("./split/SplitPanel"), { ssr: false, loading: PanelSkeleton }),
+  organize: dynamic(() => import("./organize/OrganizePanel"), { ssr: false, loading: PanelSkeleton }),
 };

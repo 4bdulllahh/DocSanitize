@@ -45,7 +45,14 @@ export function Workspace({ tool }: { tool: Tool }) {
       {hasFiles ? (
         <>
           <FileTabs tool={tool} onAddFiles={openPicker} />
-          {activeFile && <FilePanel key={`${activeFile.id}:${activeFile.revision}`} tool={tool} file={activeFile} />}
+          {activeFile && (
+            <FilePanel
+              // Multi-file tools (e.g. Merge) keep their state while switching tabs.
+              key={tool.multiFile ? tool.id : `${activeFile.id}:${activeFile.revision}`}
+              tool={tool}
+              file={activeFile}
+            />
+          )}
         </>
       ) : (
         <Dropzone tool={tool} onBrowse={openPicker} />

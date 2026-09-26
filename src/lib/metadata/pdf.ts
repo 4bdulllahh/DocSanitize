@@ -2,7 +2,6 @@ import {
   PDFArray,
   PDFBool,
   PDFDict,
-  PDFDocument,
   PDFHexString,
   PDFName,
   PDFNumber,
@@ -14,10 +13,11 @@ import {
   type PDFContext,
   type PDFObject,
 } from "@cantoo/pdf-lib";
+import { collectGarbage, loadPdf, savePdf } from "../pdf/load";
 import { utf8 } from "./bytes";
 import { entry } from "./classify";
 import { auditJpeg, isJpeg, stripJpeg } from "./jpeg";
-import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
+import type { MetadataEntry, MetadataReport, StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
 
 const N = {
@@ -56,23 +56,6 @@ const INFO_KEYS: Record<string, { label: string; sensitivity?: MetadataEntry["se
   ModDate: { label: "Modified" },
   Trapped: { label: "Trapped", sensitivity: "low" },
 };
-
-async function load(bytes: Uint8Array): Promise<PDFDocument> {
-  let doc: PDFDocument;
-  try {
-    // updateMetadata: false — otherwise the library stamps its own Producer/ModDate on load.
-    doc = await PDFDocument.load(bytes, { updateMetadata: false, throwOnInvalidObject: false });
-  } catch (error) {
-    if (error instanceof Error && /encrypt|password/i.test(error.message)) {
-      throw new MetadataError("This PDF is password-protected. Unlock it first, then sanitize it.", "encrypted");
-    }
-    throw new MetadataError("This file couldn't be read as a PDF.", "corrupt");
-  }
-  if (doc.isEncrypted) {
-    throw new MetadataError("This PDF is password-protected. Unlock it first, then sanitize it.", "encrypted");
-  }
-  return doc;
-}
 
 /** "D:20240115093000+01'00'" -> Date */
 function parsePdfDate(value: string): Date | null {
@@ -158,7 +141,7 @@ function jpegImage(obj: PDFObject): Uint8Array | null {
 }
 
 export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
-  const doc = await load(bytes);
+  const doc = await loadPdf(bytes);
   const { context, catalog } = doc;
   const entries: MetadataEntry[] = [];
   const push = (e: MetadataEntry | null) => e && entries.push(e);
@@ -249,39 +232,8 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
   return { format: "pdf", entries, kept: [], location };
 }
 
-/** Delete every object that can no longer be reached from the trailer, so detached metadata isn't written back out. */
-function collectGarbage(doc: PDFDocument) {
-  const { context } = doc;
-  const reachable = new Set<string>();
-  const stack: PDFObject[] = [];
-  if (context.trailerInfo.Root) stack.push(context.trailerInfo.Root);
-  if (context.trailerInfo.Info) stack.push(context.trailerInfo.Info);
-  if (context.trailerInfo.Encrypt) stack.push(context.trailerInfo.Encrypt);
-
-  while (stack.length > 0) {
-    const obj = stack.pop();
-    if (obj instanceof PDFRef) {
-      const key = obj.toString();
-      if (reachable.has(key)) continue;
-      reachable.add(key);
-      const target = context.lookup(obj);
-      if (target) stack.push(target);
-    } else if (obj instanceof PDFDict) {
-      for (const [, value] of obj.entries()) stack.push(value);
-    } else if (obj instanceof PDFArray) {
-      stack.push(...obj.asArray());
-    } else if (obj instanceof PDFStream) {
-      stack.push(obj.dict);
-    }
-  }
-
-  for (const [ref] of context.enumerateIndirectObjects()) {
-    if (!reachable.has(ref.toString())) context.delete(ref);
-  }
-}
-
 export async function stripPdf(bytes: Uint8Array, options: StripOptions): Promise<Uint8Array> {
-  const doc = await load(bytes);
+  const doc = await loadPdf(bytes);
   const { context, catalog } = doc;
 
   // Document Info and file identifier
@@ -340,7 +292,6 @@ export async function stripPdf(bytes: Uint8Array, options: StripOptions): Promis
   }
 
   collectGarbage(doc);
-  // rewrite: a full rewrite, never an incremental append (which would keep the original bytes
-  // and every earlier revision). The other flags stop the library from adding anything.
-  return doc.save({ rewrite: true, useObjectStreams: true, addDefaultPage: false, updateFieldAppearances: false });
+  // A full rewrite (never an incremental append) also drops every earlier revision.
+  return savePdf(doc);
 }

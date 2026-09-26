@@ -45,6 +45,8 @@ interface WorkspaceState {
   /** Swap a tab's underlying file for new content (e.g. after sanitizing) so tools can be chained. */
   replaceFileContent: (id: string, blob: Blob, name?: string) => void;
   reorderFiles: (fromIndex: number, toIndex: number) => void;
+  /** Move a file to the position currently held by `targetId` (drag-and-drop by id). */
+  moveFile: (id: string, targetId: string) => void;
 }
 
 function toWorkspaceFile(file: File): WorkspaceFile {
@@ -125,6 +127,17 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
       const [moved] = files.splice(fromIndex, 1);
       if (!moved) return state;
       files.splice(toIndex, 0, moved);
+      return { files };
+    }),
+
+  moveFile: (id, targetId) =>
+    set((state) => {
+      const from = state.files.findIndex((f) => f.id === id);
+      const to = state.files.findIndex((f) => f.id === targetId);
+      if (from === -1 || to === -1 || from === to) return state;
+      const files = [...state.files];
+      const [moved] = files.splice(from, 1);
+      files.splice(to, 0, moved);
       return { files };
     }),
 }));

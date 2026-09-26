@@ -19,7 +19,7 @@ export function FilePanel({ tool, file }: { tool: Tool; file: WorkspaceFile }) {
   return (
     <div id={PANEL_ID} role="tabpanel" aria-labelledby={tabId(file.id)} className="flex-1 p-4 lg:p-6">
       <div className="mx-auto max-w-6xl space-y-4">
-        <FileSummary file={file} />
+        {!(tool.multiFile && Panel && compatible) && <FileSummary file={file} />}
         {!compatible ? (
           <IncompatibleNotice tool={tool} file={file} />
         ) : Panel ? (

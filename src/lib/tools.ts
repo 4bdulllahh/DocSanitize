@@ -68,7 +68,7 @@ export const TOOLS: Tool[] = [
     icon: Combine,
     accepts: ["pdf"],
     multiFile: true,
-    status: "planned",
+    status: "ready",
   },
   {
     id: "split",
@@ -77,7 +77,7 @@ export const TOOLS: Tool[] = [
     category: "organize",
     icon: Scissors,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "organize",
@@ -86,7 +86,7 @@ export const TOOLS: Tool[] = [
     category: "organize",
     icon: LayoutGrid,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "protect",

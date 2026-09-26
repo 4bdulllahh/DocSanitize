@@ -55,7 +55,7 @@ export default function SanitizePanel({ file, files }: ToolPanelProps) {
         <StripCard file={file} audit={audit} options={options} onOptionsChange={setOptions} onStrip={run} />
         {file.output && <ResultCard file={file} verification={verification} />}
         {files.length > 1 && <BatchCard files={files} options={options} />}
-        {file.kind === "image" && <FilePreview file={file} />}
+        <FilePreview file={file} />
       </div>
     </div>
   );
