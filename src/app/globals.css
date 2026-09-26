@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* `dark:` utilities follow the data-theme attribute (set before first paint by THEME_INIT_SCRIPT). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Semantic colour tokens. Components use these (bg-surface, text-fg-muted, …) rather than raw
+ * palette colours so both themes come for free. Neutrals mirror the Paperless app (warm cream /
+ * charcoal); the brand accent is DocSanitize navy #263a81 in both themes.
+ */
+:root {
+  color-scheme: light;
+
+  --canvas: #f2eee4;
+  --surface: #fffcf2;
+  --surface-muted: #f8f4ea;
+  --surface-sunken: #ebe6db;
+  --line: #e0dbd0;
+  --line-strong: #ccc5b9;
+
+  --fg: #252422;
+  --fg-muted: #403d39;
+  --fg-subtle: #6b665f;
+
+  --brand: #263a81;
+  --brand-hover: #1e2e68;
+  --brand-fg: #fffcf2;
+  --brand-soft: #e3e5ef;
+  --brand-text: #263a81;
+  --brand-border: #aeb6d6;
+
+  --success: #10b981;
+  --success-soft: #e4f3e6;
+  --success-text: #047857;
+  --warning: #f59e0b;
+  --warning-soft: #fbefd2;
+  --warning-text: #a15c07;
+  --danger: #dc2626;
+  --danger-soft: #f9e2dc;
+  --danger-text: #b91c1c;
+
+  --elev-1: 0 1px 2px #2524220d, 0 4px 16px #2524220d;
+  --elev-2: 0 2px 6px #2524220f, 0 16px 40px #2524221a;
+}
+
+/* Navy keeps its fill colour in dark mode; navy *text* is lifted so it stays readable on charcoal. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #1d1c1b;
+  --surface: #2b2927;
+  --surface-muted: #33312e;
+  --surface-sunken: #252422;
+  --line: #403d39;
+  --line-strong: #57534d;
+
+  --fg: #fffcf2;
+  --fg-muted: #ccc5b9;
+  --fg-subtle: #a6a094;
+
+  --brand: #263a81;
+  --brand-hover: #30469a;
+  --brand-fg: #fffcf2;
+  --brand-soft: #292d3f;
+  --brand-text: #a9b8f2;
+  --brand-border: #4a5487;
+
+  --success: #10b981;
+  --success-soft: #1f332b;
+  --success-text: #4ade9c;
+  --warning: #f59e0b;
+  --warning-soft: #3a2f1c;
+  --warning-text: #fbbf24;
+  --danger: #ef4444;
+  --danger-soft: #3b2222;
+  --danger-text: #f87171;
+
+  --elev-1: 0 1px 2px #0000004d, 0 4px 16px #0003;
+  --elev-2: 0 2px 6px #00000059, 0 16px 40px #00000059;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-brand-border: var(--brand-border);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-text: var(--warning-text);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-text: var(--danger-text);
+
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-text);
+  outline-offset: 2px;
+}
