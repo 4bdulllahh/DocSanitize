@@ -215,3 +215,7 @@ export function getTool(id: string): Tool | undefined {
 export function toolsInCategory(category: ToolCategoryId): Tool[] {
   return TOOLS.filter((tool) => tool.category === category);
 }
+
+export function toolsAccepting(kind: FileKind): Tool[] {
+  return TOOLS.filter((tool) => tool.accepts.includes(kind));
+}
