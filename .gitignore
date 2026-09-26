@@ -42,3 +42,6 @@ next-env.d.ts
 
 # pdf.js runtime assets (copied by scripts/copy-pdfjs-assets.mjs)
 /public/pdfjs/
+
+# e2e artifacts (screenshots, generated fixtures)
+/e2e/.output/
