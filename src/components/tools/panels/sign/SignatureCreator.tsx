@@ -89,7 +89,7 @@ function Actions({ onCancel, onSave, disabled }: { onCancel: () => void; onSave:
       </button>
       <button type="button" onClick={onSave} disabled={disabled} className={clsx(PRIMARY, "py-2")}>
         <Check className="size-4" aria-hidden="true" />
-        Save
+        Save signature
       </button>
     </div>
   );

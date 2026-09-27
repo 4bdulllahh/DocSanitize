@@ -2,6 +2,7 @@ import type { PdfWorkerApi } from "@/workers/pdf.worker";
 import { createWorkerClient } from "../worker-rpc";
 import type { PageEdit } from "./assemble";
 import type { CompressOptions, CompressResult } from "./compress";
+import type { EditRequest } from "./edit/types";
 import type { ImagesToPdfOptions } from "./images";
 import type { LabelStyle, PageNumberOptions, Placement, WatermarkOptions } from "./markup";
 import type { RedactedPage, RedactOptions } from "./redact";
@@ -75,4 +76,11 @@ export async function stampLabelsOnFile(file: Blob, labels: (string | null)[], s
 export async function signFile(file: Blob, placements: Placement[], images: Record<string, Uint8Array>): Promise<Blob> {
   const copies = Object.fromEntries(Object.entries(images).map(([id, bytes]) => [id, bytes.slice()]));
   return asPdf(await worker.sign(await bytesOf(file), placements, copies));
+}
+
+/** Apply the Edit PDF objects. Image bytes are copied: the originals stay usable in the editor. */
+export async function editFile(file: Blob, request: EditRequest): Promise<{ blob: Blob; warnings: string[] }> {
+  const images = Object.fromEntries(Object.entries(request.images).map(([id, image]) => [id, { ...image, bytes: image.bytes.slice() }]));
+  const { bytes, warnings } = await worker.edit(await bytesOf(file), { ...request, images });
+  return { blob: asPdf(bytes), warnings };
 }

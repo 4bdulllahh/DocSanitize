@@ -15,13 +15,14 @@ import {
   Shrink,
   Signature,
   Stamp,
+  FilePenLine,
   FileType,
   ImageDown,
   type LucideIcon,
 } from "lucide-react";
 import type { FileKind } from "./files";
 
-export type ToolCategoryId = "privacy" | "organize" | "security" | "convert" | "optimize";
+export type ToolCategoryId = "privacy" | "edit" | "organize" | "security" | "convert" | "optimize";
 
 export interface ToolCategory {
   id: ToolCategoryId;
@@ -30,10 +31,11 @@ export interface ToolCategory {
 
 export const TOOL_CATEGORIES: ToolCategory[] = [
   { id: "privacy", name: "Sanitize & Privacy" },
+  { id: "edit", name: "Edit & Sign" },
   { id: "organize", name: "Organize" },
   { id: "security", name: "Security" },
   { id: "convert", name: "Convert" },
-  { id: "optimize", name: "Optimize & Markup" },
+  { id: "optimize", name: "Optimize" },
 ];
 
 export interface Tool {
@@ -62,6 +64,16 @@ export const TOOLS: Tool[] = [
     icon: ScanSearch,
     keywords: ["exif", "gps", "location", "privacy", "clean", "remove metadata", "strip", "author", "iphone", "photo", "heic", "xmp", "hidden data"],
     accepts: ["pdf", "image"],
+    status: "ready",
+  },
+  {
+    id: "edit-pdf",
+    name: "Edit PDF",
+    description: "Add and edit text, white out, highlight, draw, add shapes, check marks, images, signatures and notes, all on one page.",
+    category: "edit",
+    icon: FilePenLine,
+    keywords: ["edit text", "add text", "annotate", "highlight", "underline", "strikethrough", "draw", "pen", "whiteout", "erase", "shapes", "rectangle", "arrow", "check mark", "tick", "cross", "image", "sticky note", "comment", "typewriter", "fill"],
+    accepts: ["pdf"],
     status: "ready",
   },
   {
@@ -211,7 +223,7 @@ export const TOOLS: Tool[] = [
     id: "sign",
     name: "E-Sign PDF",
     description: "Draw or upload a signature and place it anywhere on a page.",
-    category: "optimize",
+    category: "edit",
     icon: Signature,
     keywords: ["signature", "e-sign", "esign", "sign document", "date", "initials"],
     accepts: ["pdf"],
@@ -221,7 +233,7 @@ export const TOOLS: Tool[] = [
     id: "watermark",
     name: "Watermark",
     description: "Stamp text or an image on every page, or just the pages you pick.",
-    category: "optimize",
+    category: "edit",
     icon: Stamp,
     keywords: ["stamp", "draft", "confidential", "logo", "overlay"],
     accepts: ["pdf"],
@@ -231,7 +243,7 @@ export const TOOLS: Tool[] = [
     id: "page-numbers",
     name: "Page Numbers",
     description: "Add page numbers with your choice of position and format.",
-    category: "optimize",
+    category: "edit",
     icon: ListOrdered,
     keywords: ["number pages", "footer", "header", "pagination", "page x of y"],
     accepts: ["pdf"],

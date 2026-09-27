@@ -1,6 +1,6 @@
 # DocSanitize: maintainer guide
 
-_Last updated 2026-09-28 · version 1.0.0 plus milestone 10 of the v2 roadmap (M10–M19, see the README) · live at https://docsanitize.vercel.app_
+_Last updated 2026-09-28 · version 1.0.0 plus milestones 10–11 of the v2 roadmap (M10–M19, see the README) · live at https://docsanitize.vercel.app_
 
 This guide is for whoever changes DocSanitize next, whether a person or an AI assistant. The [README](README.md) says what the app does. This file explains how the code fits together, the rules it must keep, how to make common changes, and the traps already found. Read sections 1 to 3 before changing anything.
 
@@ -13,9 +13,9 @@ This guide is for whoever changes DocSanitize next, whether a person or an AI as
    ```bash
    npm install
    npx playwright-core install chromium        # once per machine, for the browser tests
-   npm run lint && npm test                     # 120 unit tests
+   npm run lint && npm test                     # 133 unit tests
    npm run build && npx tsc --noEmit            # tsc needs the route types the build generates
-   npm run e2e                                  # 9 browser suites against ./out
+   npm run e2e                                  # 10 browser suites against ./out
    ```
 3. **Deploying is pushing.** Vercel builds `main` on every push, and GitHub Actions runs the same checks (`.github/workflows/ci.yml`). After a push, check the live site (section 7.8).
 4. **Working with Claude:** the owner builds in milestones. At the end of each one, stop and ask whether to continue. When the next milestone is approved, commit the finished one and push it to `origin/main`. Don't commit at other times unless asked. Commit messages end with a `Co-Authored-By` line.
@@ -59,6 +59,8 @@ These are the product's promises. Every change must keep them, and the tests enf
 | Translate PDF | The browser's built-in on-device Translator API (Chrome/Edge); other browsers get a "use Chrome or Edge" message. No online service, no bundled models |
 | Link → MP4/MP3 | Not built: it needs a server and breaks the no-upload promise. M16 is a *local* media converter (ffmpeg.wasm add-on) instead |
 | Keep technical data | An allow-list of EXIF tag numbers (`technicalOnlyExif` in `exif.ts`), never a classifier-based filter |
+| Edit text | Remove the original text operators from the content stream (never just cover them); new text in Liberation Sans / Times / Courier |
+| Edit PDF output | User picks flattened or editable annotations; replaced text and white-out always go into the page, notes always stay Text annotations; no /T, /M or /CreationDate on anything added |
 
 ---
 
@@ -86,7 +88,7 @@ Built on Windows 11 with Node 24; CI runs Ubuntu with Node 24. Node 22.18+ is ne
 | --- | --- |
 | `npm run dev` | `predev` copies pdf.js assets into `public/pdfjs/` and add-ons into `public/addons/`, then `next dev` (no service worker) |
 | `npm run build` | `prebuild` copies pdf.js assets and add-ons, then `next build` exports to `out/`. `postbuild` runs `fix-export-segments.mjs`, then `secure-export.mjs` (CSP `<meta>` and `_headers`), then `build-service-worker.mjs` (`out/sw.js`) |
-| `npm test` | Vitest, 120 tests, in Node |
+| `npm test` | Vitest, 133 tests, in Node |
 | `npm run e2e [-- name]` | serves `out/` on :3123 **with the `vercel.json` headers** and runs `e2e/*.mjs` in headless Chromium; screenshots go to `e2e/.output/` |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | type check, after a build or dev run |
@@ -128,6 +130,9 @@ src/
       redact.ts redact-search.ts annotations.ts    redaction and text/annotation search
       stamp.ts               ★ page geometry: displayed coordinates ↔ PDF user space for any rotation/crop box
       markup.ts              watermark, page numbers, signatures
+      edit/                  ★ Edit PDF: types.ts (object model, display points), geometry.ts (bounds, move; no pdf-lib),
+                             content.ts (content-stream parser + text remover), fonts.ts (glyph widths), apply.ts
+                             (draw in upright space; flatten or annotations with appearances), text-select.ts
       render.ts              pdf.js loader and openPdfForRendering → { doc, destroy }
       client.ts              page-side API for pdf.worker
     office/
@@ -151,6 +156,9 @@ src/
       registry.tsx           ★ tool id → panel, via next/dynamic (ssr: false)
       shared/                controls.tsx (Field, Segmented, AnchorPicker, ColorField, Slider), OutputCard, PdfStates,
                              ConversionParts (fidelity notes, warnings, PDF result preview), StampPreview (live preview)
+      edit/                  Edit PDF: EditPanel (state, keys, save), EditorCanvas (page + SVG overlay + gestures),
+                             Toolbar, Inspector, ObjectLayer (SVG per object), model.ts (tools, defaults, fonts),
+                             useEditorState (undo/redo, drafts per file), usePageText (phrases, colour sampling)
       <tool folders>         sanitize, merge, split, organize, security, redact, images-to-pdf, convert-image (HEIC to JPG),
                              pdf-to-images, pdf-to-office, office-to-pdf, compress, sign, markup (watermark + page numbers)
     tools/ToolCard, ToolDirectory   home grid cards and the filter box
@@ -197,6 +205,13 @@ Panel → `lib/<area>/client.ts` → worker via `createWorkerClient` → pure fu
 - The `image` kind covers JPEG, PNG, WebP, HEIC/HEIF and AVIF. Always decode through `decodeImage()` (`lib/image/canvas.ts`), which routes HEIC to the add-on. Show images with `useImageSource()`, not a raw object URL, and turn one into PDF-embeddable bytes with `asPngOrJpeg()`.
 - **Add-ons** are big optional parts served from `/addons/<name>-<version>/` but left out of the precache. `copy-addons.mjs` copies them into `public/addons/`. The service worker caches each file on first request in a separate `docsanitize-addons` cache that survives updates, and prunes files a new build no longer lists. The version in the path makes an upgrade a new URL. Today there's one: `libheif-<v>/heif.worker.js`, a classic worker (so it can `importScripts` the Emscripten loader, which must not be bundled). It's used by `lib/image/heic.ts` from the page or from inside other workers, and its load error tells the user to go online once.
 - HEIC metadata is stripped **in place** (`heif.ts`): items are zeroed and retyped to `skip`, and so are the references from them, because HEIF uses absolute offsets. Never "remove" bytes from a HEIF.
+
+### Edit PDF
+- **One coordinate space.** Objects (`lib/pdf/edit/types.ts`) are in points on the page as displayed: top-left origin, y down, rotation applied, CropBox (a pdf.js viewport at scale 1). The editor draws them in an SVG with that `viewBox`; `apply.ts` draws them in "upright" space (bottom-left origin) and one `cm` per page, from `uprightMatrix()`, maps that to user space for any rotation. Annotation appearances use the same drawing with the matrix as their form's `/Matrix`, so both outputs look identical.
+- **Text metrics are shared.** `baselineOffset()` and `LINE_HEIGHT` in `types.ts` place the first baseline where CSS puts it, so SVG `<text>` and PDF text line up. The CSS font stacks in `model.ts` match the PDF fonts' metrics.
+- **Edit text.** `usePageText` merges pdf.js runs into phrases and samples text and background colour from the rendered canvas. On save, `content.ts` follows the text state and swaps each matching show operator for `[n] TJ` of the same advance. The fonts it can measure are simple fonts with `/Widths`, the standard 14 via `@cantoo/pdf-lib/standard-fonts`, and Type0 with Identity encoding. Anything it can't reach produces a warning, never a silent leftover.
+- **History.** `useEditorState` keeps undo/redo; changes with the same key merge (a drag uses a `gesture:n` key, sliders a property key within 1 s). Drafts are kept per `file.id:revision` in memory, so switching tools or tabs doesn't lose work.
+- **Pointer handling.** The canvas calls `preventDefault()` on pointer-down; without it the browser moves focus away from a text box the same click opens, closing it at once.
 
 ### Search
 `searchTools()` scores each word against the name (most), then `keywords`, then description and category; every word must match. `ToolSearch` (header, Ctrl/⌘K) and `ToolDirectory` (home) both use it. Give every new tool `keywords` for the words people would type.
@@ -274,6 +289,7 @@ If `sw.js` is the stand-in or the `<meta>` is missing, Vercel is serving Next's 
 | --- | --- |
 | `lib/metadata/__tests__/metadata.test.ts` | every format's audit and strip, verification reaching zero, lossless JPEG data, PDF leaks including revisions, "keep technical data" per format, HEIC/AVIF in-place strip decoding to identical pixels (fixtures in `heif/`, made by `make-fixtures.py`) |
 | `lib/__tests__/tools.test.ts` | tool search ranking |
+| `lib/pdf/__tests__/edit.test.ts` | content-stream parser, text removal keeping later text in place (spacing, TJ kerning, standard and Type0 fonts), unreachable-text warning, every annotation type without author/date, flattening, upright text on rotated pages, text selection |
 | `lib/pdf/__tests__/pdf.test.ts` | page ranges, merge, extract, rearrange, purging deleted pages |
 | `images.test.ts`, `compress.test.ts` | image layout and orientation maths, recompression rules and presets |
 | `security.test.ts` | protect/unlock round trips, real RC4/AES-128/AES-256 fixtures (`__tests__/encrypted/`, made with pypdf by `make-fixtures.py`), no plaintext leaks |
@@ -294,6 +310,7 @@ Fixtures (`metadata/__tests__/fixtures.ts`, `office/__tests__/fixtures.ts`) use 
 | `office.mjs` | all four office conversions, checked with mammoth, SheetJS and pdf.js |
 | `security.mjs` | protect, unlock, redact (including a pixel check that form fields are blacked out) |
 | `markup.mjs` | watermark, page numbers, e-sign placement accuracy, quick strokes don't crash the pad |
+| `edit.mjs` | every Edit PDF tool used with the mouse and keyboard; saved PDF checked: edited line gone from the bytes, flattened vs editable annotations, rotated page |
 | `images.mjs` | tool search (home filter, Ctrl+K), HEIC/AVIF sanitize with the category filters, keep technical data, HEIC to JPG, HEIC/AVIF to PDF |
 | `offline.mjs` | security headers and CSP, blocked uploads and scripts, manifest, precache, add-on on first use, offline use, update prompt, dev stand-in |
 
@@ -331,6 +348,8 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 - exifr can't read WebP; its `Options` type isn't exported (`Parameters<typeof exifr.parse>[1]`).
 - dnd-kit: `MouseSensor` (distance 5), `TouchSensor` (250 ms long press) and `KeyboardSensor` starting on Space; keyboard drags in e2e need about 200 ms between keys.
 - The header's search dialog puts an `<input>` in every page's DOM (hidden while closed). Scope e2e input locators to `main`.
+- Edit PDF's toolbar is sticky, so it covers the top of a scrolled page; `e2e/edit.mjs` scrolls each target point to mid-screen before clicking. Rotated pages are shown landscape (their displayed width is the page's height).
+- The signature pad's button is "Save signature" (it sits next to "Save PDF" in the editor).
 - `sizedJpeg()` in the metadata fixtures has no real image data: fine for metadata tests, not decodable. For a decodable JPEG, encode one with the browser's canvas (see `e2e/images.mjs`).
 - The HEIC fixtures are made with pillow-heif and Pillow **11.3** (AVIF writing needs ≥ 11.3; Pillow 12 conflicts with Streamlit on the owner's machine).
 - `serve` (used by e2e) matches header sources as globs, so `run.mjs` turns `/(.*)` into `/**`, and refuses to start if the CSP isn't being sent.
@@ -351,7 +370,8 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 
 - Scanned PDFs have no text to extract (no OCR).
 - Redacted pages become images.
-- E-Sign is visual, not a certificate signature.
+- E-Sign and Edit PDF signatures are visual, not certificate signatures (M17).
+- Edited text uses a standard font, not the document's embedded one; only horizontal left-to-right text can be edited in place; text inside form XObjects is covered but not removed (with a warning).
 - Office conversions are best effort; generated text covers Latin, Greek and Cyrillic only.
 - Merge and Split drop bookmarks and links between pages (Organize keeps them).
 - Metadata in images embedded in PDFs is only handled for plain JPEGs.

@@ -5,6 +5,8 @@ import { extractPages, mergePdfs, rearrangePages } from "@/lib/pdf/assemble";
 import { compressPdf, type CompressOptions } from "@/lib/pdf/compress";
 import { imagesToPdf, type ImagesToPdfOptions, type PreparedImage } from "@/lib/pdf/images";
 import { addPageNumbers, addWatermark, applySignatures, stampPageLabels, type LabelStyle, type PageNumberOptions, type Placement, type WatermarkOptions } from "@/lib/pdf/markup";
+import { applyEdits } from "@/lib/pdf/edit/apply";
+import type { EditRequest } from "@/lib/pdf/edit/types";
 import { applyRedactions } from "@/lib/pdf/redact";
 import { inspectEncryption, protectPdf, unlockPdf } from "@/lib/pdf/security";
 import { loadFonts } from "@/lib/office/fonts";
@@ -31,6 +33,7 @@ const api = {
   pageNumbers: async (bytes: Uint8Array, options: PageNumberOptions) => addPageNumbers(bytes, options, await loadFonts()),
   stampLabels: async (bytes: Uint8Array, labels: (string | null)[], style: LabelStyle) => stampPageLabels(bytes, labels, style, await loadFonts()),
   sign: async (bytes: Uint8Array, placements: Placement[], images: Record<string, Uint8Array>) => applySignatures(bytes, placements, images, await loadFonts()),
+  edit: async (bytes: Uint8Array, request: EditRequest) => applyEdits(bytes, request, await loadFonts()),
 };
 export type PdfWorkerApi = typeof api;
 

@@ -152,7 +152,7 @@ await page.mouse.move(pad.x + 40, pad.y + pad.height * 0.6);
 await page.mouse.down();
 for (let k = 0; k <= 24; k++) await page.mouse.move(pad.x + 40 + k * 9, pad.y + pad.height * (0.6 - 0.25 * Math.sin(k / 3)));
 await page.mouse.up();
-await page.getByRole("button", { name: "Save" }).click();
+await page.getByRole("button", { name: "Save signature" }).click();
 const placed = page.getByRole("button", { name: /^Signature/ });
 await placed.waitFor();
 await page.getByText(/1\s*placed on page 1/).waitFor();
@@ -178,7 +178,7 @@ await page.getByText(/2\s*placed on page 1/).waitFor();
 await page.getByRole("button", { name: "Create another signature" }).click();
 await page.getByRole("radio", { name: "Type" }).click();
 await page.getByRole("textbox", { name: "Your name" }).fill("Jane Doe");
-await page.getByRole("button", { name: "Save" }).click();
+await page.getByRole("button", { name: "Save signature" }).click();
 await page.getByText(/3\s*placed on page 1/).waitFor(); // a new signature is placed right away
 await page.getByRole("button", { name: /^Page 2/ }).first().click();
 await page.getByRole("button", { name: "Place signature 2 on page 2" }).click();

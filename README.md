@@ -14,13 +14,28 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 ## Features
 
-18 tools in five groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+19 tools in six groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
 - **Sanitize Metadata.** Opens PDFs, JPEGs, PNGs, WebPs and iPhone HEIC and AVIF photos and lists everything hidden inside, from the author, device and serial number to editing software, dates, XMP history and the GPS location a photo was taken at. Each item is marked **Sensitive**, **Revealing** or **Technical**, and you can filter the list to check one kind at a time. One click removes it all, or, for photos, everything except technical data. The file is then read again from scratch to confirm nothing is left.
   - **Photos** are cleaned without re-encoding, so the image stays pixel-for-pixel identical. You can choose to keep the colour profile, or to keep all technical data (exposure, aperture, ISO, focal length, resolution and colour profile) while removing who, where, when and which device. Rotated photos keep only their orientation flag so they still display upright.
   - **PDFs** lose their document info, XMP metadata, document IDs, application data (PieceInfo), comment authors and dates, attachments, JavaScript and auto-run actions, and earlier saved versions of the file. Photos embedded in the PDF have their own EXIF and GPS data stripped too.
+
+### Edit and sign
+
+- **Edit PDF.** One page for changing a document:
+  - **Edit the document's own text:** click a line and retype it. The original words are removed from the file, not just covered.
+  - **Add text** in a sans, serif or monospaced font, in any size and colour, bold or italic.
+  - **Mark up:** white-out, highlight, underline and strikethrough that snap to the text, a pen and a see-through marker.
+  - **Shapes and marks:** rectangles, ellipses, lines and arrows; check marks, crosses and dots for forms.
+  - **Pictures and signatures:** images (including HEIC) and drawn, typed or uploaded signatures.
+  - **Sticky notes** that open in any PDF reader.
+
+  Everything can be selected, moved, resized, restyled, duplicated or deleted, with undo and redo, keyboard shortcuts and zoom. Save it **flattened** (part of the page, looks the same everywhere) or **editable** (real annotations other PDF apps can change). No author name or date is written into anything you add.
+- **E-Sign PDF.** Draw a signature with a mouse, pen or finger, type it in a handwriting font, or upload a photo of one (the white background is removed). Drag it into place, resize it and add today's date. Signatures are kept only until you close the tab.
+- **Watermark.** Text or an image, in any of nine positions or repeated across the page, straight or angled, in any colour and opacity, on top of or behind the content, on all pages or the ones you choose. The live preview shows the real output.
+- **Page Numbers.** "1", "1 / 9", "Page 1 of 9" or your own format, in six positions, with a starting number and the option to skip the cover page.
 
 ### Organize
 
@@ -44,13 +59,9 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 - **Word to PDF.** Headings, bold, italic and underlined text, numbered and bulleted lists, tables, links, footnotes and images from a `.docx`, laid out on A4 or Letter pages.
 - **Excel to PDF.** `.xlsx`, `.xls`, `.ods` and `.csv`. Pick the sheets, page size and orientation. Hidden rows, columns and sheets are left out, merged cells and number formats are kept, and the header row repeats on every page.
 
-### Optimize and markup
+### Optimize
 
 - **Compress PDF.** Downscales and re-encodes photos to a target resolution (Light 200 DPI, Balanced 150 DPI, Strong 100 DPI) and repacks the file. Text and vector graphics stay sharp. Shows the size before and after with a side-by-side preview, and keeps the original if compressing wouldn't make it smaller.
-- **E-Sign PDF.** Draw a signature with a mouse, pen or finger, type it in a handwriting font, or upload a photo of one (the white background is removed). Drag it into place, resize it and add today's date. Signatures are kept only until you close the tab.
-- **Watermark.** Text or an image, in any of nine positions or repeated across the page, straight or angled, in any colour and opacity, on top of or behind the content, on all pages or the ones you choose. The live preview shows the real output.
-- **Page Numbers.** "1", "1 / 9", "Page 1 of 9" or your own format, in six positions, with a starting number and the option to skip the cover page.
-
 All of it works in light and dark themes, from a phone to a desktop, and offline once visited.
 
 | Organize Pages, dark theme | Watermark with its live preview |
@@ -136,6 +147,10 @@ Protect PDF uses AES-256 (the PDF 2.0 standard). If you don't set a separate own
 
 Unlock opens RC4, AES-128 and AES-256 files, restores the document info and IDs that the decrypting parser loses, and saves an unencrypted copy.
 
+## How editing text works
+
+Covering old words with a white box and typing on top would leave the original in the file, where it can still be selected, searched and copied. Edit PDF instead reads the page's content stream, follows the text position through every font, matrix and spacing change, and removes the operators that drew the line you changed. Each is replaced with an invisible move of exactly the same width, so the rest of the line doesn't shift. Glyph widths come from each font's own tables (or the standard font metrics). Text the editor can't reach, such as text inside a nested form, is still covered, and you're told it remains in the file and pointed to Redact. The new text uses a standard font close to the original; embedded fonts usually contain only the letters the document already uses, so they can't be reused for new words.
+
 ## Placing stamps on rotated pages
 
 Signatures, watermarks and page numbers are positioned as you see the page, whatever its rotation or crop box. [`stamp.ts`](src/lib/pdf/stamp.ts) converts between the page as displayed and the PDF's own coordinates for pages rotated 0, 90, 180 or 270 degrees, and the conversion is tested against pdf.js on every rotation. A signature dragged to a spot on screen lands within 1% of that spot in the downloaded file.
@@ -175,7 +190,7 @@ flowchart LR
 | Folder | What's in it |
 | --- | --- |
 | `src/lib/metadata` | Metadata audit and removal for PDF, JPEG, PNG, WebP, HEIC and AVIF; sensitivity rules |
-| `src/lib/pdf` | Merge, split, organize, images, compress, security, redaction, watermarks, page numbers and signatures; pdf.js loading and rasterising |
+| `src/lib/pdf` | Merge, split, organize, images, compress, security, redaction, watermarks, page numbers, signatures and the Edit PDF writer (`edit/`); pdf.js loading and rasterising |
 | `src/lib/office` | PDF text layout analysis, `.docx`/`.xlsx` writers, the PDF layout engine, Word and spreadsheet readers |
 | `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
@@ -253,7 +268,9 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 
 - **Scanned PDFs** have no text layer, so PDF to Word and PDF to Excel have nothing to extract. There is no OCR.
 - **Redacted pages become images.** That guarantees nothing survives underneath, but their text can no longer be selected.
-- **E-Sign adds a visible signature**, not a certificate-based digital signature.
+- **E-Sign and Edit PDF add a visible signature**, not a certificate-based digital signature.
+- **Edited text uses a standard font** (a sans, serif or monospaced face close to the original), not the document's own embedded font. Only left-to-right horizontal text can be edited in place.
+- **White-out covers**; it doesn't remove what's underneath. Use Redact for that.
 - **Word and Excel to PDF are best effort.** Complex layouts, text boxes, shapes and charts aren't reproduced. Text covers Latin, Greek and Cyrillic; other scripts show as "?" with a warning.
 - **Merge and Split** don't carry over bookmarks or links between pages. Organize keeps them.
 - **HEIC photos** need a one-time download of the decoder (about 1.5 MB) the first time you preview or convert one; auditing and stripping don't. **AVIF** uses the browser's own decoder, so it needs a current browser.
@@ -271,7 +288,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M8** E-sign, watermark and page numbers
 - [x] **M9** Security headers and CSP, offline PWA, documentation and CI (v1.0.0)
 - [x] **M10** HEIC and AVIF everywhere, HEIC to JPG, Sensitive/Revealing/Technical filters, "keep technical data", tool search, E-Sign crash fix
-- [ ] **M11** Edit PDF: one editor for text, images, shapes, highlights, drawing, check marks, signatures and notes
+- [x] **M11** Edit PDF: one editor for text, images, shapes, highlights, drawing, check marks, signatures and notes
 - [ ] **M12** Fill PDF forms, and page tools (rotate, delete, insert, crop, resize, headers and footers, Bates numbering, grayscale, bookmarks, metadata editor)
 - [ ] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
 - [ ] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker

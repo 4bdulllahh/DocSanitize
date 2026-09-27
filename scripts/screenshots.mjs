@@ -159,7 +159,7 @@ async function open(colorScheme, viewport = { width: 1440, height: 900 }, extra 
   await page.locator('input[type="file"]').first().setInputFiles([file("agreement.pdf")]);
   await page.getByRole("radio", { name: "Type" }).click();
   await page.getByRole("textbox", { name: "Your name" }).fill("Jane Doe");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Save signature", exact: true }).click();
   // A new signature lands near the foot of the page.
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.waitForTimeout(500);
