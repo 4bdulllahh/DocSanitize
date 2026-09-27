@@ -164,15 +164,19 @@ function DrawPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
           aria-label="Signature pad: draw your signature with a mouse, pen or finger"
           role="img"
           className="block aspect-[5/2] w-full cursor-crosshair touch-none"
+          // Read the event before calling setStrokes: React may run an updater later, during render,
+          // when the event's currentTarget is already null (the E-Sign crash in 1.0.0).
           onPointerDown={(e) => {
+            if (e.button !== 0) return;
             e.currentTarget.setPointerCapture(e.pointerId);
             drawing.current = true;
-            setStrokes((s) => [...s, { ink, points: [point(e)] }]);
+            const p = point(e);
+            setStrokes((s) => [...s, { ink, points: [p] }]);
           }}
           onPointerMove={(e) => {
             if (!drawing.current) return;
             const p = point(e);
-            setStrokes((s) => [...s.slice(0, -1), { ...s[s.length - 1], points: [...s[s.length - 1].points, p] }]);
+            setStrokes((s) => (s.length ? [...s.slice(0, -1), { ...s[s.length - 1], points: [...s[s.length - 1].points, p] }] : s));
           }}
           onPointerUp={() => (drawing.current = false)}
           onPointerCancel={() => (drawing.current = false)}

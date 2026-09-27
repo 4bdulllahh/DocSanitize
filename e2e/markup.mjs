@@ -133,7 +133,21 @@ step("page numbers: cover skipped; 'Page n of 2' upright at the bottom centre, i
 // ---------------------------------------------------------------- E-Sign
 await go("sign");
 await page.getByRole("img", { name: /Signature pad/ }).waitFor();
-const pad = await page.getByRole("img", { name: /Signature pad/ }).boundingBox();
+// Quick strokes in one task make React run the stroke updater during render, after the pointer
+// event is gone; 1.0.0 read the event there and crashed the page ("This page couldn't load").
+await page.evaluate(() => {
+  const pad = document.querySelector('canvas[aria-label^="Signature pad"]');
+  const r = pad.getBoundingClientRect();
+  const fire = (type, x, y) => pad.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, button: type === "pointermove" ? -1 : 0, buttons: 1, isPrimary: true, clientX: r.left + x, clientY: r.top + y }));
+  for (let k = 0; k < 3; k++) {
+    fire("pointerdown", 40 + k * 60, 60);
+    fire("pointermove", 80 + k * 60, 80);
+    fire("pointerup", 80 + k * 60, 80);
+  }
+});
+await page.getByRole("button", { name: "Clear the pad" }).click();
+step("sign: quick strokes don't crash the signature pad");
+const pad =await page.getByRole("img", { name: /Signature pad/ }).boundingBox();
 await page.mouse.move(pad.x + 40, pad.y + pad.height * 0.6);
 await page.mouse.down();
 for (let k = 0; k <= 24; k++) await page.mouse.move(pad.x + 40 + k * 9, pad.y + pad.height * (0.6 - 0.25 * Math.sin(k / 3)));

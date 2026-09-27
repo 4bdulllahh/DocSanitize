@@ -107,7 +107,8 @@ function Protector({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
         type="checkbox"
         checked={allow[key]}
         onChange={(e) => {
-          setAllow((prev) => ({ ...prev, [key]: e.target.checked }));
+          const { checked } = e.target;
+          setAllow((prev) => ({ ...prev, [key]: checked }));
           setOutput(null);
         }}
         className="size-4 shrink-0 accent-brand"
