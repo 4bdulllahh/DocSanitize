@@ -21,6 +21,19 @@ describe("tool search", () => {
     expect(searchTools("iphone").map((t) => t.id).slice(0, 2).sort()).toEqual(["heic-to-jpg", "sanitize"]);
   });
 
+  it("finds the page and form tools", () => {
+    expect(top("rotate")).toBe("rotate");
+    expect(top("blank")).toBe("remove-blank");
+    expect(top("fill form")).toBe("fill-pdf");
+    expect(top("bates")).toBe("bates");
+    expect(top("black and white")).toBe("grayscale");
+    expect(top("a4")).toBe("resize-pages");
+    expect(top("table of contents")).toBe("bookmarks");
+    expect(top("header")).toBe("header-footer");
+    expect(top("delete pages")).toBe("delete-pages");
+    expect(top("trim margins")).toBe("crop");
+  });
+
   it("needs every word to match, and lists all tools for an empty query", () => {
     expect(searchTools("xyzzy")).toEqual([]);
     expect(searchTools("merge xyzzy")).toEqual([]);

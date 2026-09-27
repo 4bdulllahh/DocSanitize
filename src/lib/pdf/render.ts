@@ -3,15 +3,19 @@ import { ProcessingError } from "../errors";
 
 type Pdfjs = typeof import("pdfjs-dist");
 
-let pdfjsPromise: Promise<Pdfjs> | null = null;
+let pdfjsPromise: Promise<{ pdfjs: Pdfjs; worker: InstanceType<Pdfjs["PDFWorker"]> }> | null = null;
 
-/** Load pdf.js on first use (it's large) and point it at our bundled worker. */
-function loadPdfjs(): Promise<Pdfjs> {
+/**
+ * Load pdf.js on first use (it's large) with one worker for every document. The worker is passed
+ * to each getDocument call rather than set as GlobalWorkerOptions.workerPort: pdf.js only takes
+ * ownership of workers it creates itself, and an owned, shared worker is torn down whenever any
+ * one document is closed, so a document opened at that moment failed ("the worker is being
+ * destroyed"), e.g. when switching tools.
+ */
+function loadPdfjs() {
   pdfjsPromise ??= import("pdfjs-dist").then((pdfjs) => {
-    pdfjs.GlobalWorkerOptions.workerPort = new Worker(new URL("../../workers/pdfjs.worker.ts", import.meta.url), {
-      type: "module",
-    });
-    return pdfjs;
+    const port = new Worker(new URL("../../workers/pdfjs.worker.ts", import.meta.url), { type: "module" });
+    return { pdfjs, worker: pdfjs.PDFWorker.create({ port }) };
   });
   return pdfjsPromise;
 }
@@ -27,8 +31,9 @@ export interface OpenedPdf {
 
 /** Open a PDF for rendering. The caller must call `destroy()` when done. */
 export async function openPdfForRendering(blob: Blob): Promise<OpenedPdf> {
-  const pdfjs = await loadPdfjs();
+  const { pdfjs, worker } = await loadPdfjs();
   const task = pdfjs.getDocument({
+    worker,
     // A private copy: pdf.js transfers the buffer to its worker.
     data: new Uint8Array(await blob.arrayBuffer()),
     cMapUrl: `${ASSETS}/cmaps/`,

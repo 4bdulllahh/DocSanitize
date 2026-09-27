@@ -175,8 +175,8 @@ export async function addPageNumbers(bytes: Uint8Array, options: PageNumberOptio
   return savePdf(doc);
 }
 
-async function drawLabels(doc: PDFDocument, labels: (string | null)[], style: LabelStyle, fontFiles: Fonts) {
-  const { regular: font } = await embedStampFonts(doc, fontFiles);
+async function drawLabels(doc: PDFDocument, labels: (string | null)[], style: LabelStyle, fontFiles: Fonts, embedded?: PDFFont) {
+  const font = embedded ?? (await embedStampFonts(doc, fontFiles)).regular;
   const color = hexColor(style.color);
   doc.getPages().forEach((page, i) => {
     const label = labels[i];
@@ -241,4 +241,84 @@ export async function applySignatures(bytes: Uint8Array, placements: Placement[]
     }
   }
   return savePdf(doc);
+}
+
+// ---------------------------------------------------------------------------- Headers, footers and Bates numbers
+
+export type Slot = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
+export const SLOTS: Slot[] = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"];
+
+export interface HeaderFooterOptions {
+  /** Text per position, with {page}, {pages}, {date} and {file}. Empty positions are skipped. */
+  slots: Partial<Record<Slot, string>>;
+  size: number;
+  color: string;
+  margin: number;
+  /** Number given to the first page for {page}. */
+  start: number;
+  /** 0-based pages that get the header and footer; empty means every page. */
+  pages?: number[];
+  /** Filled in by the page (so the user's locale and file name are used). */
+  date: string;
+  file: string;
+  /** Page count for {pages} when stamping only part of a document (the live preview). */
+  total?: number;
+}
+
+/** The text of one slot on one page. */
+export function fillTemplate(template: string, values: { page: number; pages: number; date: string; file: string }): string {
+  return template
+    .replace(/\{page\}/g, String(values.page))
+    .replace(/\{pages\}/g, String(values.pages))
+    .replace(/\{date\}/g, values.date)
+    .replace(/\{file\}/g, values.file);
+}
+
+export async function addHeaderFooter(bytes: Uint8Array, options: HeaderFooterOptions, fontFiles: Fonts): Promise<Uint8Array> {
+  const slots = SLOTS.filter((s) => options.slots[s]?.trim());
+  if (slots.length === 0) throw new ProcessingError("Type a header or footer first.", "invalid");
+  const doc = await loadPdf(bytes);
+  const count = doc.getPageCount();
+  const chosen = new Set(options.pages?.length ? options.pages : Array.from({ length: count }, (_, i) => i));
+  const { regular: font } = await embedStampFonts(doc, fontFiles);
+  for (const slot of slots) {
+    const labels = Array.from({ length: count }, (_, i) =>
+      chosen.has(i) ? fillTemplate(options.slots[slot]!, { page: options.start + i, pages: options.start + (options.total ?? count) - 1, date: options.date, file: options.file }) : null,
+    );
+    await drawLabels(doc, labels, { position: slot, size: options.size, color: options.color, margin: options.margin }, fontFiles, font);
+  }
+  return savePdf(doc);
+}
+
+export interface BatesOptions extends LabelStyle {
+  prefix: string;
+  suffix: string;
+  /** First number. */
+  start: number;
+  /** Zero-padded to this many digits. */
+  digits: number;
+}
+
+export function batesLabel(options: Pick<BatesOptions, "prefix" | "suffix" | "digits">, n: number): string {
+  return `${options.prefix}${String(n).padStart(options.digits, "0")}${options.suffix}`;
+}
+
+/**
+ * Bates-number a set of documents in order: numbering continues from one file to the next.
+ * Returns each file with its first and last number.
+ */
+export async function addBatesNumbers(files: Uint8Array[], options: BatesOptions, fontFiles: Fonts): Promise<{ bytes: Uint8Array; first: string; last: string }[]> {
+  if (!Number.isInteger(options.start) || options.start < 0) throw new ProcessingError("The first number must be a whole number, 0 or more.", "invalid");
+  if (!Number.isInteger(options.digits) || options.digits < 1 || options.digits > 12) throw new ProcessingError("Use between 1 and 12 digits.", "invalid");
+  let next = options.start;
+  const out: { bytes: Uint8Array; first: string; last: string }[] = [];
+  for (const bytes of files) {
+    const doc = await loadPdf(bytes);
+    const count = doc.getPageCount();
+    const labels = Array.from({ length: count }, (_, i) => batesLabel(options, next + i));
+    await drawLabels(doc, labels, options, fontFiles);
+    out.push({ bytes: await savePdf(doc), first: labels[0], last: labels[count - 1] });
+    next += count;
+  }
+  return out;
 }

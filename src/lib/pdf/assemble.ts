@@ -1,10 +1,24 @@
-import { degrees, PDFName, PDFNumber, PDFRef } from "@cantoo/pdf-lib";
+import { degrees, PDFDict, PDFName, PDFNumber, PDFRef, type PDFDocument } from "@cantoo/pdf-lib";
 import { ProcessingError } from "../errors";
 import { collectGarbage, createPdf, loadPdf, savePdf } from "./load";
 
 export interface NamedPdf {
   name: string;
   bytes: Uint8Array;
+}
+
+/**
+ * Empty every page object that isn't in the document's page tree, then drop what's unreachable.
+ * copyPages follows links and form fields to other pages of the source and copies those whole
+ * pages (content included) as hidden objects; this keeps them out of the output.
+ */
+export function pruneStrayPages(doc: PDFDocument) {
+  const inTree = new Set(doc.getPages().map((p) => p.ref.toString()));
+  for (const [ref, object] of doc.context.enumerateIndirectObjects()) {
+    if (!(object instanceof PDFDict) || object.get(PDFName.of("Type")) !== PDFName.of("Page") || inTree.has(ref.toString())) continue;
+    for (const key of object.keys()) if (key !== PDFName.of("Type")) object.delete(key);
+  }
+  collectGarbage(doc);
 }
 
 /** Combine documents in order into one new PDF. */
@@ -16,6 +30,7 @@ export async function mergePdfs(files: NamedPdf[]): Promise<Uint8Array> {
     const pages = await out.copyPages(src, src.getPageIndices());
     for (const page of pages) out.addPage(page);
   }
+  pruneStrayPages(out);
   return savePdf(out);
 }
 
@@ -30,6 +45,7 @@ export async function extractPages(bytes: Uint8Array, groups: number[][]): Promi
     const out = await createPdf();
     const pages = await out.copyPages(src, group);
     for (const page of pages) out.addPage(page);
+    pruneStrayPages(out);
     results.push(await savePdf(out));
   }
   return results;

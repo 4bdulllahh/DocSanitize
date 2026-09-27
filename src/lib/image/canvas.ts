@@ -61,3 +61,30 @@ export const reencodeJpeg: JpegReencoder = async (jpeg, maxSide, quality) => {
     bitmap.close();
   }
 };
+
+/**
+ * Re-encode a JPEG from a PDF in gray (for Grayscale). EXIF is ignored as PDF viewers ignore it.
+ * Returns null if the browser can't decode it.
+ */
+export async function jpegToGray(jpeg: Uint8Array): Promise<Uint8Array | null> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await decodeImage(await stripJpeg(jpeg, DEFAULT_STRIP_OPTIONS, false), "image/jpeg");
+  } catch {
+    return null;
+  }
+  try {
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0);
+    const image = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    const d = image.data;
+    for (let i = 0; i < d.length; i += 4) d[i] = d[i + 1] = d[i + 2] = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+    ctx.putImageData(image, 0, 0);
+    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.85 });
+    return new Uint8Array(await blob.arrayBuffer());
+  } finally {
+    bitmap.close();
+  }
+}

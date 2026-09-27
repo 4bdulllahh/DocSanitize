@@ -1,11 +1,16 @@
 /// <reference lib="webworker" />
-import { reencodeJpeg } from "@/lib/image/canvas";
+import { jpegToGray, reencodeJpeg } from "@/lib/image/canvas";
 import { prepareImage, type ImageInput } from "@/lib/image/prepare";
 import { extractPages, mergePdfs, rearrangePages } from "@/lib/pdf/assemble";
 import { compressPdf, type CompressOptions } from "@/lib/pdf/compress";
 import { imagesToPdf, type ImagesToPdfOptions, type PreparedImage } from "@/lib/pdf/images";
-import { addPageNumbers, addWatermark, applySignatures, stampPageLabels, type LabelStyle, type PageNumberOptions, type Placement, type WatermarkOptions } from "@/lib/pdf/markup";
+import { addBatesNumbers, addHeaderFooter, addPageNumbers, addWatermark, applySignatures, stampPageLabels, type BatesOptions, type HeaderFooterOptions, type LabelStyle, type PageNumberOptions, type Placement, type WatermarkOptions } from "@/lib/pdf/markup";
 import { applyEdits } from "@/lib/pdf/edit/apply";
+import { flattenPdf } from "@/lib/pdf/flatten";
+import { fillForm, readForm, type FieldValues, type FillOptions } from "@/lib/pdf/forms";
+import { grayscalePdf } from "@/lib/pdf/grayscale";
+import { readBookmarks, readInfo, writeBookmarks, writeInfo } from "@/lib/pdf/info";
+import { cropPages, deletePages, insertPages, resizePages, rotatePages } from "@/lib/pdf/pages";
 import type { EditRequest } from "@/lib/pdf/edit/types";
 import { applyRedactions } from "@/lib/pdf/redact";
 import { inspectEncryption, protectPdf, unlockPdf } from "@/lib/pdf/security";
@@ -34,6 +39,21 @@ const api = {
   stampLabels: async (bytes: Uint8Array, labels: (string | null)[], style: LabelStyle) => stampPageLabels(bytes, labels, style, await loadFonts()),
   sign: async (bytes: Uint8Array, placements: Placement[], images: Record<string, Uint8Array>) => applySignatures(bytes, placements, images, await loadFonts()),
   edit: async (bytes: Uint8Array, request: EditRequest) => applyEdits(bytes, request, await loadFonts()),
+  rotate: rotatePages,
+  deletePages,
+  insert: insertPages,
+  crop: cropPages,
+  resize: resizePages,
+  headerFooter: async (bytes: Uint8Array, options: HeaderFooterOptions) => addHeaderFooter(bytes, options, await loadFonts()),
+  bates: async (files: Uint8Array[], options: BatesOptions) => addBatesNumbers(files, options, await loadFonts()),
+  flatten: flattenPdf,
+  grayscale: (bytes: Uint8Array) => grayscalePdf(bytes, jpegToGray),
+  readInfo,
+  writeInfo,
+  readBookmarks,
+  writeBookmarks,
+  readForm,
+  fillForm: async (bytes: Uint8Array, values: FieldValues, options: FillOptions) => fillForm(bytes, values, options, await loadFonts()),
 };
 export type PdfWorkerApi = typeof api;
 

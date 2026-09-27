@@ -14,13 +14,14 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 ## Features
 
-19 tools in six groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+32 tools in six groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
 - **Sanitize Metadata.** Opens PDFs, JPEGs, PNGs, WebPs and iPhone HEIC and AVIF photos and lists everything hidden inside, from the author, device and serial number to editing software, dates, XMP history and the GPS location a photo was taken at. Each item is marked **Sensitive**, **Revealing** or **Technical**, and you can filter the list to check one kind at a time. One click removes it all, or, for photos, everything except technical data. The file is then read again from scratch to confirm nothing is left.
   - **Photos** are cleaned without re-encoding, so the image stays pixel-for-pixel identical. You can choose to keep the colour profile, or to keep all technical data (exposure, aperture, ISO, focal length, resolution and colour profile) while removing who, where, when and which device. Rotated photos keep only their orientation flag so they still display upright.
   - **PDFs** lose their document info, XMP metadata, document IDs, application data (PieceInfo), comment authors and dates, attachments, JavaScript and auto-run actions, and earlier saved versions of the file. Photos embedded in the PDF have their own EXIF and GPS data stripped too.
+- **Edit Metadata.** Set a PDF's title, author, subject, keywords, creator, producer and dates to exactly what you choose; empty fields are removed, and so is the XMP copy that would contradict them.
 
 ### Edit and sign
 
@@ -33,6 +34,11 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
   - **Sticky notes** that open in any PDF reader.
 
   Everything can be selected, moved, resized, restyled, duplicated or deleted, with undo and redo, keyboard shortcuts and zoom. Save it **flattened** (part of the page, looks the same everywhere) or **editable** (real annotations other PDF apps can change). No author name or date is written into anything you add.
+- **Fill PDF Form.** Fillable forms get a control over every field (text, check boxes, radio buttons, drop-downs and lists), mirrored in a list beside the page for keyboard and screen-reader users. Save it still fillable or flattened. Text in any Latin, Greek or Cyrillic script. PDFs without fields point you to Edit PDF.
+- **Header & Footer.** Six positions (left, centre and right at the top and bottom) with `{page}`, `{pages}`, `{date}` and `{file}`, a live preview, and the choice of pages.
+- **Bates Numbering.** One numbering sequence (prefix, zero-padded number, suffix) across every open PDF in tab order, as a ZIP.
+- **Flatten PDF.** Draws filled-in form fields, comments, highlights and stamps into the page and removes them, so they can't be changed. Links keep working.
+- **Bookmarks.** See, add, rename, re-target, nest and reorder a PDF's bookmarks.
 - **E-Sign PDF.** Draw a signature with a mouse, pen or finger, type it in a handwriting font, or upload a photo of one (the white background is removed). Drag it into place, resize it and add today's date. Signatures are kept only until you close the tab.
 - **Watermark.** Text or an image, in any of nine positions or repeated across the page, straight or angled, in any colour and opacity, on top of or behind the content, on all pages or the ones you choose. The live preview shows the real output.
 - **Page Numbers.** "1", "1 / 9", "Page 1 of 9" or your own format, in six positions, with a starting number and the option to skip the cover page.
@@ -41,6 +47,10 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 - **Merge PDF.** Combine files in any order; drag to reorder.
 - **Split PDF.** Pick pages on a thumbnail grid, type ranges (`1-3, 5, 8-`), or split into a new file every N pages or every page. Several files download as a ZIP.
+- **Rotate PDF**, **Delete Pages** and **Insert Pages** (blank pages in any size, or pages from another open PDF) at a click, each on a page grid.
+- **Crop PDF.** Drag a frame (or type the margins) for one page, some or all; or remove white margins automatically, page by page.
+- **Resize Pages.** A4, Letter, Legal, A3, A5 or a custom size, keeping each page's orientation; content is scaled to fit and centred, and comments and links move with it.
+- **Remove Blank Pages.** Finds pages with no text and next to no ink, including scanned ones, and removes the ones you confirm.
 - **Organize Pages.** A drag-and-drop grid of page thumbnails: reorder, rotate and delete pages, select several with Ctrl or Shift, and undo or redo every step. Works with the keyboard and on touch screens.
 
 ### Security
@@ -61,6 +71,7 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 ### Optimize
 
+- **Grayscale PDF.** Rewrites colours in text, drawings, forms and comments as grays and converts photos and other images, which usually makes the file smaller too.
 - **Compress PDF.** Downscales and re-encodes photos to a target resolution (Light 200 DPI, Balanced 150 DPI, Strong 100 DPI) and repacks the file. Text and vector graphics stay sharp. Shows the size before and after with a side-by-side preview, and keeps the original if compressing wouldn't make it smaller.
 All of it works in light and dark themes, from a phone to a desktop, and offline once visited.
 
@@ -270,7 +281,9 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **Redacted pages become images.** That guarantees nothing survives underneath, but their text can no longer be selected.
 - **E-Sign and Edit PDF add a visible signature**, not a certificate-based digital signature.
 - **Edited text uses a standard font** (a sans, serif or monospaced face close to the original), not the document's own embedded font. Only left-to-right horizontal text can be edited in place.
-- **White-out covers**; it doesn't remove what's underneath. Use Redact for that.
+- **White-out and cropping hide**; they don't remove what's underneath or outside. Use Redact for that.
+- **Grayscale** rewrites colours directly. Where it can't (gradients, spot colours, patterns, unusual images) the page gets a "saturation" blend layer that current readers and printers show in gray, but the original colour data stays in the file.
+- **Dynamic XFA forms** (Adobe LiveCycle) aren't supported; standard fields in them are filled and the XFA part is removed.
 - **Word and Excel to PDF are best effort.** Complex layouts, text boxes, shapes and charts aren't reproduced. Text covers Latin, Greek and Cyrillic; other scripts show as "?" with a warning.
 - **Merge and Split** don't carry over bookmarks or links between pages. Organize keeps them.
 - **HEIC photos** need a one-time download of the decoder (about 1.5 MB) the first time you preview or convert one; auditing and stripping don't. **AVIF** uses the browser's own decoder, so it needs a current browser.
@@ -289,7 +302,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M9** Security headers and CSP, offline PWA, documentation and CI (v1.0.0)
 - [x] **M10** HEIC and AVIF everywhere, HEIC to JPG, Sensitive/Revealing/Technical filters, "keep technical data", tool search, E-Sign crash fix
 - [x] **M11** Edit PDF: one editor for text, images, shapes, highlights, drawing, check marks, signatures and notes
-- [ ] **M12** Fill PDF forms, and page tools (rotate, delete, insert, crop, resize, headers and footers, Bates numbering, grayscale, bookmarks, metadata editor)
+- [x] **M12** Fill PDF forms, and page tools (rotate, delete, insert, crop, resize, remove blank pages, headers and footers, Bates numbering, flatten, grayscale, bookmarks, metadata editor)
 - [ ] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
 - [ ] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker
 - [ ] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs

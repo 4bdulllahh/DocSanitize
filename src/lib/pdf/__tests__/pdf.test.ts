@@ -76,6 +76,23 @@ describe("extract", () => {
     expect(await Promise.all(parts.map(widths))).toEqual([[100, 101], [104], [105, 102]]);
   });
 
+  it("doesn't copy pages that links on the extracted pages point to", async () => {
+    // Before 2.0 a link from page 1 to page 3 made copyPages bring page 3 (content and all) along as a hidden object.
+    const doc = await PDFDocument.load(await numberedPdf(3));
+    const [first, , third] = doc.getPages();
+    const link = doc.context.register(doc.context.obj({ Type: "Annot", Subtype: "Link", Rect: [0, 0, 50, 50], Dest: [third.ref, PDFName.of("Fit")] }));
+    first.node.set(PDFName.of("Annots"), doc.context.obj([link]));
+    const [out] = await extractPages(await doc.save(), [[0]]);
+    const result = await PDFDocument.load(out);
+    const pageObjects = result.context.enumerateIndirectObjects().filter(([, o]) => o instanceof PDFDict && o.get(PDFName.of("Type")) === PDFName.of("Page"));
+    expect(result.getPageCount()).toBe(1);
+    // The link's target survives only as an empty page object, with no content or resources.
+    const inTree = new Set(result.getPages().map((p) => p.ref.toString()));
+    const stray = pageObjects.filter(([ref]) => !inTree.has(ref.toString())).map(([, o]) => o as PDFDict);
+    expect(stray.every((o) => o.keys().length === 1)).toBe(true);
+    expect(result.context.enumerateIndirectObjects().length).toBeLessThan((await PDFDocument.load(await doc.save())).context.enumerateIndirectObjects().length);
+  });
+
   it("rejects out-of-range pages", async () => {
     await expect(extractPages(await numberedPdf(2), [[5]])).rejects.toMatchObject({ code: "invalid" });
   });

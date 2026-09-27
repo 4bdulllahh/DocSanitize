@@ -1,24 +1,21 @@
 "use client";
 
-import { useState, type ChangeEvent, type ReactNode } from "react";
+import { useState, type ChangeEvent } from "react";
 import clsx from "clsx";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { ImagePlus, ListOrdered, LoaderCircle, Stamp, X } from "lucide-react";
-import { usePdfDocument } from "@/components/pdf/usePdfDocument";
 import { errorMessage } from "@/lib/errors";
 import { acceptFor } from "@/lib/files";
 import { asPngOrJpeg } from "@/lib/image/convert";
 import { numberPagesOfFile, stampLabelsOnFile, watermarkFile } from "@/lib/pdf/client";
 import { pageLabels, type PageNumberOptions, type WatermarkOptions } from "@/lib/pdf/markup";
-import { parsePageRanges } from "@/lib/pdf/ranges";
-import { withSuffix } from "@/lib/zip";
 import { toast } from "@/store/toast";
-import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
+import type { WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
 import { AnchorPicker, ColorField, Field, INPUT, Segmented, Slider, type AnchorId } from "../shared/controls";
-import { OutputCard, PRIMARY, SECONDARY, type OutputFile } from "../shared/OutputCard";
-import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
+import { OutputCard, PRIMARY, SECONDARY } from "../shared/OutputCard";
 import { StampPreview, useStampPreview } from "../shared/StampPreview";
+import { DocGate, Layout, useApply, usePageField } from "../shared/toolkit";
 
 const COLORS = [
   { value: "#6b7280", name: "Grey" },
@@ -27,53 +24,6 @@ const COLORS = [
   { value: "#111111", name: "Black" },
   { value: "#047857", name: "Green" },
 ];
-
-/** Parse an optional page-range field; empty means every page. */
-function usePageField(pageCount: number) {
-  const [text, setText] = useState("");
-  const parsed = text.trim() ? parsePageRanges(text, pageCount) : null;
-  const pages = parsed?.ok ? [...new Set(parsed.groups.flat())] : undefined;
-  return { text, setText, pages, error: parsed && !parsed.ok ? parsed.error : undefined };
-}
-
-/** Runs the final stamping for the whole file. */
-function useApply(file: WorkspaceFile, suffix: string) {
-  const [busy, setBusy] = useState(false);
-  const [output, setOutput] = useState<OutputFile | null>(null);
-  const apply = async (make: () => Promise<Blob>) => {
-    const { updateFile } = useWorkspaceStore.getState();
-    setBusy(true);
-    setOutput(null);
-    updateFile(file.id, { status: "processing", error: undefined });
-    try {
-      setOutput({ name: withSuffix(file.name, suffix), blob: await make() });
-      updateFile(file.id, { status: "idle" });
-    } catch (error) {
-      updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Couldn't update the PDF", description: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return { busy, output, setOutput, apply };
-}
-
-function Layout({ preview, actions }: { preview: ReactNode; actions: ReactNode }) {
-  return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="min-w-0">{preview}</div>
-      <div className="order-first space-y-4 lg:sticky lg:top-20 lg:order-0">{actions}</div>
-    </div>
-  );
-}
-
-/** Opens the PDF, showing loading and error states, then renders the tool with it. */
-function DocGate({ file, children }: { file: WorkspaceFile; children: (doc: PDFDocumentProxy) => ReactNode }) {
-  const pdf = usePdfDocument(file.file);
-  if (pdf.status === "loading") return <PdfLoading />;
-  if (pdf.status === "error") return <PdfLoadError message={pdf.message} code={pdf.code} />;
-  return children(pdf.doc);
-}
 
 // ---------------------------------------------------------------------------- Watermark
 
@@ -154,7 +104,7 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
   const ready = kind === "text" ? text.trim().length > 0 : image !== null;
   return (
     <Layout
-      preview={<StampPreview {...preview} />}
+      main={<StampPreview {...preview} />}
       actions={
         <>
           <section className="rounded-xl border border-line bg-surface p-5">
@@ -289,7 +239,7 @@ function Numberer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
 
   return (
     <Layout
-      preview={<StampPreview {...preview} />}
+      main={<StampPreview {...preview} />}
       actions={
         <>
           <section className="rounded-xl border border-line bg-surface p-5">

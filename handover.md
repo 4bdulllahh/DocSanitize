@@ -1,6 +1,6 @@
 # DocSanitize: maintainer guide
 
-_Last updated 2026-09-28 · version 1.0.0 plus milestones 10–11 of the v2 roadmap (M10–M19, see the README) · live at https://docsanitize.vercel.app_
+_Last updated 2026-09-28 · version 1.0.0 plus milestones 10–12 of the v2 roadmap (M10–M19, see the README) · live at https://docsanitize.vercel.app_
 
 This guide is for whoever changes DocSanitize next, whether a person or an AI assistant. The [README](README.md) says what the app does. This file explains how the code fits together, the rules it must keep, how to make common changes, and the traps already found. Read sections 1 to 3 before changing anything.
 
@@ -13,9 +13,9 @@ This guide is for whoever changes DocSanitize next, whether a person or an AI as
    ```bash
    npm install
    npx playwright-core install chromium        # once per machine, for the browser tests
-   npm run lint && npm test                     # 133 unit tests
+   npm run lint && npm test                     # 151 unit tests
    npm run build && npx tsc --noEmit            # tsc needs the route types the build generates
-   npm run e2e                                  # 10 browser suites against ./out
+   npm run e2e                                  # 11 browser suites against ./out
    ```
 3. **Deploying is pushing.** Vercel builds `main` on every push, and GitHub Actions runs the same checks (`.github/workflows/ci.yml`). After a push, check the live site (section 7.8).
 4. **Working with Claude:** the owner builds in milestones. At the end of each one, stop and ask whether to continue. When the next milestone is approved, commit the finished one and push it to `origin/main`. Don't commit at other times unless asked. Commit messages end with a `Co-Authored-By` line.
@@ -30,7 +30,7 @@ These are the product's promises. Every change must keep them, and the tests enf
 | --- | --- |
 | **No file ever leaves the device.** No uploads, and no runtime requests except the site's own files. | No CDNs, analytics or font services; `next/font` self-hosts fonts and pdf.js assets are copied into `public/pdfjs`. The CSP has `connect-src 'self'`. Every e2e suite asserts that the only origin contacted is localhost. |
 | **Never add metadata to users' files.** | Load PDFs with `loadPdf()` (`updateMetadata: false`), create them with `createPdf()`, save them with `savePdf()`. The `.docx` and `.xlsx` writers write no `docProps`. JPEGs embedded in PDFs go through `stripJpeg` first. |
-| **Removed means gone.** | pdf-lib writes every parsed object, even unreachable ones, so call `collectGarbage(doc)` after deleting anything. `savePdf` always rewrites the file (never an incremental append) and uses object streams. Redaction rasterises the page. |
+| **Removed means gone.** | pdf-lib writes every parsed object, even unreachable ones, so call `collectGarbage(doc)` after deleting anything. After `copyPages`, call `pruneStrayPages(doc)` (`assemble.ts`): links and fields on copied pages make pdf-lib copy the pages they point to, content and all. `savePdf` always rewrites the file (never an incremental append) and uses object streams. Redaction rasterises the page. |
 | **Nothing is stored.** | Files, results and signatures live in memory (Zustand), never in localStorage or IndexedDB. The service worker caches app files only, and `e2e/offline.mjs` checks that. The only thing in localStorage is the theme choice. |
 
 ---
@@ -60,6 +60,9 @@ These are the product's promises. Every change must keep them, and the tests enf
 | Link → MP4/MP3 | Not built: it needs a server and breaks the no-upload promise. M16 is a *local* media converter (ffmpeg.wasm add-on) instead |
 | Keep technical data | An allow-list of EXIF tag numbers (`technicalOnlyExif` in `exif.ts`), never a classifier-based filter |
 | Edit text | Remove the original text operators from the content stream (never just cover them); new text in Liberation Sans / Times / Courier |
+| Crop | Sets the CropBox only (content outside stays; the UI says so and points to Redact) |
+| Grayscale | Rewrite colour operators and images; a `/Saturation` blend layer only on pages with something that can't be rewritten |
+| Resize pages | In place: wrap content in `q s 0 0 s tx ty cm … Q`, new MediaBox, annotation geometry transformed |
 | Edit PDF output | User picks flattened or editable annotations; replaced text and white-out always go into the page, notes always stay Text annotations; no /T, /M or /CreationDate on anything added |
 
 ---
@@ -88,7 +91,7 @@ Built on Windows 11 with Node 24; CI runs Ubuntu with Node 24. Node 22.18+ is ne
 | --- | --- |
 | `npm run dev` | `predev` copies pdf.js assets into `public/pdfjs/` and add-ons into `public/addons/`, then `next dev` (no service worker) |
 | `npm run build` | `prebuild` copies pdf.js assets and add-ons, then `next build` exports to `out/`. `postbuild` runs `fix-export-segments.mjs`, then `secure-export.mjs` (CSP `<meta>` and `_headers`), then `build-service-worker.mjs` (`out/sw.js`) |
-| `npm test` | Vitest, 133 tests, in Node |
+| `npm test` | Vitest, 151 tests, in Node |
 | `npm run e2e [-- name]` | serves `out/` on :3123 **with the `vercel.json` headers** and runs `e2e/*.mjs` in headless Chromium; screenshots go to `e2e/.output/` |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | type check, after a build or dev run |
@@ -130,6 +133,9 @@ src/
       redact.ts redact-search.ts annotations.ts    redaction and text/annotation search
       stamp.ts               ★ page geometry: displayed coordinates ↔ PDF user space for any rotation/crop box
       markup.ts              watermark, page numbers, signatures
+      pages.ts               rotate, delete, insert (blank or from another PDF), crop, resize
+      forms.ts flatten.ts    read/fill AcroForm fields (widget boxes in displayed space); flatten fields and annotations
+      info.ts grayscale.ts   document properties and bookmarks (outline); grayscale conversion
       edit/                  ★ Edit PDF: types.ts (object model, display points), geometry.ts (bounds, move; no pdf-lib),
                              content.ts (content-stream parser + text remover), fonts.ts (glyph widths), apply.ts
                              (draw in upright space; flatten or annotations with appearances), text-select.ts
@@ -156,6 +162,11 @@ src/
       registry.tsx           ★ tool id → panel, via next/dynamic (ssr: false)
       shared/                controls.tsx (Field, Segmented, AnchorPicker, ColorField, Slider), OutputCard, PdfStates,
                              ConversionParts (fidelity notes, warnings, PDF result preview), StampPreview (live preview)
+      pages/                 PagePanels (rotate, delete, insert, resize, grayscale, flatten), ScanPanels (crop, remove
+                             blank pages; scan.ts renders pages small to find content and ink)
+      document/ fill/        Edit Metadata and Bookmarks; Fill PDF Form
+      markup/NumberingPanels Header & footer, Bates numbering
+      shared/toolkit.tsx     DocGate, Layout, ToolCard, useApply, usePageField, useLoaded, PageGrid, SelectionSummary
       edit/                  Edit PDF: EditPanel (state, keys, save), EditorCanvas (page + SVG overlay + gestures),
                              Toolbar, Inspector, ObjectLayer (SVG per object), model.ts (tools, defaults, fonts),
                              useEditorState (undo/redo, drafts per file), usePageText (phrases, colour sampling)
@@ -199,7 +210,7 @@ Panel → `lib/<area>/client.ts` → worker via `createWorkerClient` → pure fu
 `OutputCard` offers download (a ZIP for several files), open in new tabs, or replace the tab (bumps `revision`). Stamp tools preview through `useStampPreview`: the first pages are extracted once, stamped with the real code after a 250 ms pause, and rendered by pdf.js.
 
 ### Rendering
-`render.ts` lazy-loads pdf.js with our worker and same-origin assets. `usePdfDocument(blob)` opens a document and destroys it on unmount. `PageThumbnail` renders only when visible, through a 3-slot queue. `PageStage` renders one page at the panel's width and gives children its size for overlays (Redact and E-Sign).
+`render.ts` lazy-loads pdf.js with one shared `PDFWorker` (passed to every `getDocument`, see section 9) and same-origin assets. `usePdfDocument(blob)` opens a document and destroys it on unmount. `PageThumbnail` renders only when visible, through a 3-slot queue. `PageStage` renders one page at the panel's width and gives children its size for overlays (Redact and E-Sign).
 
 ### Images and add-ons
 - The `image` kind covers JPEG, PNG, WebP, HEIC/HEIF and AVIF. Always decode through `decodeImage()` (`lib/image/canvas.ts`), which routes HEIC to the add-on. Show images with `useImageSource()`, not a raw object URL, and turn one into PDF-embeddable bytes with `asPngOrJpeg()`.
@@ -289,6 +300,7 @@ If `sw.js` is the stand-in or the `<meta>` is missing, Vercel is serving Next's 
 | --- | --- |
 | `lib/metadata/__tests__/metadata.test.ts` | every format's audit and strip, verification reaching zero, lossless JPEG data, PDF leaks including revisions, "keep technical data" per format, HEIC/AVIF in-place strip decoding to identical pixels (fixtures in `heif/`, made by `make-fixtures.py`) |
 | `lib/__tests__/tools.test.ts` | tool search ranking |
+| `lib/pdf/__tests__/pages.test.ts` | rotate, delete, insert (no stray linked pages), crop and resize on rotated pages, header/footer tokens, Bates across files, flatten, properties, bookmarks, forms (all field kinds, rotated widgets, non-Latin values), grayscale and PNG predictors |
 | `lib/pdf/__tests__/edit.test.ts` | content-stream parser, text removal keeping later text in place (spacing, TJ kerning, standard and Type0 fonts), unreachable-text warning, every annotation type without author/date, flattening, upright text on rotated pages, text selection |
 | `lib/pdf/__tests__/pdf.test.ts` | page ranges, merge, extract, rearrange, purging deleted pages |
 | `images.test.ts`, `compress.test.ts` | image layout and orientation maths, recompression rules and presets |
@@ -311,10 +323,11 @@ Fixtures (`metadata/__tests__/fixtures.ts`, `office/__tests__/fixtures.ts`) use 
 | `security.mjs` | protect, unlock, redact (including a pixel check that form fields are blacked out) |
 | `markup.mjs` | watermark, page numbers, e-sign placement accuracy, quick strokes don't crash the pad |
 | `edit.mjs` | every Edit PDF tool used with the mouse and keyboard; saved PDF checked: edited line gone from the bytes, flattened vs editable annotations, rotated page |
+| `pages.mjs` | every M12 tool through the UI, each download checked (rotation, page order, sizes, crops, outline, form values, Bates ranges, gray operators) |
 | `images.mjs` | tool search (home filter, Ctrl+K), HEIC/AVIF sanitize with the category filters, keep technical data, HEIC to JPG, HEIC/AVIF to PDF |
 | `offline.mjs` | security headers and CSP, blocked uploads and scripts, manifest, precache, add-on on first use, offline use, update prompt, dev stand-in |
 
-Every suite also takes light, dark and 390 px screenshots, and fails on console errors or requests to other origins. `convert.mjs` timed out once in about ten full runs on Windows; it hasn't reproduced since.
+Every suite also takes light, dark and 390 px screenshots, and fails on console errors or requests to other origins. `convert.mjs` and `edit.mjs` have each timed out once in a full run on Windows and passed on rerun; neither reproduced when run alone.
 
 ---
 
@@ -328,6 +341,8 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 - On Vercel, the Next.js preset serves Next's own output and skips `postbuild`. That's why `vercel.json` sets `framework: null` and `outputDirectory: "out"`.
 
 **pdf.js 6**
+- Pass one shared `PDFWorker` as `getDocument({ worker })`. With `GlobalWorkerOptions.workerPort`, each loading task takes ownership of the shared worker and destroying any document marks it "pending destroy", so a document opened at that moment fails with "PDFWorker.create - the worker is being destroyed" (seen when switching tools). The constructor's typings are wrong; use `PDFWorker.create({ port })`.
+- `getFieldObjects()` can return null for simple forms; count widget annotations' `fieldName`s instead.
 - `destroy()` is on the loading task, not the document.
 - `render({ canvas, viewport })`. There's no `convertToViewportRectangle`; use `convertToViewportPoint`.
 - `getPermissions()` returns a Set. There's no eval, so no `isEvalSupported` concerns.
@@ -341,6 +356,11 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 - `save()` adds a default page unless told not to, which `savePdf` handles.
 - `normalize()` wraps existing page content in `q`/`Q`.
 - Use `@cantoo/fontkit`; `@pdf-lib/fontkit` crashes on subset encoding.
+
+**pdf-lib forms**
+- `addToPage` pads a widget's `Rect` by half its border width.
+- Radio widgets' on-states can be "0", "1"…; the option names are in the field's `/Opt` (use `getOptions()` by widget index).
+- `form.flatten({ updateFieldAppearances: false })` throws for widgets without appearances; build them first.
 
 **Other libraries**
 - mammoth needs `buffer` in Node and `arrayBuffer` in the browser (both are passed).
@@ -368,7 +388,8 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 
 ## 10. Known limitations and ideas
 
-- Scanned PDFs have no text to extract (no OCR).
+- Scanned PDFs have no text to extract (no OCR yet; M13).
+- Cropping hides edges but keeps the content; grayscale's blend-layer fallback keeps the original colours in the file; dynamic XFA forms aren't supported.
 - Redacted pages become images.
 - E-Sign and Edit PDF signatures are visual, not certificate signatures (M17).
 - Edited text uses a standard font, not the document's embedded one; only horizontal left-to-right text can be edited in place; text inside form XObjects is covered but not removed (with a warning).

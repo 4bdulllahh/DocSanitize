@@ -2,7 +2,12 @@ import type { PdfWorkerApi } from "@/workers/pdf.worker";
 import { createWorkerClient } from "../worker-rpc";
 import type { PageEdit } from "./assemble";
 import type { CompressOptions, CompressResult } from "./compress";
-import type { EditRequest } from "./edit/types";
+import type { Box, EditRequest } from "./edit/types";
+import type { FlattenOptions } from "./flatten";
+import type { FieldValues, FillOptions, FormInfo } from "./forms";
+import type { Bookmark, DocumentInfo } from "./info";
+import type { BatesOptions, HeaderFooterOptions } from "./markup";
+import type { InsertOptions, ResizeOptions } from "./pages";
 import type { ImagesToPdfOptions } from "./images";
 import type { LabelStyle, PageNumberOptions, Placement, WatermarkOptions } from "./markup";
 import type { RedactedPage, RedactOptions } from "./redact";
@@ -84,3 +89,33 @@ export async function editFile(file: Blob, request: EditRequest): Promise<{ blob
   const { bytes, warnings } = await worker.edit(await bytesOf(file), { ...request, images });
   return { blob: asPdf(bytes), warnings };
 }
+
+// ---------------------------------------------------------------------------- Page tools and forms
+
+export const rotateFile = async (file: Blob, pages: number[], angle: number) => asPdf(await worker.rotate(await bytesOf(file), pages, angle));
+export const deletePagesOfFile = async (file: Blob, pages: number[]) => asPdf(await worker.deletePages(await bytesOf(file), pages));
+export async function insertIntoFile(file: Blob, options: Omit<InsertOptions, "source"> & { source?: { file: Blob; name?: string; pages?: number[] } }): Promise<Blob> {
+  const source = options.source ? { bytes: await bytesOf(options.source.file), name: options.source.name, pages: options.source.pages } : undefined;
+  return asPdf(await worker.insert(await bytesOf(file), { at: options.at, blank: options.blank, source }));
+}
+export const cropFile = async (file: Blob, crops: { page: number; box: Box }[]) => asPdf(await worker.crop(await bytesOf(file), crops));
+export const resizeFile = async (file: Blob, options: ResizeOptions) => asPdf(await worker.resize(await bytesOf(file), options));
+export const headerFooterFile = async (file: Blob, options: HeaderFooterOptions) => asPdf(await worker.headerFooter(await bytesOf(file), options));
+export async function batesFiles(files: Blob[], options: BatesOptions): Promise<{ blob: Blob; first: string; last: string }[]> {
+  const results = await worker.bates(await Promise.all(files.map(bytesOf)), options);
+  return results.map((r) => ({ blob: asPdf(r.bytes), first: r.first, last: r.last }));
+}
+export async function flattenFile(file: Blob, options: FlattenOptions) {
+  const { bytes, ...counts } = await worker.flatten(await bytesOf(file), options);
+  return { blob: asPdf(bytes), ...counts };
+}
+export async function grayscaleFile(file: Blob) {
+  const { bytes, ...counts } = await worker.grayscale(await bytesOf(file));
+  return { blob: asPdf(bytes), ...counts };
+}
+export const readFileInfo = async (file: Blob): Promise<DocumentInfo> => worker.readInfo(await bytesOf(file));
+export const writeFileInfo = async (file: Blob, info: Omit<DocumentInfo, "hasXmp">) => asPdf(await worker.writeInfo(await bytesOf(file), info));
+export const readFileBookmarks = async (file: Blob): Promise<Bookmark[]> => worker.readBookmarks(await bytesOf(file));
+export const writeFileBookmarks = async (file: Blob, bookmarks: Bookmark[]) => asPdf(await worker.writeBookmarks(await bytesOf(file), bookmarks));
+export const readFileForm = async (file: Blob): Promise<FormInfo> => worker.readForm(await bytesOf(file));
+export const fillFileForm = async (file: Blob, values: FieldValues, options: FillOptions) => asPdf(await worker.fillForm(await bytesOf(file), values, options));
