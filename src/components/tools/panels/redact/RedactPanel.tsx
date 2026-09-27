@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import clsx from "clsx";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { ChevronLeft, ChevronRight, CircleCheck, EyeOff, LoaderCircle, Search, Square, Trash2, TriangleAlert, X } from "lucide-react";
-import { PageThumbnail } from "@/components/pdf/PageThumbnail";
+import { PageStage } from "@/components/pdf/PageStage";
+import { PageStrip } from "@/components/pdf/PageStrip";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
 import { errorMessage } from "@/lib/errors";
 import { createId } from "@/lib/files";
@@ -39,18 +40,6 @@ export default function RedactPanel({ file }: ToolPanelProps) {
   if (pdf.status === "loading") return <PdfLoading />;
   if (pdf.status === "error") return <PdfLoadError message={pdf.message} code={pdf.code} />;
   return <Redactor file={file} doc={pdf.doc} />;
-}
-
-function useElementWidth(ref: RefObject<HTMLElement | null>): number {
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)));
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref]);
-  return width;
 }
 
 const allPages = (doc: PDFDocumentProxy) => Array.from({ length: doc.numPages }, (_, i) => i + 1);
@@ -142,31 +131,16 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Pages">
-        <ol className="flex gap-2 overflow-x-auto border-b border-line p-3" aria-label="Choose a page">
-          {Array.from({ length: pageCount }, (_, i) => {
-            const count = boxes[i]?.length ?? 0;
-            return (
-              <li key={i} className="shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrent(i);
-                    setSelected(null);
-                  }}
-                  aria-current={i === current ? "page" : undefined}
-                  aria-label={`Page ${i + 1}${count ? `, ${count} redaction${count === 1 ? "" : "s"}` : ""}`}
-                  className={clsx("relative rounded-lg border-2 p-1", i === current ? "border-brand-text bg-brand-soft" : "border-transparent hover:bg-surface-muted")}
-                >
-                  <PageThumbnail doc={doc} pageNumber={i + 1} width={52} height={68} />
-                  <span className="mt-0.5 block text-center text-[11px] font-medium text-fg-muted tabular-nums">{i + 1}</span>
-                  {count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white tabular-nums">{count}</span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <PageStrip
+          doc={doc}
+          current={current}
+          onSelect={(i) => {
+            setCurrent(i);
+            setSelected(null);
+          }}
+          counts={Object.fromEntries(markedPages.map((i) => [i, boxes[i].length]))}
+          noun="redaction"
+        />
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 text-sm">
           <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label="Previous page">
             <ChevronLeft className="size-4" />
@@ -319,29 +293,8 @@ function PageEditor({
   onAdd: (box: Box) => void;
   onRemove: (id: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const available = useElementWidth(containerRef);
-  const [size, setSize] = useState<{ index: number; w: number; h: number } | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<Box | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    doc
-      .getPage(index + 1)
-      .then((page) => {
-        const { width, height } = page.getViewport({ scale: 1 });
-        if (active) setSize({ index, w: width, h: height });
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [doc, index]);
-
-  const aspect = size?.index === index ? size.h / size.w : 1.294;
-  const width = Math.min(available, 760);
-  const height = Math.round(width * aspect);
 
   const point = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -360,7 +313,8 @@ function PageEditor({
     const s = start.current;
     setDraft({ x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), width: Math.abs(p.x - s.x), height: Math.abs(p.y - s.y) });
   };
-  const onPointerUp = () => {
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const { width, height } = event.currentTarget.getBoundingClientRect();
     // Ignore clicks and tiny slips: at least 4 × 4 screen pixels.
     if (start.current && draft && draft.width * width >= 4 && draft.height * height >= 4) onAdd(draft);
     start.current = null;
@@ -377,52 +331,49 @@ function PageEditor({
   };
 
   return (
-    <div ref={containerRef} className="w-full">
-      {width > 0 && (
-        <div className="relative mx-auto" style={{ width, height }}>
-          <PageThumbnail key={index} doc={doc} pageNumber={index + 1} width={width} height={height} />
-          <div
-            className="absolute inset-0 cursor-crosshair touch-none select-none"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            aria-label={`Page ${index + 1}: drag to draw a redaction box`}
-            role="group"
-          >
-            {boxes.map((b, i) => (
-              <div
-                key={b.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`Redaction ${i + 1} on page ${index + 1}${selected === b.id ? ", selected" : ""}`}
-                aria-pressed={selected === b.id}
-                onClick={() => onSelect(b.id)}
-                onKeyDown={(e) => onBoxKey(e, b.id)}
-                className={clsx("absolute cursor-pointer outline-none", selected === b.id ? "ring-2 ring-brand-border ring-offset-1 ring-offset-surface" : "focus-visible:ring-2 focus-visible:ring-brand-border")}
-                style={{ ...style(b), backgroundColor: BOX_FILL }}
-              />
+    <PageStage doc={doc} index={index}>
+      {() => (
+        <div
+          className="absolute inset-0 cursor-crosshair touch-none select-none"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          aria-label={`Page ${index + 1}: drag to draw a redaction box`}
+          role="group"
+        >
+          {boxes.map((b, i) => (
+            <div
+              key={b.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Redaction ${i + 1} on page ${index + 1}${selected === b.id ? ", selected" : ""}`}
+              aria-pressed={selected === b.id}
+              onClick={() => onSelect(b.id)}
+              onKeyDown={(e) => onBoxKey(e, b.id)}
+              className={clsx("absolute cursor-pointer outline-none", selected === b.id ? "ring-2 ring-brand-border ring-offset-1 ring-offset-surface" : "focus-visible:ring-2 focus-visible:ring-brand-border")}
+              style={{ ...style(b), backgroundColor: BOX_FILL }}
+            />
+          ))}
+          {boxes
+            .filter((b) => b.id === selected)
+            .map((b) => (
+              <button
+                key="delete"
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onRemove(b.id)}
+                aria-label="Remove the selected redaction"
+                className="absolute z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-danger text-white shadow-elev-2"
+                style={{ left: `${(b.x + b.width) * 100}%`, top: `${b.y * 100}%` }}
+              >
+                <X className="size-3.5" />
+              </button>
             ))}
-            {boxes
-              .filter((b) => b.id === selected)
-              .map((b) => (
-                <button
-                  key="delete"
-                  type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => onRemove(b.id)}
-                  aria-label="Remove the selected redaction"
-                  className="absolute z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-danger text-white shadow-elev-2"
-                  style={{ left: `${(b.x + b.width) * 100}%`, top: `${b.y * 100}%` }}
-                >
-                  <X className="size-3.5" />
-                </button>
-              ))}
-            {draft && <div className="pointer-events-none absolute border-2 border-dashed border-brand-border" style={{ ...style(draft), backgroundColor: "rgba(0, 0, 0, 0.35)" }} />}
-          </div>
+          {draft && <div className="pointer-events-none absolute border-2 border-dashed border-brand-border" style={{ ...style(draft), backgroundColor: "rgba(0, 0, 0, 0.35)" }} />}
         </div>
       )}
-    </div>
+    </PageStage>
   );
 }
 

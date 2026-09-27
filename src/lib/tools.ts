@@ -186,16 +186,16 @@ export const TOOLS: Tool[] = [
     category: "optimize",
     icon: Signature,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "watermark",
     name: "Watermark",
-    description: "Stamp text across every page of a PDF.",
+    description: "Stamp text or an image on every page, or just the pages you pick.",
     category: "optimize",
     icon: Stamp,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "page-numbers",
@@ -204,7 +204,7 @@ export const TOOLS: Tool[] = [
     category: "optimize",
     icon: ListOrdered,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
 ];
 

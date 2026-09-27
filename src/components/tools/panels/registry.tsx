@@ -34,5 +34,8 @@ export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>>
   protect: dynamic(() => import("./security/SecurityPanels").then((m) => m.ProtectPanel), { ssr: false, loading: PanelSkeleton }),
   unlock: dynamic(() => import("./security/SecurityPanels").then((m) => m.UnlockPanel), { ssr: false, loading: PanelSkeleton }),
   redact: dynamic(() => import("./redact/RedactPanel"), { ssr: false, loading: PanelSkeleton }),
+  sign: dynamic(() => import("./sign/SignPanel"), { ssr: false, loading: PanelSkeleton }),
+  watermark: dynamic(() => import("./markup/StampPanels").then((m) => m.WatermarkPanel), { ssr: false, loading: PanelSkeleton }),
+  "page-numbers": dynamic(() => import("./markup/StampPanels").then((m) => m.PageNumbersPanel), { ssr: false, loading: PanelSkeleton }),
   "excel-to-pdf": dynamic(() => import("./office-to-pdf/OfficeToPdfPanels").then((m) => m.ExcelToPdfPanel), { ssr: false, loading: PanelSkeleton }),
 };
