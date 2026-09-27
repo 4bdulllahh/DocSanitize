@@ -18,3 +18,9 @@ export function withSuffix(name: string, suffix: string, extension?: string): st
   const ext = extension ?? (dot > 0 ? name.slice(dot) : "");
   return `${base}-${suffix}${ext}`;
 }
+
+/** "report.pdf" + ".docx" -> "report.docx" */
+export function replaceExtension(name: string, extension: string): string {
+  const dot = name.lastIndexOf(".");
+  return `${dot > 0 ? name.slice(0, dot) : name}${extension}`;
+}

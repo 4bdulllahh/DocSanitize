@@ -4,7 +4,7 @@ const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   pdf: [".pdf"],
   image: [".jpg", ".jpeg", ".png", ".webp"],
   word: [".docx"],
-  excel: [".xlsx", ".xls", ".csv"],
+  excel: [".xlsx", ".xls", ".ods", ".csv"],
 };
 
 const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
@@ -14,6 +14,7 @@ const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
   excel: [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
+    "application/vnd.oasis.opendocument.spreadsheet",
     "text/csv",
   ],
 };
