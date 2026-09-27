@@ -1,7 +1,9 @@
 import { ProcessingError } from "../errors";
+import { isAvif } from "../metadata/heif";
 import { stripJpeg } from "../metadata/jpeg";
 import { DEFAULT_STRIP_OPTIONS } from "../metadata/types";
 import type { JpegReencoder } from "../pdf/compress";
+import { decodeHeic, needsHeicDecoder } from "./heic";
 
 /*
  * Image decoding and encoding with the browser's own codecs. These need createImageBitmap and
@@ -10,8 +12,12 @@ import type { JpegReencoder } from "../pdf/compress";
 
 export type EncodeType = "image/jpeg" | "image/png";
 
-/** Decode an image, applying its EXIF orientation. */
+/** Decode an image, applying its EXIF orientation. HEIC goes through the libheif add-on. */
 export async function decodeImage(bytes: Uint8Array, type: string): Promise<ImageBitmap> {
+  if (needsHeicDecoder(bytes)) {
+    const { width, height, pixels } = await decodeHeic(bytes);
+    return createImageBitmap(new ImageData(pixels, width, height), { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+  }
   try {
     return await createImageBitmap(new Blob([bytes as BlobPart], { type }), {
       imageOrientation: "from-image",
@@ -19,6 +25,7 @@ export async function decodeImage(bytes: Uint8Array, type: string): Promise<Imag
       colorSpaceConversion: "none",
     });
   } catch {
+    if (isAvif(bytes)) throw new ProcessingError("This browser can't decode AVIF images. Use a current version of Chrome, Edge, Firefox or Safari.", "unsupported");
     throw new ProcessingError("This image couldn't be decoded.", "corrupt");
   }
 }

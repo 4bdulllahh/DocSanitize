@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from
 import clsx from "clsx";
 import { Check, Eraser, ImagePlus, Undo2 } from "lucide-react";
 import { create } from "zustand";
-import { createId } from "@/lib/files";
+import { acceptFor, createId } from "@/lib/files";
+import { decodeImage } from "@/lib/image/canvas";
 import { toast } from "@/store/toast";
 import { Field, INPUT, Segmented } from "../shared/controls";
 import { PRIMARY, SECONDARY } from "../shared/OutputCard";
@@ -283,9 +284,9 @@ function UploadPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void 
     event.target.value = "";
     if (!file) return;
     try {
-      setBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
+      setBitmap(await decodeImage(new Uint8Array(await file.arrayBuffer()), file.type));
     } catch {
-      toast({ tone: "error", title: "Couldn't read that image", description: "Use a PNG, JPEG or WebP picture of your signature." });
+      toast({ tone: "error", title: "Couldn't read that image", description: "Use a PNG, JPEG, WebP, HEIC or AVIF picture of your signature." });
     }
   };
 
@@ -299,7 +300,7 @@ function UploadPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void 
         <label className={clsx(SECONDARY, "w-full cursor-pointer py-6")}>
           <ImagePlus className="size-4" aria-hidden="true" />
           Choose a photo or scan
-          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={choose} className="sr-only" />
+          <input type="file" accept={acceptFor(["image"])} onChange={choose} className="sr-only" />
         </label>
       )}
       <label className="mt-3 flex cursor-pointer items-center gap-3 text-sm text-fg">

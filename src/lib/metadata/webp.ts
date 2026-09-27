@@ -1,5 +1,5 @@
 import { ascii, concat, startsWith, utf8 } from "./bytes";
-import { readExif } from "./exif";
+import { readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
 
@@ -73,20 +73,35 @@ export async function auditWebp(bytes: Uint8Array): Promise<MetadataReport> {
 }
 
 export async function stripWebp(bytes: Uint8Array, options: StripOptions): Promise<Uint8Array> {
-  const keep = parse(bytes).filter(
-    (c) => IMAGE_CHUNKS.has(c.fourcc) || (options.keepColorProfile && c.fourcc === "ICCP"),
-  );
-  const parts = keep.map((c) => {
-    const chunk = bytes.slice(c.start, c.end);
-    if (c.fourcc === "VP8X") {
-      // Clear the flags for chunks we removed so decoders don't look for them.
-      chunk[8] &= ~(FLAG_EXIF | FLAG_XMP | (options.keepColorProfile ? 0 : FLAG_ICC));
+  const keepIcc = options.keepColorProfile || options.keepTechnical;
+  const chunks = parse(bytes);
+  const exif = chunks.find((c) => c.fourcc === "EXIF");
+  const technical = options.keepTechnical && exif ? technicalOnlyExif(tiffBlock(exif.data), true) : null;
+  const parts: Uint8Array[] = [];
+  for (const c of chunks) {
+    if (IMAGE_CHUNKS.has(c.fourcc) || (keepIcc && c.fourcc === "ICCP")) {
+      const chunk = bytes.slice(c.start, c.end);
+      if (c.fourcc === "VP8X") {
+        // Clear the flags for chunks we removed so decoders don't look for them.
+        chunk[8] &= ~(FLAG_XMP | (technical ? 0 : FLAG_EXIF) | (keepIcc ? 0 : FLAG_ICC));
+      }
+      parts.push(chunk);
+    } else if (c === exif && technical) {
+      // EXIF must come after the image data in an extended WebP; it replaces the original in place.
+      parts.push(riffChunk("EXIF", technical));
     }
-    return chunk;
-  });
+  }
   const body = concat(parts);
   const header = new Uint8Array(12);
   header.set(bytes.subarray(0, 12));
   new DataView(header.buffer).setUint32(4, 4 + body.length, true);
   return concat([header, body]);
+}
+
+function riffChunk(fourcc: string, data: Uint8Array): Uint8Array {
+  const chunk = new Uint8Array(8 + data.length + (data.length % 2));
+  for (let i = 0; i < 4; i++) chunk[i] = fourcc.charCodeAt(i);
+  new DataView(chunk.buffer).setUint32(4, data.length, true);
+  chunk.set(data, 8);
+  return chunk;
 }

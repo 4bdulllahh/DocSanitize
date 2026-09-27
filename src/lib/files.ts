@@ -2,14 +2,14 @@ export type FileKind = "pdf" | "image" | "word" | "excel" | "unknown";
 
 const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   pdf: [".pdf"],
-  image: [".jpg", ".jpeg", ".png", ".webp"],
+  image: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".avif"],
   word: [".docx"],
   excel: [".xlsx", ".xls", ".ods", ".csv"],
 };
 
 const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
   pdf: ["application/pdf"],
-  image: ["image/jpeg", "image/png", "image/webp"],
+  image: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/avif"],
   word: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
   excel: [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

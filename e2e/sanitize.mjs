@@ -66,8 +66,8 @@ for (const text of ["Jane Doe", "salaries.csv", "Microsoft Word for Microsoft 36
   assert.ok(await page.getByText(text, { exact: false }).first().isVisible(), `PDF audit missing ${text}`);
 }
 await page.getByText("This file reveals a location:").waitFor();
-const sensitiveBadge = await page.getByText(/\d+ sensitive/).innerText();
-console.log("   pdf:", await page.getByText(/tags? found/).first().innerText(), "/", sensitiveBadge);
+const sensitiveBadge = await page.getByRole("button", { name: /^Sensitive \d+/ }).innerText();
+console.log("   pdf:", await page.getByRole("button", { name: /^All \d+/ }).innerText(), "/", sensitiveBadge);
 await page.screenshot({ path: "m3-01-pdf-audit.png", fullPage: true });
 step("PDF audit lists info, XMP, comment author, attachment, revisions, embedded photo GPS");
 
@@ -97,9 +97,10 @@ await table.getByText("F2LXK9").waitFor();
 assert.ok(await page.getByText("Data after end of image").isVisible());
 await page.screenshot({ path: "m3-03-jpeg-audit.png", fullPage: true });
 const allRows = await table.locator("tbody tr").count();
-await page.getByLabel("Sensitive only").check();
+await page.getByRole("button", { name: /^Sensitive \d+/ }).click();
 const sensitiveRows = await table.locator("tbody tr").count();
 assert.ok(sensitiveRows < allRows);
+await page.getByRole("button", { name: /^All \d+/ }).click();
 step(`JPEG audit: serial, GPS, trailer found; sensitive filter ${allRows} → ${sensitiveRows} rows`);
 
 // 5. Locked PDF

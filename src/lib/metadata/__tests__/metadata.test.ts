@@ -1,10 +1,16 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { crc32 } from "node:zlib";
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { describe, expect, it } from "vitest";
 import { classify } from "../classify";
+import { technicalOnlyExif } from "../exif";
+import { isAvif } from "../heif";
 import { auditMetadata, DEFAULT_STRIP_OPTIONS, detectFormat, MetadataError, stripMetadata, type MetadataReport } from "../index";
 import { readXmpProperties } from "../xmp";
 import {
   addJpegMetadata,
+  buildExif,
   addPngMetadata,
   addWebpMetadata,
   leakyPdf,
@@ -16,6 +22,13 @@ import {
 
 const find = (report: MetadataReport, label: string | RegExp) =>
   report.entries.find((e) => (typeof label === "string" ? e.label === label : label.test(e.label)));
+
+const TECHNICAL = { ...DEFAULT_STRIP_OPTIONS, keepTechnical: true };
+/** After "keep technical data": only technical entries are left, and these are among them. */
+const expectOnlyTechnical = (report: MetadataReport, ...labels: string[]) => {
+  expect(report.entries.filter((e) => e.sensitivity !== "low").map((e) => e.label)).toEqual([]);
+  for (const label of labels) expect(find(report, label), label).toBeDefined();
+};
 
 const values = (report: MetadataReport) => report.entries.map((e) => `${e.label}: ${e.value}`).join("\n");
 
@@ -53,13 +66,17 @@ describe("format detection", () => {
     expect(detectFormat(TINY_JPEG)).toBe("jpeg");
     expect(detectFormat(tinyPng())).toBe("png");
     expect(detectFormat(tinyWebp())).toBe("webp");
+    expect(detectFormat(heifFixture("photo.heic"))).toBe("heif");
+    expect(detectFormat(heifFixture("photo.avif"))).toBe("heif");
+    expect(isAvif(heifFixture("photo.avif"))).toBe(true);
+    expect(isAvif(heifFixture("photo.heic"))).toBe(false);
     expect(() => detectFormat(new TextEncoder().encode("hello"))).toThrow(MetadataError);
   });
 });
 
 describe("JPEG", () => {
   const leaky = addJpegMetadata(TINY_JPEG, {
-    exif: { artist: "Jane Doe", make: "Apple", model: "iPhone 17 Pro", serial: "SN-12345", orientation: 6, gps: { lat: 25.2048, lon: 55.2708 } },
+    exif: { artist: "Jane Doe", make: "Apple", model: "iPhone 17 Pro", serial: "SN-12345", orientation: 6, gps: { lat: 25.2048, lon: 55.2708 }, technical: true },
     xmp: SAMPLE_XMP,
     comment: "Edited by Jane",
     icc: true,
@@ -100,6 +117,21 @@ describe("JPEG", () => {
     expect(verification.entries.map((e) => e.label)).toEqual(["ICC color profile"]);
   });
 
+  it("can keep technical data only: camera settings, resolution, colour profile and orientation", async () => {
+    const { bytes, verification } = await stripMetadata(leaky, TECHNICAL);
+    expectOnlyTechnical(verification, "Exposure Time", "F Number", "ISO", "Focal Length", "X Resolution", "ICC color profile");
+    for (const gone of ["Artist", "Make", "Model", "Serial Number", "Date Time Original", "Creator", "Comment"]) expect(find(verification, gone), gone).toBeUndefined();
+    expect(verification.location).toBeUndefined();
+    expect(verification.kept.map((k) => k.label)).toEqual(["Orientation"]);
+    expect(find(await auditMetadata(leaky), "Date Time Original")?.value).toBe("2026-03-14 09:26:53"); // as written, no zone
+    expect(bytes.length).toBeLessThan(leaky.length);
+  });
+
+  it("treats EXIF with nothing technical in it as nothing to keep", () => {
+    expect(technicalOnlyExif(buildExif({ artist: "Jane", serial: "x", gps: { lat: 1, lon: 2 } }), false)).toBeNull();
+    expect(technicalOnlyExif(new Uint8Array([1, 2, 3]), true)).toBeNull();
+  });
+
   it("drops orientation when it is already upright", async () => {
     const upright = addJpegMetadata(TINY_JPEG, { exif: { artist: "x", orientation: 1 } });
     const { bytes, verification } = await stripMetadata(upright, DEFAULT_STRIP_OPTIONS);
@@ -113,7 +145,7 @@ describe("PNG", () => {
     text: { Author: "Jane Doe", Software: "GIMP 3.0" },
     compressedText: { Comment: "internal draft" },
     xmp: SAMPLE_XMP,
-    exif: { artist: "Jane Doe", gps: { lat: -33.8688, lon: 151.2093 } },
+    exif: { artist: "Jane Doe", gps: { lat: -33.8688, lon: 151.2093 }, technical: true },
     time: new Date("2026-03-04T05:06:07Z"),
     icc: true,
     privateChunk: true,
@@ -136,11 +168,21 @@ describe("PNG", () => {
     expect(verification.entries, values(verification)).toEqual([]);
     expect(bytes).toEqual(tinyPng());
   });
+
+  it("can keep technical data, in a rebuilt eXIf chunk with a valid CRC", async () => {
+    const { bytes, verification } = await stripMetadata(leaky, TECHNICAL);
+    expectOnlyTechnical(verification, "Exposure Time", "ISO", "ICC color profile");
+    expect(find(verification, "Artist")).toBeUndefined();
+    const at = bytes.findIndex((_, i) => new TextDecoder().decode(bytes.subarray(i, i + 4)) === "eXIf");
+    const view = new DataView(bytes.buffer, bytes.byteOffset);
+    const length = view.getUint32(at - 4);
+    expect(view.getUint32(at + 4 + length)).toBe(crc32(bytes.subarray(at, at + 4 + length)));
+  });
 });
 
 describe("WebP", () => {
   const leaky = addWebpMetadata(tinyWebp(), {
-    exif: { artist: "Jane Doe", gps: { lat: 51.5, lon: -0.12 } },
+    exif: { artist: "Jane Doe", gps: { lat: 51.5, lon: -0.12 }, technical: true },
     xmp: SAMPLE_XMP,
     icc: true,
     width: 1,
@@ -162,6 +204,75 @@ describe("WebP", () => {
     expect(view.getUint32(4, true)).toBe(bytes.length - 8);
     expect(new TextDecoder().decode(bytes.subarray(12, 16))).toBe("VP8X");
     expect(bytes[20] & (0x20 | 0x08 | 0x04)).toBe(0);
+  });
+
+  it("can keep technical data, flagging the EXIF and ICC chunks it keeps", async () => {
+    const { bytes, verification } = await stripMetadata(leaky, TECHNICAL);
+    expectOnlyTechnical(verification, "Exposure Time", "ICC color profile");
+    expect(find(verification, "City")).toBeUndefined();
+    expect(bytes[20] & (0x20 | 0x08 | 0x04)).toBe(0x20 | 0x08);
+    expect(new DataView(bytes.buffer, bytes.byteOffset).getUint32(4, true)).toBe(bytes.length - 8);
+  });
+});
+
+function heifFixture(name: string): Uint8Array {
+  return new Uint8Array(readFileSync(new URL(`./heif/${name}`, import.meta.url)));
+}
+
+/** Decode a HEIC with libheif (the decoder the app uses for HEIC), returning its size and pixels. */
+async function decodeHeic(bytes: Uint8Array): Promise<{ width: number; height: number; pixels: Uint8ClampedArray }> {
+  const libheif = createRequire(import.meta.url)("libheif-js/wasm-bundle");
+  const [image] = new libheif.HeifDecoder().decode(bytes);
+  const [width, height] = [image.get_width(), image.get_height()];
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  await new Promise((resolve, reject) => image.display({ data: pixels, width, height }, (r: unknown) => (r ? resolve(r) : reject(new Error("decode failed")))));
+  return { width, height, pixels };
+}
+
+describe("HEIC / AVIF (fixtures from heif/make-fixtures.py)", () => {
+  const heic = heifFixture("photo.heic");
+
+  it("audits EXIF, GPS, user comment, XMP and the thumbnail", async () => {
+    const report = await auditMetadata(heic);
+    expect(report.format).toBe("heif");
+    expect(find(report, "Serial Number")).toMatchObject({ value: "F17XK2QJ0D8A", sensitivity: "high" });
+    expect(find(report, "User Comment")).toMatchObject({ value: "Meet at the harbour", sensitivity: "high" });
+    expect(find(report, "Model")?.value).toBe("iPhone 15 Pro");
+    expect(find(report, "Date Time Original")?.value).toBe("2026-03-14 09:26:53");
+    expect([find(report, "Exposure Time")?.value, find(report, "F Number")?.value, find(report, "Focal Length")?.value]).toEqual(["1/120 s", "f/1.8", "6.86 mm"]);
+    expect(find(report, "Creator")).toMatchObject({ value: "Jane Doe", group: "XMP" });
+    expect(find(report, "Thumbnail preview")?.sensitivity).toBe("high");
+    expect(report.location?.latitude).toBeCloseTo(51.5073, 3);
+    expect(report.location?.longitude).toBeCloseTo(-0.1275, 3);
+  });
+
+  it("strips in place: same size, 0 tags, and the photo decodes to the same pixels", async () => {
+    const { bytes, verification } = await stripMetadata(heic, DEFAULT_STRIP_OPTIONS);
+    expect(verification.entries, values(verification)).toEqual([]);
+    expect(bytes.length).toBe(heic.length);
+    // The removed values are gone from the bytes, not just unreferenced.
+    const text = new TextDecoder("latin1").decode(bytes);
+    for (const secret of ["F17XK2QJ0D8A", "harbour", "Jane Doe", "iPhone"]) expect(text.includes(secret), secret).toBe(false);
+    const [before, after] = await Promise.all([decodeHeic(heic), decodeHeic(bytes)]);
+    expect(after.width).toBe(64);
+    expect(after.pixels).toEqual(before.pixels);
+  });
+
+  it("can keep technical data only", async () => {
+    const { bytes, verification } = await stripMetadata(heic, TECHNICAL);
+    expectOnlyTechnical(verification, "Exposure Time", "F Number", "ISO", "Focal Length");
+    expect(verification.location).toBeUndefined();
+    expect((await decodeHeic(bytes)).pixels).toEqual((await decodeHeic(heic)).pixels);
+  });
+
+  it("handles AVIF the same way", async () => {
+    const avif = heifFixture("photo.avif");
+    const report = await auditMetadata(avif);
+    expect(find(report, "Serial Number")).toBeDefined();
+    expect(report.location).toBeDefined();
+    const { bytes, verification } = await stripMetadata(avif, DEFAULT_STRIP_OPTIONS);
+    expect(verification.entries, values(verification)).toEqual([]);
+    expect(bytes.length).toBe(avif.length);
   });
 });
 

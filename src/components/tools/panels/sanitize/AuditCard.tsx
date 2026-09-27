@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 import { CircleAlert, Info, Lock, MapPin, ShieldCheck, TriangleAlert } from "lucide-react";
@@ -59,12 +59,25 @@ function AuditError({ message, code }: { message: string; code?: string }) {
 
 const SENSITIVITY_ORDER: Record<Sensitivity, number> = { high: 0, medium: 1, low: 2 };
 
+type Filter = "all" | Sensitivity;
+
+/** The three kinds of metadata, as the audit names and explains them. */
+const CATEGORIES: { id: Sensitivity; label: string; description: string }[] = [
+  { id: "high", label: "Sensitive", description: "Identifies a person, place or device: names, GPS location, serial numbers, comments, hidden previews and attachments." },
+  { id: "medium", label: "Revealing", description: "Fingerprints the file and its history: software, dates, camera model, document IDs, titles and editing traces." },
+  { id: "low", label: "Technical", description: "How the image was captured or should be shown: exposure, aperture, ISO, resolution, colour. Rarely a privacy risk on its own." },
+];
+
 function AuditResults({ report }: { report: MetadataReport }) {
-  const [sensitiveOnly, setSensitiveOnly] = useState(false);
-  const high = report.entries.filter((e) => e.sensitivity === "high").length;
+  const [filter, setFilter] = useState<Filter>("all");
+  const counts: Record<Sensitivity, number> = { high: 0, medium: 0, low: 0 };
+  for (const e of report.entries) counts[e.sensitivity]++;
+  // A filter whose category has nothing left (e.g. after a new file) falls back to everything.
+  const active: Filter = filter !== "all" && counts[filter] === 0 ? "all" : filter;
+  const category = CATEGORIES.find((c) => c.id === active);
 
   const groups = useMemo(() => {
-    const visible = sensitiveOnly ? report.entries.filter((e) => e.sensitivity === "high") : report.entries;
+    const visible = active === "all" ? report.entries : report.entries.filter((e) => e.sensitivity === active);
     const map = new Map<string, MetadataEntry[]>();
     for (const e of visible) map.set(e.group, [...(map.get(e.group) ?? []), e]);
     // Groups holding the most sensitive data first.
@@ -72,7 +85,7 @@ function AuditResults({ report }: { report: MetadataReport }) {
       ([, a], [, b]) =>
         Math.min(...a.map((e) => SENSITIVITY_ORDER[e.sensitivity])) - Math.min(...b.map((e) => SENSITIVITY_ORDER[e.sensitivity])),
     );
-  }, [report.entries, sensitiveOnly]);
+  }, [report.entries, active]);
 
   if (report.entries.length === 0) {
     return (
@@ -87,27 +100,25 @@ function AuditResults({ report }: { report: MetadataReport }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
-        <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-fg">
-          {report.entries.length} tag{report.entries.length === 1 ? "" : "s"} found
-        </span>
-        {high > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning-text">
-            <TriangleAlert className="size-3.5" aria-hidden="true" />
-            {high} sensitive
-          </span>
-        )}
-        {high > 0 && (
-          <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-            <input
-              type="checkbox"
-              checked={sensitiveOnly}
-              onChange={(e) => setSensitiveOnly(e.target.checked)}
-              className="size-4 accent-brand"
-            />
-            Sensitive only
-          </label>
-        )}
+      <div className="border-b border-line px-5 py-3">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Show">
+          <FilterChip pressed={active === "all"} onClick={() => setFilter("all")}>
+            All <span className="tabular-nums">{report.entries.length}</span>
+          </FilterChip>
+          {CATEGORIES.map((c) =>
+            counts[c.id] > 0 ? (
+              <FilterChip key={c.id} pressed={active === c.id} onClick={() => setFilter(c.id)} tone={c.id === "high" ? "warning" : undefined}>
+                {c.id === "high" && <TriangleAlert className="size-3.5" aria-hidden="true" />}
+                {c.label} <span className="tabular-nums">{counts[c.id]}</span>
+              </FilterChip>
+            ) : null,
+          )}
+        </div>
+        <p className="mt-2 text-xs text-fg-muted">
+          {category
+            ? category.description
+            : `${counts.high} sensitive, ${counts.medium} revealing and ${counts.low} technical. Use the filters to check each kind.`}
+        </p>
       </div>
 
       {report.location && (
@@ -152,6 +163,26 @@ function AuditResults({ report }: { report: MetadataReport }) {
         </div>
       )}
     </div>
+  );
+}
+
+function FilterChip({ pressed, onClick, tone, children }: { pressed: boolean; onClick: () => void; tone?: "warning"; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
+        pressed
+          ? "border-brand bg-brand text-brand-fg"
+          : tone === "warning"
+            ? "border-warning/40 bg-warning-soft text-warning-text hover:border-warning"
+            : "border-line bg-surface-muted text-fg hover:border-line-strong",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

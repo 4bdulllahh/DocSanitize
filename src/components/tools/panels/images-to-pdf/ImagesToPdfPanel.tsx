@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import clsx from "clsx";
 import {
   closestCenter,
@@ -15,6 +15,7 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FileImage, GripVertical, ImageOff, LoaderCircle, RotateCw } from "lucide-react";
+import { useImageSource } from "@/hooks/useImageSource";
 import { errorMessage } from "@/lib/errors";
 import { formatBytes } from "@/lib/files";
 import { imagesToPdfFile } from "@/lib/pdf/client";
@@ -303,13 +304,10 @@ function PagePreview({
   const imgRef = useRef<HTMLImageElement>(null);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [failed, setFailed] = useState(false);
-
-  // Created and revoked in the same effect, so it's safe under StrictMode (see FilePreview).
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    if (imgRef.current) imgRef.current.src = url;
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  useImageSource(imgRef, file, () => {
+    setFailed(true);
+    onError();
+  });
 
   let frame = { w: FRAME, h: FRAME };
   let clipBox = { left: 0, top: 0, w: FRAME, h: FRAME };

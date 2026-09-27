@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Third-party pdf.js assets copied by scripts/copy-pdfjs-assets.mjs.
     "public/pdfjs/**",
+    "public/addons/**",
   ]),
 ]);
 

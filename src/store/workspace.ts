@@ -6,6 +6,8 @@ export type FileStatus = "idle" | "processing" | "done" | "error";
 export interface ProcessedOutput {
   blob: Blob;
   name: string;
+  /** Sanitize: technical metadata was kept on purpose, so it doesn't count as left over. */
+  keptTechnical?: boolean;
 }
 
 /**

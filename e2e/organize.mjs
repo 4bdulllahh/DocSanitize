@@ -126,7 +126,7 @@ assert.deepEqual(await widthsOf(extracted.bytes), [300, 320, 340]);
 step("split/select: click + shift-click + typed ranges stay in sync; extract downloads 3 pages");
 
 await page.getByRole("radio", { name: "Custom ranges" }).click();
-await page.locator('input:not([type="file"])').first().fill("1-2, 3-");
+await page.locator('main input:not([type="file"])').first().fill("1-2, 3-");
 await page.getByRole("button", { name: "Split into 2 files" }).click();
 await page.getByText("Split into 2 files", { exact: true }).last().waitFor();
 await page.screenshot({ path: "m4-03-split.png" });

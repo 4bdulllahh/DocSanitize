@@ -26,6 +26,7 @@ export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>>
   split: dynamic(() => import("./split/SplitPanel"), { ssr: false, loading: PanelSkeleton }),
   organize: dynamic(() => import("./organize/OrganizePanel"), { ssr: false, loading: PanelSkeleton }),
   "images-to-pdf": dynamic(() => import("./images-to-pdf/ImagesToPdfPanel"), { ssr: false, loading: PanelSkeleton }),
+  "heic-to-jpg": dynamic(() => import("./convert-image/ConvertImagePanel"), { ssr: false, loading: PanelSkeleton }),
   "pdf-to-images": dynamic(() => import("./pdf-to-images/PdfToImagesPanel"), { ssr: false, loading: PanelSkeleton }),
   compress: dynamic(() => import("./compress/CompressPanel"), { ssr: false, loading: PanelSkeleton }),
   "pdf-to-word": dynamic(() => import("./pdf-to-office/PdfToOfficePanels").then((m) => m.PdfToWordPanel), { ssr: false, loading: PanelSkeleton }),

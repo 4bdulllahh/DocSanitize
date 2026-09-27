@@ -1,4 +1,5 @@
 import { startsWith } from "./bytes";
+import { auditHeif, isHeif, stripHeif } from "./heif";
 import { auditJpeg, isJpeg, stripJpeg } from "./jpeg";
 import { auditPdf, stripPdf } from "./pdf";
 import { auditPng, isPng, stripPng } from "./png";
@@ -17,8 +18,9 @@ export function detectFormat(bytes: Uint8Array): Format {
   if (isJpeg(bytes)) return "jpeg";
   if (isPng(bytes)) return "png";
   if (isWebp(bytes)) return "webp";
+  if (isHeif(bytes)) return "heif";
   if (startsWith(bytes, "RIFF")) throw new MetadataError("This RIFF file isn't a WebP image.", "unsupported");
-  throw new MetadataError("Unsupported file format. Use a PDF, JPEG, PNG or WebP file.", "unsupported");
+  throw new MetadataError("Unsupported file format. Use a PDF, JPEG, PNG, WebP, HEIC or AVIF file.", "unsupported");
 }
 
 const ENGINES: Record<Format, {
@@ -29,6 +31,7 @@ const ENGINES: Record<Format, {
   jpeg: { audit: auditJpeg, strip: stripJpeg },
   png: { audit: auditPng, strip: stripPng },
   webp: { audit: auditWebp, strip: stripWebp },
+  heif: { audit: auditHeif, strip: stripHeif },
 };
 
 export function auditMetadata(bytes: Uint8Array): Promise<MetadataReport> {

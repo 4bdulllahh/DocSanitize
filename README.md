@@ -14,12 +14,12 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 ## Features
 
-17 tools in five groups. Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+18 tools in five groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
-- **Sanitize Metadata.** Opens PDFs, JPEGs, PNGs and WebPs and lists everything hidden inside, from the author, device and serial number to editing software, dates, XMP history and the GPS location a photo was taken at, sorted by how revealing each item is. One click removes it all. The file is then read again from scratch to confirm nothing is left.
-  - **Photos** are cleaned without re-encoding, so the image stays pixel-for-pixel identical. You can choose to keep the colour profile. Rotated photos keep only their orientation flag so they still display upright.
+- **Sanitize Metadata.** Opens PDFs, JPEGs, PNGs, WebPs and iPhone HEIC and AVIF photos and lists everything hidden inside, from the author, device and serial number to editing software, dates, XMP history and the GPS location a photo was taken at. Each item is marked **Sensitive**, **Revealing** or **Technical**, and you can filter the list to check one kind at a time. One click removes it all, or, for photos, everything except technical data. The file is then read again from scratch to confirm nothing is left.
+  - **Photos** are cleaned without re-encoding, so the image stays pixel-for-pixel identical. You can choose to keep the colour profile, or to keep all technical data (exposure, aperture, ISO, focal length, resolution and colour profile) while removing who, where, when and which device. Rotated photos keep only their orientation flag so they still display upright.
   - **PDFs** lose their document info, XMP metadata, document IDs, application data (PieceInfo), comment authors and dates, attachments, JavaScript and auto-run actions, and earlier saved versions of the file. Photos embedded in the PDF have their own EXIF and GPS data stripped too.
 
 ### Organize
@@ -36,7 +36,8 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 ### Convert
 
-- **Images to PDF.** JPG, PNG and WebP to one PDF: fit each page to its image or use A4 or Letter, and choose the orientation, margins, and whether images fit or fill the page. Photos appear the right way up and their EXIF and GPS data is removed first.
+- **Images to PDF.** JPG, PNG, WebP, HEIC and AVIF to one PDF: fit each page to its image or use A4 or Letter, and choose the orientation, margins, and whether images fit or fill the page. Photos appear the right way up and their EXIF and GPS data is removed first.
+- **HEIC to JPG.** Converts iPhone HEIC photos, and AVIF, WebP or PNG images, to JPG (with a quality setting) or PNG, several at once as a ZIP. Photos are turned upright and keep their colour profile; location, camera and date details aren't copied.
 - **PDF to Images.** Every page or a selection, as JPG, PNG or WebP at 72 to 300 DPI. Several images download as a ZIP.
 - **PDF to Word.** Rebuilds headings, paragraphs and page breaks in an editable `.docx`, dropping running headers and page numbers. Previewed in the app before you download.
 - **PDF to Excel.** Detects table columns from the page layout and puts each page's table on its own sheet, with numbers stored as numbers. Previewed as a table first.
@@ -85,7 +86,7 @@ Documents DocSanitize creates carry no author, software or tracking metadata of 
 | PDF editing | [@cantoo/pdf-lib](https://github.com/cantoo-scribe/pdf-lib), a maintained pdf-lib fork with encryption, with @cantoo/fontkit for embedded fonts |
 | PDF rendering | [pdf.js](https://mozilla.github.io/pdf.js/) 6 in its own worker: previews, thumbnails, text extraction and rasterising |
 | Office files | [mammoth](https://github.com/mwilliamson/mammoth.js) reads `.docx`, [SheetJS](https://sheetjs.com) reads spreadsheets; our own writers produce `.docx` and `.xlsx` |
-| Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP parsers, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
+| Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP/HEIF parsers, [libheif](https://github.com/strukturag/libheif) (WebAssembly, via libheif-js) for decoding HEIC, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
 | Drag and drop | dnd-kit (mouse, touch and keyboard) |
 | Quality | ESLint, Vitest unit tests, Playwright browser tests, GitHub Actions CI |
 | Offline | A service worker generated at build time that precaches the whole app |
@@ -97,9 +98,10 @@ The privacy engine in [`src/lib/metadata`](src/lib/metadata) reads each format's
 - **JPEG:** every application segment that isn't needed to display the image (EXIF, XMP, Photoshop/IPTC, comments, maker data) is dropped, along with anything hidden after the end of the image. The compressed image data is copied byte for byte.
 - **PNG:** only the chunks needed to draw the image are kept; text, EXIF, time stamps and private chunks are dropped.
 - **WebP:** the EXIF and XMP chunks are dropped and the header flags that point to them are cleared.
+- **HEIC and AVIF:** these files point to their parts by absolute position, so nothing is moved. The EXIF, XMP and other metadata items and the embedded thumbnail are overwritten with zeros and given a type that readers ignore. The file keeps its exact size and the image data is untouched.
 - **PDF:** the document info dictionary, XMP streams on any object, document IDs, PieceInfo, attachments, JavaScript and open actions are removed, and comment authors and dates are anonymised. The file is written out fresh, so earlier revisions kept by incremental saves disappear, and unreachable objects are garbage-collected so nothing removed survives in the file. Embedded JPEG photos are cleaned like standalone ones.
 
-Every item is classed as **sensitive** (identifies a person, place or device), **revealing** (fingerprints the file) or **technical**. After stripping, the output is audited again, and the result card shows anything left and why (for example, a colour profile you chose to keep).
+Every item is classed as **sensitive** (identifies a person, place or device), **revealing** (fingerprints the file) or **technical**. "Keep technical" rebuilds a photo's EXIF from a fixed allow-list of camera settings and resolution tags, so a tag that isn't on the list, known or not, is always removed. After stripping, the output is audited again, and the result card shows anything left and why (for example, a colour profile you chose to keep).
 
 ## How redaction works
 
@@ -142,6 +144,8 @@ Signatures, watermarks and page numbers are positioned as you see the page, what
 
 After your first visit, a service worker keeps a copy of the whole app (about 9 MB, including the PDF engine, fonts and decoders), so every tool works with no connection. It only caches the site's own files, never yours. When a new version is deployed it downloads in the background, and a small prompt offers to reload into it; nothing reloads while you're working.
 
+Two optional parts are kept out of that download: they're fetched from the site the first time a tool needs them, then cached for offline use too. So far that's the HEIC decoder (about 1.5 MB); OCR languages and the media converter will follow. They survive app updates and are only replaced when a new version of the add-on ships.
+
 The service worker is generated at build time by [`scripts/build-service-worker.mjs`](scripts/build-service-worker.mjs) from the list of files in the build, with a version taken from their contents.
 
 ## Security
@@ -170,15 +174,15 @@ flowchart LR
 
 | Folder | What's in it |
 | --- | --- |
-| `src/lib/metadata` | Metadata audit and removal for PDF, JPEG, PNG and WebP; sensitivity rules |
+| `src/lib/metadata` | Metadata audit and removal for PDF, JPEG, PNG, WebP, HEIC and AVIF; sensitivity rules |
 | `src/lib/pdf` | Merge, split, organize, images, compress, security, redaction, watermarks, page numbers and signatures; pdf.js loading and rasterising |
 | `src/lib/office` | PDF text layout analysis, `.docx`/`.xlsx` writers, the PDF layout engine, Word and spreadsheet readers |
-| `src/lib/image` | Image decoding and re-encoding (browser only) |
+| `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
 | `src/components/tools/panels` | One folder per tool, plus shared controls, previews and output cards |
 | `src/components/workspace`, `pdf`, `shell` | Tabs and drop zone; page thumbnails and page views; header, sidebar, toasts and service-worker registration |
 | `src/lib/tools.ts` | The tool list: names, descriptions, categories and accepted file types |
-| `scripts` | Build steps: pdf.js assets, the CSP, the service worker, icons and README screenshots |
+| `scripts` | Build steps: pdf.js assets, add-ons, the CSP, the service worker, icons and README screenshots |
 | `e2e` | Browser test suites |
 
 Heavy work never runs on the page's main thread. Panels call a small client (`src/lib/*/client.ts`), which sends the bytes to a worker, which runs a pure function from `src/lib`. Keeping that logic free of browser APIs means it's unit-tested directly in Node.
@@ -252,7 +256,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **E-Sign adds a visible signature**, not a certificate-based digital signature.
 - **Word and Excel to PDF are best effort.** Complex layouts, text boxes, shapes and charts aren't reproduced. Text covers Latin, Greek and Cyrillic; other scripts show as "?" with a warning.
 - **Merge and Split** don't carry over bookmarks or links between pages. Organize keeps them.
-- **HEIC and AVIF** photos aren't supported yet.
+- **HEIC photos** need a one-time download of the decoder (about 1.5 MB) the first time you preview or convert one; auditing and stripping don't. **AVIF** uses the browser's own decoder, so it needs a current browser.
 - **Very large files** are limited by your device's memory.
 
 ## Roadmap
@@ -266,8 +270,18 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M7** Protect, unlock and redact
 - [x] **M8** E-sign, watermark and page numbers
 - [x] **M9** Security headers and CSP, offline PWA, documentation and CI (v1.0.0)
+- [x] **M10** HEIC and AVIF everywhere, HEIC to JPG, Sensitive/Revealing/Technical filters, "keep technical data", tool search, E-Sign crash fix
+- [ ] **M11** Edit PDF: one editor for text, images, shapes, highlights, drawing, check marks, signatures and notes
+- [ ] **M12** Fill PDF forms, and page tools (rotate, delete, insert, crop, resize, headers and footers, Bates numbering, grayscale, bookmarks, metadata editor)
+- [ ] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
+- [ ] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker
+- [ ] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
+- [ ] **M16** Local media converter (video and audio to MP3, MP4, WebM or GIF)
+- [ ] **M17** Certificate-based digital signatures and signature verification
+- [ ] **M18** Batch processing
+- [ ] **M19** Interface languages, including right-to-left
 
-Ideas for later: keep bookmarks when merging, download several cleaned files as one ZIP, HEIC support, OCR for scanned PDFs.
+Ideas for later: keep bookmarks when merging.
 
 ## Contributing
 
@@ -276,3 +290,5 @@ Issues and pull requests are welcome. Please run `npm run lint`, `npm test` and,
 ## License
 
 [MIT](LICENSE) © Abdullah
+
+The HEIC decoder add-on is [libheif](https://github.com/strukturag/libheif) with libde265, both LGPL-3.0. It's served unmodified as separate files under `/addons/`, with its licence alongside.

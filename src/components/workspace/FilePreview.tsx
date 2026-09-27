@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Lock } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImageOff, Lock } from "lucide-react";
 import { KindIcon } from "@/components/files/KindIcon";
 import { PageThumbnail } from "@/components/pdf/PageThumbnail";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
+import { useImageSource } from "@/hooks/useImageSource";
 import type { WorkspaceFile } from "@/store/workspace";
 
 export function FilePreview({ file }: { file: WorkspaceFile }) {
@@ -58,14 +59,17 @@ function PdfPreview({ file }: { file: File }) {
 function ImagePreview({ file }: { file: File }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useImageSource(imgRef, file, () => setFailed(true));
 
-  // The object URL is set on the element directly (not via state) so it is created and revoked
-  // in the same effect — safe under StrictMode's double-invocation.
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    if (imgRef.current) imgRef.current.src = url;
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  if (failed) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <ImageOff className="size-10 text-fg-subtle" strokeWidth={1.5} aria-hidden="true" />
+        <p className="max-w-xs text-sm text-fg-muted">This image can&apos;t be previewed in this browser.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">

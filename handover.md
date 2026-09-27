@@ -1,6 +1,6 @@
 # DocSanitize: maintainer guide
 
-_Last updated 2026-09-27 · version 1.0.0 · all nine milestones done · live at https://docsanitize.vercel.app_
+_Last updated 2026-09-28 · version 1.0.0 plus milestone 10 of the v2 roadmap (M10–M19, see the README) · live at https://docsanitize.vercel.app_
 
 This guide is for whoever changes DocSanitize next, whether a person or an AI assistant. The [README](README.md) says what the app does. This file explains how the code fits together, the rules it must keep, how to make common changes, and the traps already found. Read sections 1 to 3 before changing anything.
 
@@ -13,9 +13,9 @@ This guide is for whoever changes DocSanitize next, whether a person or an AI as
    ```bash
    npm install
    npx playwright-core install chromium        # once per machine, for the browser tests
-   npm run lint && npm test                     # 109 unit tests
+   npm run lint && npm test                     # 120 unit tests
    npm run build && npx tsc --noEmit            # tsc needs the route types the build generates
-   npm run e2e                                  # 8 browser suites against ./out
+   npm run e2e                                  # 9 browser suites against ./out
    ```
 3. **Deploying is pushing.** Vercel builds `main` on every push, and GitHub Actions runs the same checks (`.github/workflows/ci.yml`). After a push, check the live site (section 7.8).
 4. **Working with Claude:** the owner builds in milestones. At the end of each one, stop and ask whether to continue. When the next milestone is approved, commit the finished one and push it to `origin/main`. Don't commit at other times unless asked. Commit messages end with a `Co-Authored-By` line.
@@ -53,6 +53,12 @@ These are the product's promises. Every change must keep them, and the tests enf
 | Theme | Light (warm cream) and dark (charcoal) neutrals from the owner's Paperless app, with navy `#263a81` as the accent |
 | License | MIT, holder "Abdullah" |
 | Hosting | Vercel, deploying `out/` as a static site (`framework: null` in `vercel.json`) |
+| HEIC decoding | libheif-js (LGPL-3.0) as an **add-on**: plain files under `/addons/`, never bundled (section 6, Add-ons). AVIF uses the browser's decoder |
+| Large optional parts | Downloaded from our own site on first use, then cached for offline use; never in the precache |
+| v2 roadmap (agreed 2026-09-27) | M11 Edit PDF · M12 Fill PDF + page tools · M13 OCR + Translate · M14 scan tools · M15 conversions · M16 media converter · M17 certificate signatures · M18 batch · M19 interface languages |
+| Translate PDF | The browser's built-in on-device Translator API (Chrome/Edge); other browsers get a "use Chrome or Edge" message. No online service, no bundled models |
+| Link → MP4/MP3 | Not built: it needs a server and breaks the no-upload promise. M16 is a *local* media converter (ffmpeg.wasm add-on) instead |
+| Keep technical data | An allow-list of EXIF tag numbers (`technicalOnlyExif` in `exif.ts`), never a classifier-based filter |
 
 ---
 
@@ -68,6 +74,7 @@ These are the product's promises. Every change must keep them, and the tests enf
 | mammoth | 1.13 | `.docx` reading |
 | xlsx (SheetJS) | 0.20.3 from the CDN tarball | spreadsheet reading |
 | exifr | 7.1 | EXIF decoding |
+| libheif-js | 1.23 | HEIC decoding add-on (only its `libheif-wasm/libheif.{js,wasm}` are shipped) |
 | fflate | 0.8 | ZIP |
 | zustand | 5 | tabs, toasts, signatures |
 | @dnd-kit/* | 6 / 10 / 9 / 3 | drag and drop |
@@ -77,9 +84,9 @@ Built on Windows 11 with Node 24; CI runs Ubuntu with Node 24. Node 22.18+ is ne
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | `predev` copies pdf.js assets into `public/pdfjs/`, then `next dev` (no service worker) |
-| `npm run build` | `prebuild` copies pdf.js assets, then `next build` exports to `out/`. `postbuild` runs `fix-export-segments.mjs`, then `secure-export.mjs` (CSP `<meta>` and `_headers`), then `build-service-worker.mjs` (`out/sw.js`) |
-| `npm test` | Vitest, 109 tests, in Node |
+| `npm run dev` | `predev` copies pdf.js assets into `public/pdfjs/` and add-ons into `public/addons/`, then `next dev` (no service worker) |
+| `npm run build` | `prebuild` copies pdf.js assets and add-ons, then `next build` exports to `out/`. `postbuild` runs `fix-export-segments.mjs`, then `secure-export.mjs` (CSP `<meta>` and `_headers`), then `build-service-worker.mjs` (`out/sw.js`) |
+| `npm test` | Vitest, 120 tests, in Node |
 | `npm run e2e [-- name]` | serves `out/` on :3123 **with the `vercel.json` headers** and runs `e2e/*.mjs` in headless Chromium; screenshots go to `e2e/.output/` |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | type check, after a build or dev run |
@@ -95,13 +102,13 @@ src/
   app/
     layout.tsx               fonts, metadata (Open Graph, theme colour), pre-paint theme <script>, <AppShell>
     globals.css              ★ theme tokens (light/dark) and Tailwind @theme mapping
-    page.tsx                 home: hero, promises, tool grid
+    page.tsx                 home: hero, promises, <ToolDirectory> (filterable tool grid)
     tools/[tool]/page.tsx    one static page per tool (generateStaticParams, dynamicParams = false)
     manifest.ts              web app manifest (force-static)
     icon.svg apple-icon.png favicon.ico    generated by scripts/make-icons.mjs
   config/site.ts             name, tagline, description, live URL, GitHub URL
   lib/
-    tools.ts                 ★ the tool list: id, name, description, category, icon, accepts, multiFile, status
+    tools.ts                 ★ the tool list: id, name, description, category, icon, keywords, accepts, multiFile, status; searchTools()
     files.ts                 file kinds and accept strings, formatBytes, createId
     errors.ts                ProcessingError(message, code: encrypted | unsupported | corrupt | invalid)
     worker-rpc.ts            ★ typed postMessage RPC: exposeWorkerApi() / createWorkerClient()
@@ -109,7 +116,8 @@ src/
     password.ts              strength meter and generator
     theme.ts                 theme storage key and the inline pre-paint script
     metadata/                privacy engine (pure): index.ts (detect, audit, strip + re-audit), jpeg/png/webp/pdf.ts,
-                             exif.ts, xmp.ts (regex-based; no DOMParser in workers), classify.ts (sensitivity), client.ts
+                             heif.ts (HEIC/HEIF/AVIF, in-place strip), exif.ts (incl. technicalOnlyExif), xmp.ts
+                             (regex-based; no DOMParser in workers), classify.ts (sensitivity), client.ts
     pdf/
       load.ts                ★ loadPdf / createPdf / savePdf / collectGarbage
       assemble.ts ranges.ts  merge, extract, rearrange; "1-3, 5, 8-" page ranges
@@ -130,28 +138,32 @@ src/
       flow.ts                ★ PDF layout engine (paragraphs, lists, tables, images, links)
       word.ts sheet.ts       .docx → PDF (mammoth tree), spreadsheets → PDF (SheetJS)
       fonts.ts client.ts     Liberation Sans loader; page-side API for office.worker
-    image/                   canvas.ts (decode/encode, browser only), prepare.ts (images for PDF)
+    image/                   canvas.ts (decode/encode, browser only), prepare.ts (images for PDF), heic.ts (client for the
+                             HEIC add-on worker), convert.ts (convert, displayable copy, ICC carry-over)
   workers/                   metadata / pdf / office workers expose lib functions; pdfjs.worker just imports pdf.js's worker
   store/                     workspace.ts (★ open files = tabs), toast.ts
-  hooks/                     useAddFiles, useFileInputs (drop, paste, unload warning), useTheme
+  hooks/                     useAddFiles, useFileInputs (drop, paste, unload warning), useTheme, useImageSource (<img> for any image incl. HEIC)
   components/
-    shell/                   AppShell, Header, Sidebar, OfflineBadge, ThemeToggle, Toaster, ServiceWorker (registration + update prompt)
+    shell/                   AppShell, Header, Sidebar, ToolSearch (Ctrl/⌘K dialog), OfflineBadge, ThemeToggle, Toaster, ServiceWorker
     workspace/               Workspace, FileTabs, FilePanel, FilePreview, Dropzone
     pdf/                     usePdfDocument, PageThumbnail, PageTile, usePageSelection, PageStage (page + overlay), PageStrip
     tools/panels/
       registry.tsx           ★ tool id → panel, via next/dynamic (ssr: false)
       shared/                controls.tsx (Field, Segmented, AnchorPicker, ColorField, Slider), OutputCard, PdfStates,
                              ConversionParts (fidelity notes, warnings, PDF result preview), StampPreview (live preview)
-      <tool folders>         sanitize, merge, split, organize, security, redact, images-to-pdf, pdf-to-images,
-                             pdf-to-office, office-to-pdf, compress, sign, markup (watermark + page numbers)
+      <tool folders>         sanitize, merge, split, organize, security, redact, images-to-pdf, convert-image (HEIC to JPG),
+                             pdf-to-images, pdf-to-office, office-to-pdf, compress, sign, markup (watermark + page numbers)
+    tools/ToolCard, ToolDirectory   home grid cards and the filter box
 scripts/
   copy-pdfjs-assets.mjs      pdfjs-dist cmaps / standard_fonts / wasm / iccs → public/pdfjs (git-ignored)
+  copy-addons.mjs            add-ons → public/addons/<name>-<version>/ (git-ignored); addons/heif.worker.js is ours
   fix-export-segments.mjs    Windows-only Next export bug fix (section 9)
   secure-export.mjs          CSP <meta> per page (script hashes) + out/_headers, from vercel.json
   build-service-worker.mjs   out/sw.js from service-worker.template.js with the precache list and version
   service-worker.template.js the real service worker
   make-icons.mjs screenshots.mjs
 public/
+  addons/                    generated by copy-addons.mjs; served, but fetched on first use only
   sw.js                      development stand-in that removes a leftover production worker (replaced in out/ by the build)
   icons/                     PWA icons (generated)
 e2e/                         run.mjs + one suite per area (section 8)
@@ -181,6 +193,14 @@ Panel → `lib/<area>/client.ts` → worker via `createWorkerClient` → pure fu
 ### Rendering
 `render.ts` lazy-loads pdf.js with our worker and same-origin assets. `usePdfDocument(blob)` opens a document and destroys it on unmount. `PageThumbnail` renders only when visible, through a 3-slot queue. `PageStage` renders one page at the panel's width and gives children its size for overlays (Redact and E-Sign).
 
+### Images and add-ons
+- The `image` kind covers JPEG, PNG, WebP, HEIC/HEIF and AVIF. Always decode through `decodeImage()` (`lib/image/canvas.ts`), which routes HEIC to the add-on. Show images with `useImageSource()`, not a raw object URL, and turn one into PDF-embeddable bytes with `asPngOrJpeg()`.
+- **Add-ons** are big optional parts served from `/addons/<name>-<version>/` but left out of the precache. `copy-addons.mjs` copies them into `public/addons/`. The service worker caches each file on first request in a separate `docsanitize-addons` cache that survives updates, and prunes files a new build no longer lists. The version in the path makes an upgrade a new URL. Today there's one: `libheif-<v>/heif.worker.js`, a classic worker (so it can `importScripts` the Emscripten loader, which must not be bundled). It's used by `lib/image/heic.ts` from the page or from inside other workers, and its load error tells the user to go online once.
+- HEIC metadata is stripped **in place** (`heif.ts`): items are zeroed and retyped to `skip`, and so are the references from them, because HEIF uses absolute offsets. Never "remove" bytes from a HEIF.
+
+### Search
+`searchTools()` scores each word against the name (most), then `keywords`, then description and category; every word must match. `ToolSearch` (header, Ctrl/⌘K) and `ToolDirectory` (home) both use it. Give every new tool `keywords` for the words people would type.
+
 ### Theme
 Tokens in `globals.css`: `--canvas`, `--surface(-muted|-sunken)`, `--line(-strong)`, `--fg(-muted|-subtle)`, `--brand(-hover|-fg|-soft|-text|-border)`, `--success/warning/danger(-soft|-text)`, `--elev-1/2`. Components use utilities such as `bg-surface`, `text-fg-muted` and `border-line`, **never raw palette colours**, so both themes work. The exceptions are page "paper" whites and `text-white` on danger badges.
 
@@ -191,7 +211,7 @@ Tokens in `globals.css`: `--canvas`, `--surface(-muted|-sunken)`, `--line(-stron
 ### 7.1 Add a tool
 1. Write the logic as pure functions in `src/lib/<area>/`, with Vitest tests next to the others.
 2. Expose it in a worker (`src/workers/*.worker.ts`) and add a page-side function in `lib/<area>/client.ts`.
-3. Add the tool to `TOOLS` in `src/lib/tools.ts` (id, name, description, category, icon, accepts, `status: "ready"`). Its page is generated automatically.
+3. Add the tool to `TOOLS` in `src/lib/tools.ts` (id, name, description, category, icon, `keywords` for search, accepts, `status: "ready"`). Its page is generated automatically. Add a `searchTools` expectation in `lib/__tests__/tools.test.ts` if the obvious query should find it first.
 4. Build the panel in `src/components/tools/panels/<tool>/` using the shared controls and `OutputCard`, and register it in `registry.tsx` with `next/dynamic` (`ssr: false`).
 5. Add or extend an e2e suite that **checks the downloaded bytes**, not just the UI, and keeps the no-console-errors and localhost-only assertions.
 6. Look at the screenshots in light, dark and at 390 px wide.
@@ -216,9 +236,15 @@ Edit `src/lib/tools.ts`. The sidebar, home grid, tool header and page metadata a
 - Edit `scripts/service-worker.template.js`, never `out/sw.js`. Rules to keep:
   - HEAD requests must be answered from the cache (Next checks a page exists before prefetching it).
   - Requests with a query string, and worker scripts, must get a **rebuilt** `Response`, because Turbopack workers read their settings from their own URL (section 9).
-  - Install caches everything; activation deletes old caches; `skip-waiting` only comes from the update prompt.
+  - Install caches everything except add-ons; activation deletes old app caches (never `docsanitize-addons`) and prunes add-on files the build no longer lists; `skip-waiting` only comes from the update prompt.
+  - Add-on requests (`ADDONS`, filled in by `build-service-worker.mjs` from `out/addons/`) are cache-first from `docsanitize-addons` and cached on first fetch.
 - `src/components/shell/ServiceWorker.tsx` registers it (production only) and shows the "Reload now" toast.
-- `e2e/offline.mjs` covers install, offline use, the update prompt and the stand-in.
+- `e2e/offline.mjs` covers install, add-ons downloaded only on first use, offline use (including a HEIC conversion), the update prompt and the stand-in.
+
+### 7.10 Add an add-on (OCR languages, ffmpeg…)
+1. Copy its files in `scripts/copy-addons.mjs` to `public/addons/<name>-<version>/`, with its licence.
+2. Load it by that URL from a small client like `lib/image/heic.ts`, with a clear error for "not downloaded yet and offline".
+3. Nothing else: the service worker picks it up from `out/addons/`. Extend `offline.mjs` to use it once online and again offline.
 
 ### 7.7 Update the README screenshots
 `npm run build && node scripts/screenshots.mjs`. The scenes, sample files and viewport sizes are in the script.
@@ -236,16 +262,18 @@ If `sw.js` is the stand-in or the `<meta>` is missing, Vercel is serving Next's 
 - **pdfjs-dist:** `copy-pdfjs-assets.mjs` copies `cmaps`, `standard_fonts`, `wasm` and `iccs`; check they still exist. The office fonts come from `standard_fonts/LiberationSans-*.ttf`.
 - **@cantoo/pdf-lib:** re-run `security.test.ts`. It checks that no strings leak in plaintext, which depends on object streams.
 - **SheetJS:** install the new tarball URL from cdn.sheetjs.com (`npm i https://cdn.sheetjs.com/xlsx-<v>/xlsx-<v>.tgz`), not the npm package.
+- **libheif-js:** re-run `metadata.test.ts` (it decodes stripped HEICs with libheif) and `e2e/images.mjs`. The add-on URL follows the version automatically.
 - **Next.js:** read the upgrade notes in `node_modules/next/dist/docs`, then check that `fix-export-segments.mjs` and `secure-export.mjs` still match the export's layout, and run the full e2e.
 
 ---
 
 ## 8. Testing
 
-**Unit tests (`npm test`, 109):**
+**Unit tests (`npm test`, 120):**
 | File | Covers |
 | --- | --- |
-| `lib/metadata/__tests__/metadata.test.ts` | every format's audit and strip, verification reaching zero, lossless JPEG data, PDF leaks including revisions |
+| `lib/metadata/__tests__/metadata.test.ts` | every format's audit and strip, verification reaching zero, lossless JPEG data, PDF leaks including revisions, "keep technical data" per format, HEIC/AVIF in-place strip decoding to identical pixels (fixtures in `heif/`, made by `make-fixtures.py`) |
+| `lib/__tests__/tools.test.ts` | tool search ranking |
 | `lib/pdf/__tests__/pdf.test.ts` | page ranges, merge, extract, rearrange, purging deleted pages |
 | `images.test.ts`, `compress.test.ts` | image layout and orientation maths, recompression rules and presets |
 | `security.test.ts` | protect/unlock round trips, real RC4/AES-128/AES-256 fixtures (`__tests__/encrypted/`, made with pypdf by `make-fixtures.py`), no plaintext leaks |
@@ -265,8 +293,9 @@ Fixtures (`metadata/__tests__/fixtures.ts`, `office/__tests__/fixtures.ts`) use 
 | `convert.mjs` | images → PDF, PDF → images, compress |
 | `office.mjs` | all four office conversions, checked with mammoth, SheetJS and pdf.js |
 | `security.mjs` | protect, unlock, redact (including a pixel check that form fields are blacked out) |
-| `markup.mjs` | watermark, page numbers, e-sign placement accuracy |
-| `offline.mjs` | security headers and CSP, blocked uploads and scripts, manifest, precache, offline use, update prompt, dev stand-in |
+| `markup.mjs` | watermark, page numbers, e-sign placement accuracy, quick strokes don't crash the pad |
+| `images.mjs` | tool search (home filter, Ctrl+K), HEIC/AVIF sanitize with the category filters, keep technical data, HEIC to JPG, HEIC/AVIF to PDF |
+| `offline.mjs` | security headers and CSP, blocked uploads and scripts, manifest, precache, add-on on first use, offline use, update prompt, dev stand-in |
 
 Every suite also takes light, dark and 390 px screenshots, and fails on console errors or requests to other origins. `convert.mjs` timed out once in about ten full runs on Windows; it hasn't reproduced since.
 
@@ -301,15 +330,20 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 - SheetJS needs `cellStyles: true` to see hidden rows, columns and widths. CSV must be decoded as UTF-8 by us, falling back to windows-1252.
 - exifr can't read WebP; its `Options` type isn't exported (`Parameters<typeof exifr.parse>[1]`).
 - dnd-kit: `MouseSensor` (distance 5), `TouchSensor` (250 ms long press) and `KeyboardSensor` starting on Space; keyboard drags in e2e need about 200 ms between keys.
+- The header's search dialog puts an `<input>` in every page's DOM (hidden while closed). Scope e2e input locators to `main`.
+- `sizedJpeg()` in the metadata fixtures has no real image data: fine for metadata tests, not decodable. For a decodable JPEG, encode one with the browser's canvas (see `e2e/images.mjs`).
+- The HEIC fixtures are made with pillow-heif and Pillow **11.3** (AVIF writing needs ≥ 11.3; Pillow 12 conflicts with Streamlit on the owner's machine).
 - `serve` (used by e2e) matches header sources as globs, so `run.mjs` turns `/(.*)` into `/**`, and refuses to start if the CSP isn't being sent.
 
 **React**
+- **Never read an event inside a state updater** (`setX((s) => [...s, point(e)])`). React may run the updater later, during render, when `e.currentTarget` is null. That crashed E-Sign in 1.0.0 ("This page couldn't load"). Read the event first, then pass the value in.
 - No synchronous `setState` in effects (the lint rule enforces it). Keep async results together with their input and derive "loading" from a mismatch; use `useEffectEvent` for callbacks read in effects. The `react-hooks/refs` rule rejects curried handlers that read refs.
 
 **Windows and PowerShell**
 - `Get-Content` without `-Encoding utf8` mangles UTF-8, and paths containing `[tool]` are treated as wildcards (use `-LiteralPath`).
 - Files written by Python on Windows get CRLF endings unless you pass `newline=''`. `.gitattributes` normalises to LF.
-- Tool-call text containing `\uXXXX` escapes may be decoded into literal characters; build such strings in code instead.
+- Tool-call text containing `\uXXXX` escapes (and `\0`) may be decoded into literal characters; build such strings in code instead, and grep for control characters afterwards.
+- Long bash heredocs that contain both quotes and `${…}` sometimes fail to parse; write the script to a file instead.
 
 ---
 
@@ -321,6 +355,6 @@ Every suite also takes light, dark and 390 px screenshots, and fails on console 
 - Office conversions are best effort; generated text covers Latin, Greek and Cyrillic only.
 - Merge and Split drop bookmarks and links between pages (Organize keeps them).
 - Metadata in images embedded in PDFs is only handled for plain JPEGs.
-- HEIC/AVIF aren't supported.
-- Sanitize's "download all" triggers separate downloads; a ZIP would be nicer.
+- HEIC previews and conversions need the decoder add-on downloaded once (about 1.5 MB); auditing and stripping HEIC don't.
+- Converted HEICs carry the ICC profile only if the HEIC has one (`colr` of type `prof`); `nclx`-only colour isn't translated.
 - The e2e suites are plain Node scripts with `playwright-core`, not the `@playwright/test` runner. Migrating is optional.

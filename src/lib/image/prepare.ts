@@ -1,5 +1,6 @@
 import { ProcessingError } from "../errors";
 import { readExif } from "../metadata/exif";
+import { isAvif, isHeif } from "../metadata/heif";
 import { isJpeg, stripJpeg } from "../metadata/jpeg";
 import { isPng } from "../metadata/png";
 import { DEFAULT_STRIP_OPTIONS } from "../metadata/types";
@@ -14,7 +15,7 @@ export interface ImageInput {
   rotate: number;
 }
 
-/** Quality used when a WebP has to be re-encoded as JPEG. */
+/** Quality used when a WebP, HEIC or AVIF has to be re-encoded as JPEG. */
 const WEBP_TO_JPEG_QUALITY = 0.92;
 
 /**
@@ -22,6 +23,7 @@ const WEBP_TO_JPEG_QUALITY = 0.92;
  * - JPEG: metadata stripped (EXIF/GPS would otherwise be copied into the PDF), orientation kept aside.
  * - PNG: embedded from decoded pixels, so its text chunks never reach the PDF.
  * - WebP: re-encoded with the browser's codecs (PNG if lossless or transparent, else JPEG).
+ * - HEIC / AVIF: decoded (HEIC by the libheif add-on) and re-encoded the same way; no metadata is carried over.
  */
 export async function prepareImage(input: ImageInput): Promise<PreparedImage> {
   try {
@@ -50,5 +52,32 @@ async function prepare({ name, bytes, rotate }: ImageInput): Promise<PreparedIma
       bitmap.close();
     }
   }
-  throw new ProcessingError(`“${name}” isn't a JPEG, PNG or WebP image.`, "unsupported");
+  if (isHeif(bytes)) {
+    // HEIC (through the libheif add-on) or AVIF (the browser's own decoder), rotation applied.
+    const bitmap = await decodeImage(bytes, isAvif(bytes) ? "image/avif" : "image/heic");
+    try {
+      const { bytes: encoded, format } = await encodeForPdf(bitmap);
+      return { name, bytes: encoded, format, orientation: 1, rotate };
+    } finally {
+      bitmap.close();
+    }
+  }
+  throw new ProcessingError(`“${name}” isn't a JPEG, PNG, WebP, HEIC or AVIF image.`, "unsupported");
+}
+
+/** JPEG, unless the image has transparency (then PNG, which keeps it). */
+async function encodeForPdf(bitmap: ImageBitmap): Promise<{ bytes: Uint8Array; format: "jpeg" | "png" }> {
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(bitmap, 0, 0);
+  const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+  let transparent = false;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) {
+      transparent = true;
+      break;
+    }
+  }
+  const type = transparent ? "image/png" : "image/jpeg";
+  return { bytes: await encodeBitmap(bitmap, bitmap.width, bitmap.height, type, WEBP_TO_JPEG_QUALITY), format: transparent ? "png" : "jpeg" };
 }

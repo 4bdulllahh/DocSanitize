@@ -1,6 +1,6 @@
 import { ascii, concat, latin1, nullIndex, startsWith, utf8 } from "./bytes";
 import { compact, entry } from "./classify";
-import { orientationOnlyExif, readExif } from "./exif";
+import { orientationOnlyExif, readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
 
@@ -156,18 +156,23 @@ export async function auditJpeg(bytes: Uint8Array): Promise<MetadataReport> {
 /**
  * Remove every metadata segment. The EXIF orientation is re-inserted on its own unless
  * `keepOrientation` is false (for callers that apply the rotation themselves, e.g. PDF embedding).
+ * With `keepTechnical`, EXIF is rebuilt with only its technical tags instead.
  */
 export async function stripJpeg(bytes: Uint8Array, options: StripOptions, keepOrientation = true): Promise<Uint8Array> {
   const { segments, scanStart, eoiEnd } = parse(bytes);
   const { orientation } =
     keepOrientation && segments.some((s) => s.marker === APP1) ? await readExif(bytes) : { orientation: undefined };
 
+  const exifSegment = segments.find((s) => s.marker === APP1 && startsWith(payload(bytes, s), EXIF_ID));
+  const technical = options.keepTechnical && exifSegment ? technicalOnlyExif(payload(bytes, exifSegment).subarray(EXIF_ID.length), keepOrientation) : null;
+  const keepIcc = options.keepColorProfile || options.keepTechnical;
+
   const parts: Uint8Array[] = [new Uint8Array([0xff, 0xd8])];
   let insertedOrientation = false;
   const insertOrientation = () => {
-    if (insertedOrientation || !orientation || orientation === 1) return;
+    if (insertedOrientation || (!technical && (!orientation || orientation === 1))) return;
     insertedOrientation = true;
-    const tiff = orientationOnlyExif(orientation);
+    const tiff = technical ?? orientationOnlyExif(orientation!);
     const length = 2 + EXIF_ID.length + tiff.length;
     const header = new Uint8Array([0xff, APP1, length >> 8, length & 0xff, ...Array.from(EXIF_ID, (c) => c.charCodeAt(0))]);
     parts.push(header, tiff);
@@ -181,7 +186,7 @@ export async function stripJpeg(bytes: Uint8Array, options: StripOptions, keepOr
         ? true // DQT, SOF, DHT, DRI, … — required to decode the image
         : (s.marker === APP0 && startsWith(data, "JFIF\0")) ||
           s.marker === APP14 || // Adobe: colour transform flag, needed for CMYK decoding
-          (options.keepColorProfile && s.marker === APP2 && startsWith(data, ICC_ID));
+          (keepIcc && s.marker === APP2 && startsWith(data, ICC_ID));
     // EXIF (with orientation) goes after JFIF, before the tables.
     if (!(s.marker === APP0 && keep)) insertOrientation();
     if (keep) parts.push(bytes.subarray(s.start, s.end));

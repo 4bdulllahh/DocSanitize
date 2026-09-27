@@ -20,7 +20,8 @@ export interface MetadataEntry {
 }
 
 export interface MetadataReport {
-  format: "pdf" | "jpeg" | "png" | "webp";
+  /** "heif" covers HEIC, HEIF and AVIF (the same container). */
+  format: "pdf" | "jpeg" | "png" | "webp" | "heif";
   entries: MetadataEntry[];
   /** Entries deliberately left in place (e.g. image orientation) with the reason. Not counted as leaks. */
   kept: { label: string; reason: string }[];
@@ -31,6 +32,11 @@ export interface MetadataReport {
 export interface StripOptions {
   /** Images: keep the ICC colour profile so colours render identically. */
   keepColorProfile: boolean;
+  /**
+   * Images: keep technical camera settings and resolution (see `technicalOnlyExif`) and the colour
+   * profile, removing only what identifies a person, place, time or device.
+   */
+  keepTechnical: boolean;
   /** PDF: remove embedded file attachments. */
   removeAttachments: boolean;
   /** PDF: remove document JavaScript and auto-run actions. */
@@ -41,6 +47,7 @@ export interface StripOptions {
 
 export const DEFAULT_STRIP_OPTIONS: StripOptions = {
   keepColorProfile: false,
+  keepTechnical: false,
   removeAttachments: true,
   removeJavaScript: true,
   anonymizeAnnotations: true,

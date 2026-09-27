@@ -6,8 +6,8 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { ImagePlus, ListOrdered, LoaderCircle, Stamp, X } from "lucide-react";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
 import { errorMessage } from "@/lib/errors";
-import { isJpeg } from "@/lib/metadata/jpeg";
-import { isPng } from "@/lib/metadata/png";
+import { acceptFor } from "@/lib/files";
+import { asPngOrJpeg } from "@/lib/image/convert";
 import { numberPagesOfFile, stampLabelsOnFile, watermarkFile } from "@/lib/pdf/client";
 import { pageLabels, type PageNumberOptions, type WatermarkOptions } from "@/lib/pdf/markup";
 import { parsePageRanges } from "@/lib/pdf/ranges";
@@ -136,14 +136,18 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
     const chosen = event.target.files?.[0];
     event.target.value = "";
     if (!chosen) return;
-    const bytes = new Uint8Array(await chosen.arrayBuffer());
-    const format = isPng(bytes) ? "png" : isJpeg(bytes) ? "jpeg" : null;
-    if (!format) {
-      toast({ tone: "error", title: "Use a PNG or JPEG image", description: `“${chosen.name}” isn't one.` });
+    let converted: Awaited<ReturnType<typeof asPngOrJpeg>>;
+    try {
+      // PDFs embed PNG and JPEG only; WebP, HEIC and AVIF are converted to PNG first.
+      converted = await asPngOrJpeg(new Uint8Array(await chosen.arrayBuffer()), chosen.type);
+    } catch (error) {
+      toast({ tone: "error", title: "Couldn't read that image", description: errorMessage(error) });
       return;
     }
+    const { bytes, format } = converted;
     if (image) URL.revokeObjectURL(image.url);
-    setImage({ id: `${chosen.name}:${chosen.size}:${chosen.lastModified}`, name: chosen.name, bytes, format, url: URL.createObjectURL(chosen) });
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: `image/${format}` }));
+    setImage({ id: `${chosen.name}:${chosen.size}:${chosen.lastModified}`, name: chosen.name, bytes, format, url });
     setOutput(null);
   };
 
@@ -196,7 +200,7 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
                   <label className={clsx(SECONDARY, "mt-1.5 w-full cursor-pointer")}>
                     <ImagePlus className="size-4" aria-hidden="true" />
                     Choose a PNG or JPEG
-                    <input type="file" accept="image/png,image/jpeg" onChange={chooseImage} className="sr-only" />
+                    <input type="file" accept={acceptFor(["image"])} onChange={chooseImage} className="sr-only" />
                   </label>
                 )}
                 <Slider label="Width" value={imageScale} min={10} max={100} step={5} format={(v) => `${v}% of the page`} onChange={set(setImageScale)} />

@@ -4,6 +4,7 @@ import { siteConfig } from "@/config/site";
 import { GithubIcon } from "./GithubIcon";
 import { OfflineBadge } from "./OfflineBadge";
 import { ThemeToggle } from "./ThemeToggle";
+import { ToolSearch } from "./ToolSearch";
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   return (
@@ -25,6 +26,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
       </Link>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <ToolSearch />
         <OfflineBadge />
         <ThemeToggle />
         <a

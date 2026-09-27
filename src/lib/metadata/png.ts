@@ -1,6 +1,6 @@
 import { ascii, concat, inflate, latin1, nullIndex, utf8 } from "./bytes";
 import { entry } from "./classify";
-import { readExif } from "./exif";
+import { readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
 
@@ -103,9 +103,35 @@ export async function auditPng(bytes: Uint8Array): Promise<MetadataReport> {
 }
 
 export async function stripPng(bytes: Uint8Array, options: StripOptions): Promise<Uint8Array> {
-  const keep = parse(bytes).filter(
-    (c) => RENDERING_CHUNKS.has(c.type) || (options.keepColorProfile && c.type === "iCCP"),
-  );
-  // Chunks are copied verbatim (with their original CRCs); only whole chunks are removed.
-  return concat([bytes.subarray(0, 8), ...keep.map((c) => bytes.subarray(c.start, c.end))]);
+  const keepIcc = options.keepColorProfile || options.keepTechnical;
+  const parts: Uint8Array[] = [bytes.subarray(0, 8)];
+  // Chunks are copied verbatim (with their original CRCs); only whole chunks are removed,
+  // except eXIf, which "keep technical data" rebuilds with its technical tags only.
+  for (const c of parse(bytes)) {
+    if (RENDERING_CHUNKS.has(c.type) || (keepIcc && c.type === "iCCP")) {
+      parts.push(bytes.subarray(c.start, c.end));
+    } else if (options.keepTechnical && c.type === "eXIf") {
+      const tiff = technicalOnlyExif(c.data, true);
+      if (tiff) parts.push(pngChunk("eXIf", tiff));
+    }
+  }
+  return concat(parts);
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length);
+  for (let i = 0; i < 4; i++) chunk[4 + i] = type.charCodeAt(i);
+  chunk.set(data, 8);
+  let crc = 0xffffffff;
+  for (let i = 4; i < 8 + data.length; i++) crc = CRC_TABLE[(crc ^ chunk[i]) & 0xff] ^ (crc >>> 8);
+  view.setUint32(8 + data.length, (crc ^ 0xffffffff) >>> 0);
+  return chunk;
 }

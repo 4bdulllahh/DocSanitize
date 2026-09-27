@@ -79,6 +79,8 @@ export interface ExifSpec {
   serial?: string;
   orientation?: number;
   gps?: { lat: number; lon: number };
+  /** Camera settings and resolution (kept by "keep technical data"), plus a capture date (not kept). */
+  technical?: boolean;
 }
 
 const dms = (deg: number): [number, number][] => {
@@ -97,6 +99,16 @@ export function buildExif(spec: ExifSpec): Uint8Array {
   if (spec.orientation) ifd0.push({ tag: 0x0112, type: "short", value: [spec.orientation] });
   if (spec.artist) ifd0.push({ tag: 0x013b, type: "ascii", value: spec.artist });
   const exifIfd: TiffTag[] = spec.serial ? [{ tag: 0xa431, type: "ascii", value: spec.serial }] : [];
+  if (spec.technical) {
+    ifd0.push({ tag: 0x011a, type: "rational", value: [[72, 1]] }, { tag: 0x0128, type: "short", value: [2] });
+    exifIfd.push(
+      { tag: 0x829a, type: "rational", value: [[1, 120]] }, // ExposureTime
+      { tag: 0x829d, type: "rational", value: [[18, 10]] }, // FNumber
+      { tag: 0x8827, type: "short", value: [64] }, // ISO
+      { tag: 0x920a, type: "rational", value: [[686, 100]] }, // FocalLength
+      { tag: 0x9003, type: "ascii", value: "2026:03:14 09:26:53" }, // DateTimeOriginal
+    );
+  }
   const gpsIfd: TiffTag[] = spec.gps
     ? [
         { tag: 0x0001, type: "ascii", value: spec.gps.lat >= 0 ? "N" : "S" },

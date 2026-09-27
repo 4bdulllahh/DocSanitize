@@ -1,6 +1,5 @@
 import { CloudOff, Code2, UserX } from "lucide-react";
-import { ToolCard } from "@/components/tools/ToolCard";
-import { TOOL_CATEGORIES, toolsInCategory } from "@/lib/tools";
+import { ToolDirectory } from "@/components/tools/ToolDirectory";
 
 const PROMISES = [
   {
@@ -45,16 +44,7 @@ export default function HomePage() {
         ))}
       </section>
 
-      {TOOL_CATEGORIES.map((category) => (
-        <section key={category.id} className="mt-12">
-          <h2 className="text-sm font-semibold tracking-wider text-fg-subtle uppercase">{category.name}</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {toolsInCategory(category.id).map((tool) => (
-              <ToolCard key={tool.id} tool={tool} />
-            ))}
-          </div>
-        </section>
-      ))}
+      <ToolDirectory />
     </div>
   );
 }

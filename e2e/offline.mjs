@@ -2,7 +2,7 @@
 // Run via `npm run e2e` (serves ./out with vercel.json's headers); outputs land in e2e/.output/.
 import { chromium } from "playwright-core";
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repo = fileURLToPath(new URL("..", import.meta.url));
@@ -17,6 +17,7 @@ const swPath = `${repo}/out/sw.js`;
 
 mkdirSync("m9", { recursive: true });
 writeFileSync("m9/plan.docx", officeFx.sampleDocx(metaFx.TINY_JPEG));
+copyFileSync(`${repo}/src/lib/metadata/__tests__/heif/photo.heic`, "m9/photo.heic");
 
 // ---------------------------------------------------------------- Headers, as a host sends them
 {
@@ -114,19 +115,33 @@ step(`web app manifest with ${manifest.icons.length} icons (incl. maskable), SVG
 
 // ---------------------------------------------------------------- Service worker precache
 const precache = JSON.parse(/const PRECACHE = (\[[\s\S]*?\]);/.exec(readFileSync(swPath, "utf8"))[1]);
+const addons = JSON.parse(/const ADDONS = (\[[\s\S]*?\]);/.exec(readFileSync(swPath, "utf8"))[1]);
 await page.evaluate(() => navigator.serviceWorker.ready);
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 const cached = async () =>
   page.evaluate(async () => {
-    const names = (await caches.keys()).filter((n) => n.startsWith("docsanitize-"));
+    const all = (await caches.keys()).filter((n) => n.startsWith("docsanitize-"));
+    const names = all.filter((n) => n !== "docsanitize-addons");
     const keys = names.length === 1 ? await (await caches.open(names[0])).keys() : [];
-    return { names, paths: keys.map((r) => new URL(r.url).pathname).sort() };
+    const addonKeys = all.includes("docsanitize-addons") ? await (await caches.open("docsanitize-addons")).keys() : [];
+    return { names, paths: keys.map((r) => new URL(r.url).pathname).sort(), addons: addonKeys.map((r) => new URL(r.url).pathname).sort() };
   });
 const before = await cached();
 assert.equal(before.names.length, 1);
 assert.deepEqual(before.paths, [...precache].sort(), "everything in the build is cached, nothing else");
 assert.ok(!precache.some((p) => p.endsWith(".map") || p === "/_headers"));
-step(`service worker active; ${precache.length} files cached for offline use`);
+assert.ok(addons.length > 0 && !precache.some((p) => p.startsWith("/addons/")), "add-ons aren't precached");
+assert.deepEqual(before.addons, [], "no add-on is downloaded up front");
+step(`service worker active; ${precache.length} files cached for offline use, ${addons.length} add-on files left for first use`);
+
+// Opening a HEIC downloads the decoder add-on once; the service worker keeps it.
+await page.goto(base + "/tools/sanitize/");
+await page.locator('input[type="file"]').setInputFiles(["m9/photo.heic"]);
+await page.waitForFunction(() => document.querySelector('img[alt="Preview of photo.heic"]')?.naturalWidth === 64);
+const withAddon = await cached();
+assert.deepEqual(withAddon.paths, [...precache].sort(), "the app cache is unchanged");
+assert.ok(withAddon.addons.some((p) => p.endsWith("/libheif.wasm")) && withAddon.addons.every((p) => addons.includes(p)), withAddon.addons.join());
+step("HEIC decoder add-on downloaded on first use and kept in its own cache");
 
 // ---------------------------------------------------------------- Offline
 await ctx.setOffline(true);
@@ -147,6 +162,12 @@ const text = (await first.getTextContent()).items.map((i) => i.str).join(" ");
 await task.destroy();
 assert.match(text, /Quarterly Plan/);
 step("offline: reloaded the app, opened another tool and converted Word to PDF (fonts and workers from cache)");
+
+await page.goto(base + "/tools/heic-to-jpg/");
+await page.locator('input[type="file"]').setInputFiles(["m9/photo.heic"]);
+await page.getByRole("button", { name: "Convert to JPG" }).click();
+await page.getByText("1 image converted to JPG").waitFor();
+step("offline: a HEIC photo converts, with the decoder add-on from its cache");
 
 // Client-side navigation from the sidebar, then a PDF tool with thumbnails (pdf.js + its worker).
 await page.locator('aside a[href="/tools/merge/"]').click();

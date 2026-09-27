@@ -8,9 +8,11 @@ import { downloadBlob } from "@/lib/download";
 import { formatBytes } from "@/lib/files";
 import { stripFile } from "@/lib/metadata/client";
 import { DEFAULT_STRIP_OPTIONS, type StripOptions } from "@/lib/metadata/types";
+import { zipFiles } from "@/lib/zip";
 import { toast } from "@/store/toast";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
+import { Segmented } from "../shared/controls";
 import { AuditCard } from "./AuditCard";
 import { useAudit, type AuditState } from "./useAudit";
 
@@ -26,7 +28,9 @@ async function sanitize(target: WorkspaceFile, options: StripOptions) {
   try {
     const { bytes } = await stripFile(target.file, options);
     const blob = new Blob([bytes as BlobPart], { type: target.mimeType });
-    updateFile(target.id, { status: "done", output: { blob, name: cleanName(target.name) } });
+    // Technical data is only ever kept in images; PDFs are always stripped completely.
+    const keptTechnical = options.keepTechnical && target.kind === "image";
+    updateFile(target.id, { status: "done", output: { blob, name: cleanName(target.name), keptTechnical } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Couldn't sanitize this file.";
     updateFile(target.id, { status: "error", error: message });
@@ -76,7 +80,8 @@ function StripCard({
 }) {
   const busy = file.status === "processing";
   const report = audit.status === "ready" ? audit.report : null;
-  const alreadyClean = report !== null && report.entries.length === 0;
+  const technical = options.keepTechnical && file.kind === "image";
+  const alreadyClean = report !== null && report.entries.every((e) => technical && e.sensitivity === "low");
   const set = (key: keyof StripOptions) => (checked: boolean) => onOptionsChange({ ...options, [key]: checked });
 
   return (
@@ -100,12 +105,30 @@ function StripCard({
             <Option checked={options.anonymizeAnnotations} onChange={set("anonymizeAnnotations")} label="Remove comment authors & timestamps" />
           </>
         ) : (
-          <Option
-            checked={options.keepColorProfile}
-            onChange={set("keepColorProfile")}
-            label="Keep color profile"
-            hint="Preserves exact colors on wide-gamut photos"
-          />
+          <>
+            <Segmented
+              label="What to remove"
+              value={options.keepTechnical ? "revealing" : "all"}
+              onChange={(v) => onOptionsChange({ ...options, keepTechnical: v === "revealing" })}
+              options={[
+                { id: "all", label: "Everything" },
+                { id: "revealing", label: "Keep technical" },
+              ]}
+            />
+            <p className="text-xs text-fg-subtle">
+              {options.keepTechnical
+                ? "Removes everything sensitive or revealing. Keeps camera settings (exposure, aperture, ISO, focal length), resolution and the colour profile."
+                : "Removes every tag, including camera settings."}
+            </p>
+            {!options.keepTechnical && (
+              <Option
+                checked={options.keepColorProfile}
+                onChange={set("keepColorProfile")}
+                label="Keep color profile"
+                hint="Preserves exact colors on wide-gamut photos"
+              />
+            )}
+          </>
         )}
       </fieldset>
 
@@ -116,7 +139,7 @@ function StripCard({
         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-fg transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : file.output ? <RefreshCw className="size-4" aria-hidden="true" /> : <Eraser className="size-4" aria-hidden="true" />}
-        {busy ? "Stripping…" : alreadyClean ? "Nothing to strip" : file.output ? "Strip again" : "Strip all metadata"}
+        {busy ? "Stripping…" : alreadyClean ? "Nothing to strip" : file.output ? "Strip again" : technical ? "Strip revealing metadata" : "Strip all metadata"}
       </button>
       {file.status === "error" && file.error && <p className="mt-2 text-sm text-danger-text">{file.error}</p>}
     </section>
@@ -139,7 +162,9 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
   const replaceFileContent = useWorkspaceStore((s) => s.replaceFileContent);
   const output = file.output!;
   const report = verification?.status === "ready" ? verification.report : null;
-  const clean = report !== null && report.entries.length === 0;
+  const kept = report && output.keptTechnical ? report.entries.filter((e) => e.sensitivity === "low") : [];
+  const leftover = report ? report.entries.filter((e) => !kept.includes(e)) : [];
+  const clean = report !== null && leftover.length === 0;
 
   return (
     <section
@@ -158,8 +183,11 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
         <div className="flex items-start gap-3">
           <ShieldCheck className="size-6 shrink-0 text-success" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-success-text">0 metadata tags found</p>
-            <p className="mt-0.5 text-sm text-fg-muted">Verified by re-reading the cleaned file from scratch.</p>
+            <p className="font-semibold text-success-text">{kept.length ? "No sensitive or revealing metadata" : "0 metadata tags found"}</p>
+            <p className="mt-0.5 text-sm text-fg-muted">
+              {kept.length > 0 && `${kept.length} technical tag${kept.length === 1 ? "" : "s"} kept on purpose. `}
+              Verified by re-reading the cleaned file from scratch.
+            </p>
           </div>
         </div>
       ) : (
@@ -167,9 +195,9 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
           <TriangleAlert className="size-6 shrink-0 text-warning" aria-hidden="true" />
           <div>
             <p className="font-semibold text-warning-text">
-              {report.entries.length} tag{report.entries.length === 1 ? "" : "s"} still present
+              {leftover.length} tag{leftover.length === 1 ? "" : "s"} still present
             </p>
-            <p className="mt-0.5 text-sm text-fg-muted">{report.entries.map((e) => e.label).join(", ")}</p>
+            <p className="mt-0.5 text-sm text-fg-muted">{leftover.map((e) => e.label).join(", ")}</p>
           </div>
         </div>
       )}
@@ -224,9 +252,8 @@ function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripO
     });
   };
 
-  const downloadAll = () => {
-    // Staggered so browsers don't drop rapid consecutive downloads.
-    done.forEach((f, i) => setTimeout(() => downloadBlob(f.output!.blob, f.output!.name), i * 250));
+  const downloadAll = async () => {
+    downloadBlob(await zipFiles(done.map((f) => f.output!)), "sanitized-files.zip");
   };
 
   return (
@@ -257,7 +284,7 @@ function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripO
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg"
           >
             <Download className="size-4" aria-hidden="true" />
-            Download {done.length} clean files
+            Download {done.length} clean files (ZIP)
           </button>
         )}
       </div>

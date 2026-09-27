@@ -5,11 +5,17 @@
 // scripts always come from the same build. A new deployment installs alongside and waits; the page
 // offers a reload, which posts "skip-waiting". The worker never sees file contents: files are opened
 // with the File API and processed in memory, and nothing is sent anywhere.
+//
+// Add-ons (large optional parts such as the HEIC decoder, under /addons/) are not precached: they
+// are cached the first time a tool asks for one, in a separate cache that survives updates, and
+// entries a new build no longer ships are dropped when it activates.
 
 const VERSION = "%VERSION%";
 const PRECACHE = /* %PRECACHE% */ [];
+const ADDONS = /* %ADDONS% */ [];
 const PREFIX = "docsanitize-";
 const CACHE = PREFIX + VERSION;
+const ADDON_CACHE = PREFIX + "addons";
 const BATCH = 24;
 
 self.addEventListener("install", (event) => {
@@ -42,7 +48,11 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       for (const key of await caches.keys()) {
-        if (key.startsWith(PREFIX) && key !== CACHE) await caches.delete(key);
+        if (key.startsWith(PREFIX) && key !== CACHE && key !== ADDON_CACHE) await caches.delete(key);
+      }
+      const addons = await caches.open(ADDON_CACHE);
+      for (const request of await addons.keys()) {
+        if (!ADDONS.includes(new URL(request.url).pathname)) await addons.delete(request);
       }
       await self.clients.claim();
     })(),
@@ -59,8 +69,17 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" && request.method !== "HEAD") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  event.respondWith(respond(request, url));
+  event.respondWith(ADDONS.includes(url.pathname) ? addon(request, url) : respond(request, url));
 });
+
+async function addon(request, url) {
+  const cache = await caches.open(ADDON_CACHE);
+  const cached = await cache.match(url.pathname, { ignoreVary: true, ignoreMethod: true });
+  if (cached) return request.method === "HEAD" ? new Response(null, { status: cached.status, headers: cached.headers }) : cached;
+  const response = await fetch(request);
+  if (request.method === "GET" && response.ok && response.type === "basic") await cache.put(url.pathname, response.clone());
+  return response;
+}
 
 async function respond(request, url) {
   const cache = await caches.open(CACHE);
