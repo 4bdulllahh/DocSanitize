@@ -153,9 +153,14 @@ export async function auditJpeg(bytes: Uint8Array): Promise<MetadataReport> {
   return { format: "jpeg", entries, kept, location: exif.location };
 }
 
-export async function stripJpeg(bytes: Uint8Array, options: StripOptions): Promise<Uint8Array> {
+/**
+ * Remove every metadata segment. The EXIF orientation is re-inserted on its own unless
+ * `keepOrientation` is false (for callers that apply the rotation themselves, e.g. PDF embedding).
+ */
+export async function stripJpeg(bytes: Uint8Array, options: StripOptions, keepOrientation = true): Promise<Uint8Array> {
   const { segments, scanStart, eoiEnd } = parse(bytes);
-  const { orientation } = segments.some((s) => s.marker === APP1) ? await readExif(bytes) : { orientation: undefined };
+  const { orientation } =
+    keepOrientation && segments.some((s) => s.marker === APP1) ? await readExif(bytes) : { orientation: undefined };
 
   const parts: Uint8Array[] = [new Uint8Array([0xff, 0xd8])];
   let insertedOrientation = false;

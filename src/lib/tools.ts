@@ -123,7 +123,7 @@ export const TOOLS: Tool[] = [
     icon: FileImage,
     accepts: ["image"],
     multiFile: true,
-    status: "planned",
+    status: "ready",
   },
   {
     id: "pdf-to-images",
@@ -132,7 +132,7 @@ export const TOOLS: Tool[] = [
     category: "convert",
     icon: Images,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "pdf-to-word",
@@ -177,7 +177,7 @@ export const TOOLS: Tool[] = [
     category: "optimize",
     icon: Shrink,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "sign",

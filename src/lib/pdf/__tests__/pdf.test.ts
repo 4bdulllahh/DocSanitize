@@ -2,6 +2,7 @@ import { degrees, PDFDict, PDFDocument, PDFName, PDFRef, PDFString } from "@cant
 import { describe, expect, it } from "vitest";
 import { extractPages, mergePdfs, rearrangePages } from "../assemble";
 import { chunkPages, formatPageRanges, parsePageRanges } from "../ranges";
+import { rasterSize } from "../rasterize";
 
 /** A PDF whose pages are identifiable by width: page i (0-based) is `base + i` points wide. */
 async function numberedPdf(pages: number, base = 100, rotate = 0): Promise<Uint8Array> {
@@ -138,5 +139,21 @@ describe("rearrange", () => {
     const bytes = await numberedPdf(2);
     await expect(rearrangePages(bytes, [])).rejects.toMatchObject({ code: "invalid" });
     await expect(rearrangePages(bytes, [{ index: 0, rotate: 0 }, { index: 0, rotate: 0 }])).rejects.toMatchObject({ code: "invalid" });
+  });
+});
+
+describe("raster size", () => {
+  it("scales pages to the chosen DPI", () => {
+    expect(rasterSize(612, 792, 150)).toEqual({ scale: 150 / 72, width: 1275, height: 1650, capped: false });
+    expect(rasterSize(595.28, 841.89, 72)).toMatchObject({ width: 595, height: 842, capped: false });
+  });
+
+  it("stays within what browsers can allocate for a canvas", () => {
+    const poster = rasterSize(14_400, 14_400, 300);
+    expect(poster.capped).toBe(true);
+    expect(poster.width * poster.height).toBeLessThanOrEqual(16_000_000);
+    const strip = rasterSize(14_400, 200, 300);
+    expect(strip.capped).toBe(true);
+    expect(strip.width).toBeLessThanOrEqual(10_000);
   });
 });

@@ -11,6 +11,7 @@ import {
   PDFString,
   decodePDFRawStream,
   type PDFContext,
+  type PDFDocument,
   type PDFObject,
 } from "@cantoo/pdf-lib";
 import { collectGarbage, loadPdf, savePdf } from "../pdf/load";
@@ -234,6 +235,13 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
 
 export async function stripPdf(bytes: Uint8Array, options: StripOptions): Promise<Uint8Array> {
   const doc = await loadPdf(bytes);
+  await stripPdfDocument(doc, options);
+  // A full rewrite (never an incremental append) also drops every earlier revision.
+  return savePdf(doc);
+}
+
+/** Remove metadata from an open document in place, then purge what's no longer referenced. */
+export async function stripPdfDocument(doc: PDFDocument, options: StripOptions): Promise<void> {
   const { context, catalog } = doc;
 
   // Document Info and file identifier
@@ -292,6 +300,4 @@ export async function stripPdf(bytes: Uint8Array, options: StripOptions): Promis
   }
 
   collectGarbage(doc);
-  // A full rewrite (never an incremental append) also drops every earlier revision.
-  return savePdf(doc);
 }

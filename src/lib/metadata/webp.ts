@@ -36,6 +36,11 @@ function parse(bytes: Uint8Array): Chunk[] {
   return chunks;
 }
 
+/** Whether the image is lossless or has transparency, so re-encoding it as JPEG would lose something. */
+export function webpIsLosslessOrTransparent(bytes: Uint8Array): boolean {
+  return parse(bytes).some((c) => c.fourcc === "VP8L" || c.fourcc === "ALPH");
+}
+
 /** EXIF chunks should hold a bare TIFF block, but some writers keep the JPEG "Exif\0\0" prefix. */
 function tiffBlock(data: Uint8Array) {
   return startsWith(data, "Exif\0\0") ? data.subarray(6) : data;

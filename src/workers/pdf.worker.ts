@@ -1,8 +1,25 @@
 /// <reference lib="webworker" />
+import { reencodeJpeg } from "@/lib/image/canvas";
+import { prepareImage, type ImageInput } from "@/lib/image/prepare";
 import { extractPages, mergePdfs, rearrangePages } from "@/lib/pdf/assemble";
+import { compressPdf, type CompressOptions } from "@/lib/pdf/compress";
+import { imagesToPdf, type ImagesToPdfOptions, type PreparedImage } from "@/lib/pdf/images";
 import { exposeWorkerApi } from "@/lib/worker-rpc";
 
-const api = { merge: mergePdfs, extract: extractPages, rearrange: rearrangePages };
+async function fromImages(inputs: ImageInput[], options: ImagesToPdfOptions): Promise<Uint8Array> {
+  // One at a time: decoding several large photos at once can exhaust a phone's memory.
+  const prepared: PreparedImage[] = [];
+  for (const input of inputs) prepared.push(await prepareImage(input));
+  return imagesToPdf(prepared, options);
+}
+
+const api = {
+  merge: mergePdfs,
+  extract: extractPages,
+  rearrange: rearrangePages,
+  fromImages,
+  compress: (bytes: Uint8Array, options: CompressOptions) => compressPdf(bytes, options, reencodeJpeg),
+};
 export type PdfWorkerApi = typeof api;
 
 exposeWorkerApi(api);

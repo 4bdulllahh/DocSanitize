@@ -155,6 +155,21 @@ export const TINY_JPEG = concat([
   new Uint8Array([0x3f, 0xff, 0xd9]),
 ]);
 
+/**
+ * TINY_JPEG with headers claiming any size and number of colour components, padded with comment
+ * segments to roughly `bytes` long. Not decodable, but enough for code that only reads headers.
+ */
+export function sizedJpeg(width: number, height: number, { components = 3, bytes = 0 } = {}): Uint8Array {
+  const sof = new Uint8Array([8, height >> 8, height & 0xff, width >> 8, width & 0xff, components, ...Array.from({ length: components }, (_, i) => [i + 1, 0x11, 0]).flat()]);
+  const at = (marker: number) => TINY_JPEG.findIndex((b, i) => b === 0xff && TINY_JPEG[i + 1] === marker);
+  const sofStart = at(0xc0);
+  const sofEnd = sofStart + 2 + ((TINY_JPEG[sofStart + 2] << 8) | TINY_JPEG[sofStart + 3]);
+  const sos = at(0xda);
+  const comments: Uint8Array[] = [];
+  for (let left = bytes - TINY_JPEG.length; left > 0; left -= 60_000) comments.push(segment(0xfe, new Uint8Array(Math.min(left, 60_000)).fill(0x20)));
+  return concat([TINY_JPEG.subarray(0, sofStart), segment(0xc0, sof), TINY_JPEG.subarray(sofEnd, sos), ...comments, TINY_JPEG.subarray(sos)]);
+}
+
 function segment(marker: number, payload: Uint8Array): Uint8Array {
   const len = payload.length + 2;
   return concat([new Uint8Array([0xff, marker, len >> 8, len & 0xff]), payload]);
