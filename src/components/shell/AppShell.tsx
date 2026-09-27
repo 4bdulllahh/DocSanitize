@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useUnloadWarning } from "@/hooks/useFileInputs";
 import { useWorkspaceStore } from "@/store/workspace";
 import { Header } from "./Header";
+import { ServiceWorker } from "./ServiceWorker";
 import { Sidebar } from "./Sidebar";
 import { Toaster } from "./Toaster";
 
@@ -20,6 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <Toaster />
+      <ServiceWorker />
     </div>
   );
 }

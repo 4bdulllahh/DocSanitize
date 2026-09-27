@@ -8,6 +8,8 @@ export interface Toast {
   tone: ToastTone;
   title: string;
   description?: string;
+  /** A button in the toast; clicking it also dismisses the toast. */
+  action?: { label: string; onClick: () => void };
 }
 
 interface ToastState {

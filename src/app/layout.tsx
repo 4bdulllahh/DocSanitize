@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/shell/AppShell";
 import { siteConfig } from "@/config/site";
@@ -22,6 +22,16 @@ export const metadata: Metadata = {
     template: `%s · ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  applicationName: siteConfig.name,
+  appleWebApp: { title: siteConfig.name, statusBarStyle: "default" },
+};
+
+// Matches the header (--surface) in each theme.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fffcf2" },
+    { media: "(prefers-color-scheme: dark)", color: "#2b2927" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

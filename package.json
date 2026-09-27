@@ -7,7 +7,7 @@
     "dev": "next dev",
     "prebuild": "node scripts/copy-pdfjs-assets.mjs",
     "build": "next build",
-    "postbuild": "node scripts/fix-export-segments.mjs",
+    "postbuild": "node scripts/fix-export-segments.mjs && node scripts/secure-export.mjs && node scripts/build-service-worker.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
