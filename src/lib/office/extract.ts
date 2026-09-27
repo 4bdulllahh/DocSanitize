@@ -41,15 +41,18 @@ async function fontStyles(page: PDFPageProxy, fontIds: Set<string>): Promise<Map
   return styles;
 }
 
-/** Positioned text of the given pages (1-based), in top-down coordinates with page rotation applied. */
-export async function extractText(doc: PDFDocumentProxy, pageNumbers: number[], onPage?: (done: number) => void): Promise<TextPage[]> {
+/**
+ * Positioned text of the given pages (1-based), in top-down coordinates with page rotation applied.
+ * `styles` detects bold/italic, which needs each page's operator list (slower).
+ */
+export async function extractText(doc: PDFDocumentProxy, pageNumbers: number[], onPage?: (done: number) => void, styles = true): Promise<TextPage[]> {
   const pages: TextPage[] = [];
   for (const [index, number] of pageNumbers.entries()) {
     const page = await doc.getPage(number);
     const viewport = page.getViewport({ scale: 1 });
     const content = await page.getTextContent();
     const textItems = content.items.filter((item): item is PdfjsTextItem => "str" in item && item.str.length > 0);
-    const styles = await fontStyles(page, new Set(textItems.map((item) => item.fontName)));
+    const fonts = styles ? await fontStyles(page, new Set(textItems.map((item) => item.fontName))) : new Map<string, FontStyle>();
 
     const items: TextItem[] = [];
     for (const item of textItems) {
@@ -58,7 +61,7 @@ export async function extractText(doc: PDFDocumentProxy, pageNumbers: number[], 
       if (a <= 0 || Math.abs(b) > Math.abs(a) * 0.05) continue;
       const size = Math.hypot(c, d);
       if (!(size > 0)) continue;
-      items.push({ text: item.str, x, y, width: item.width, size, ...styles.get(item.fontName) });
+      items.push({ text: item.str, x, y, width: item.width, size, ...fonts.get(item.fontName) });
     }
     pages.push({ width: viewport.width, height: viewport.height, items });
     page.cleanup();

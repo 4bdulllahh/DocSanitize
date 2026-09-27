@@ -91,20 +91,20 @@ export const TOOLS: Tool[] = [
   {
     id: "protect",
     name: "Protect PDF",
-    description: "Encrypt a PDF with a password using AES.",
+    description: "Encrypt a PDF with a password (AES-256) and control printing and copying.",
     category: "security",
     icon: Lock,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "unlock",
     name: "Unlock PDF",
-    description: "Remove the password from a PDF you have access to.",
+    description: "Remove the password or restrictions from a PDF you have access to.",
     category: "security",
     icon: LockOpen,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "redact",
@@ -113,7 +113,7 @@ export const TOOLS: Tool[] = [
     category: "security",
     icon: EyeOff,
     accepts: ["pdf"],
-    status: "planned",
+    status: "ready",
   },
   {
     id: "images-to-pdf",

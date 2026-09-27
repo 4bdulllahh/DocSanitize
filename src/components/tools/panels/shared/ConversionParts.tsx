@@ -35,8 +35,9 @@ export function WarningList({ warnings }: { warnings: string[] }) {
 const PREVIEW_PAGES = 6;
 
 /** The first pages of a PDF the tool produced, so the result can be checked before downloading. */
-export function PdfResultPreview({ blob, pages }: { blob: Blob; pages: number }) {
+export function PdfResultPreview({ blob, pages: knownPages }: { blob: Blob; pages?: number }) {
   const pdf = usePdfDocument(blob);
+  const pages = knownPages ?? (pdf.status === "ready" ? pdf.doc.numPages : 0);
   return (
     <section className="rounded-xl border border-line bg-surface" aria-label="Result preview">
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">

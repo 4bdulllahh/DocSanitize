@@ -31,5 +31,8 @@ export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>>
   "pdf-to-word": dynamic(() => import("./pdf-to-office/PdfToOfficePanels").then((m) => m.PdfToWordPanel), { ssr: false, loading: PanelSkeleton }),
   "pdf-to-excel": dynamic(() => import("./pdf-to-office/PdfToOfficePanels").then((m) => m.PdfToExcelPanel), { ssr: false, loading: PanelSkeleton }),
   "word-to-pdf": dynamic(() => import("./office-to-pdf/OfficeToPdfPanels").then((m) => m.WordToPdfPanel), { ssr: false, loading: PanelSkeleton }),
+  protect: dynamic(() => import("./security/SecurityPanels").then((m) => m.ProtectPanel), { ssr: false, loading: PanelSkeleton }),
+  unlock: dynamic(() => import("./security/SecurityPanels").then((m) => m.UnlockPanel), { ssr: false, loading: PanelSkeleton }),
+  redact: dynamic(() => import("./redact/RedactPanel"), { ssr: false, loading: PanelSkeleton }),
   "excel-to-pdf": dynamic(() => import("./office-to-pdf/OfficeToPdfPanels").then((m) => m.ExcelToPdfPanel), { ssr: false, loading: PanelSkeleton }),
 };

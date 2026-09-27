@@ -64,8 +64,16 @@ export interface RenderedImage extends RasterSize {
   blob: Blob;
 }
 
-/** Render one page (1-based) to an image file. Canvas encoders add no metadata. */
-export function renderPageToImage(doc: PDFDocumentProxy, pageNumber: number, options: RasterOptions): Promise<RenderedImage> {
+/**
+ * Render one page (1-based) to an image file. Canvas encoders add no metadata. `paint` can draw
+ * over the rendered page before it's encoded (redaction boxes).
+ */
+export function renderPageToImage(
+  doc: PDFDocumentProxy,
+  pageNumber: number,
+  options: RasterOptions,
+  paint?: (ctx: CanvasRenderingContext2D, width: number, height: number) => void,
+): Promise<RenderedImage> {
   return withRenderSlot(async () => {
     const page = await doc.getPage(pageNumber);
     const natural = page.getViewport({ scale: 1 });
@@ -76,6 +84,8 @@ export function renderPageToImage(doc: PDFDocumentProxy, pageNumber: number, opt
     try {
       // pdf.js paints a white background first, so JPG output has no black transparent areas.
       await page.render({ canvas, viewport: page.getViewport({ scale: size.scale }) }).promise;
+      const ctx = canvas.getContext("2d");
+      if (paint && ctx) paint(ctx, canvas.width, canvas.height);
       const format = RASTER_FORMATS[options.format];
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format.mime, options.quality));
       if (!blob) throw new ProcessingError(`Page ${pageNumber} couldn't be converted to an image.`, "unsupported");

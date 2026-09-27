@@ -3,6 +3,8 @@ import { createWorkerClient } from "../worker-rpc";
 import type { PageEdit } from "./assemble";
 import type { CompressOptions, CompressResult } from "./compress";
 import type { ImagesToPdfOptions } from "./images";
+import type { RedactedPage, RedactOptions } from "./redact";
+import type { EncryptionInfo, ProtectOptions } from "./security";
 
 const worker = createWorkerClient<PdfWorkerApi>(
   () => new Worker(new URL("../../workers/pdf.worker.ts", import.meta.url), { type: "module" }),
@@ -34,4 +36,20 @@ export async function imagesToPdfFile(images: { name: string; file: Blob; rotate
 export async function compressFile(file: Blob, options: CompressOptions): Promise<Omit<CompressResult, "bytes"> & { blob: Blob }> {
   const { bytes, ...rest } = await worker.compress(await bytesOf(file), options);
   return { ...rest, blob: new Blob([bytes as BlobPart], { type: PDF_MIME }) };
+}
+
+export async function protectFile(file: Blob, options: ProtectOptions): Promise<Blob> {
+  return new Blob([(await worker.protect(await bytesOf(file), options)) as BlobPart], { type: PDF_MIME });
+}
+
+export async function unlockFile(file: Blob, password?: string): Promise<Blob> {
+  return new Blob([(await worker.unlock(await bytesOf(file), password)) as BlobPart], { type: PDF_MIME });
+}
+
+export async function inspectFileEncryption(file: Blob): Promise<EncryptionInfo> {
+  return worker.inspectEncryption(await bytesOf(file));
+}
+
+export async function redactFile(file: Blob, pages: RedactedPage[], options: RedactOptions): Promise<Blob> {
+  return new Blob([(await worker.redact(await bytesOf(file), pages, options)) as BlobPart], { type: PDF_MIME });
 }
