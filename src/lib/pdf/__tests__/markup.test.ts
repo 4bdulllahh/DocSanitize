@@ -173,6 +173,17 @@ describe("watermark", () => {
     expect(first).toMatch(/BT[\s\S]*Tj|TJ/);
   });
 
+  it("tiles long angled text in several rows, not one line per page", async () => {
+    const out = await addWatermark(await rotatedPdf(), { ...base, text: "CONFIDENTIAL", size: 64, position: "tile", pages: [0, 1] }, fonts);
+    await withPdfjs(out, async (pages) => {
+      for (const page of pages.slice(0, 2)) {
+        const { fnArray } = await page.getOperatorList();
+        // One showText for the page's own line, the rest are tiles.
+        expect(fnArray.filter((op) => op === OPS.showText).length - 1).toBeGreaterThanOrEqual(5);
+      }
+    });
+  });
+
   it("stamps an image scaled to the page width", async () => {
     const out = await addWatermark(await rotatedPdf(), { ...base, kind: "image", image: { bytes: tinyPng(), format: "png" }, imageScale: 0.5, angle: 0, position: "bottom-right" }, fonts);
     await withPdfjs(out, async (pages) => {

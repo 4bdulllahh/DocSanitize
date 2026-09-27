@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ToolView } from "@/components/tools/ToolView";
+import { siteConfig } from "@/config/site";
 import { getTool, TOOLS } from "@/lib/tools";
 
 // Every tool page is pre-rendered at build time; unknown slugs 404.
@@ -13,7 +14,12 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/tools/[tool]">): Promise<Metadata> {
   const { tool: id } = await params;
   const tool = getTool(id);
-  return tool ? { title: tool.name, description: tool.description } : {};
+  if (!tool) return {};
+  return {
+    title: tool.name,
+    description: tool.description,
+    openGraph: { url: `/tools/${tool.id}/`, title: `${tool.name} · ${siteConfig.name}`, description: tool.description },
+  };
 }
 
 export default async function ToolPage({ params }: PageProps<"/tools/[tool]">) {

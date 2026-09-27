@@ -104,15 +104,21 @@ export async function addWatermark(bytes: Uint8Array, options: WatermarkOptions,
     const rad = (options.angle * Math.PI) / 180;
     const bounds = { width: Math.abs(width * Math.cos(rad)) + Math.abs(height * Math.sin(rad)), height: Math.abs(width * Math.sin(rad)) + Math.abs(height * Math.cos(rad)) };
     if (options.position === "tile") {
-      // A grid centred on the page (one tile exactly in the middle), alternate rows offset by half a step.
-      const stepU = bounds.width + Math.max(48, bounds.width * 0.5);
-      const stepV = bounds.height + Math.max(48, bounds.height * 0.8);
-      const rows = Math.ceil((display.height + bounds.height) / 2 / stepV);
-      const cols = Math.ceil((display.width + bounds.width) / 2 / stepU) + 1;
+      // Rows running along the item's own direction (diagonal rows for an angled watermark), centred
+      // on the page with one tile exactly in the middle; alternate rows are offset by half a step.
+      const along = { u: Math.cos(rad), v: -Math.sin(rad) };
+      const across = { u: Math.sin(rad), v: Math.cos(rad) };
+      const stepAlong = width + Math.max(48, width * 0.5);
+      const stepAcross = height + Math.max(48, height * 2);
+      const reach = Math.hypot(display.width, display.height) / 2;
+      const cols = Math.ceil((reach + width) / stepAlong) + 1;
+      const rows = Math.ceil((reach + height) / stepAcross);
       for (let r = -rows; r <= rows; r++) {
-        const v = display.height / 2 + r * stepV;
         for (let c = -cols; c <= cols; c++) {
-          const u = display.width / 2 + (c + (Math.abs(r) % 2) / 2) * stepU;
+          const a = (c + (Math.abs(r) % 2) / 2) * stepAlong;
+          const b = r * stepAcross;
+          const u = display.width / 2 + a * along.u + b * across.u;
+          const v = display.height / 2 + a * along.v + b * across.v;
           // Only tiles that reach onto the page.
           if (Math.abs(u - display.width / 2) < (display.width + bounds.width) / 2 && Math.abs(v - display.height / 2) < (display.height + bounds.height) / 2) {
             drawCentered(page, geometry, { u, v }, width, height, options.angle, draw);

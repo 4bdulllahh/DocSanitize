@@ -1,396 +1,326 @@
-# DocSanitize — Handover
+# DocSanitize: maintainer guide
 
-_Last updated: 2026-09-27 · State: Milestones 1–4 complete and pushed to `origin/main` (github.com/4bdulllahh/DocSanitize)._
+_Last updated 2026-09-27 · version 1.0.0 · all nine milestones done · live at https://docsanitize.vercel.app_
 
-This file is the single source of truth for picking the project up in a fresh context. Read it top to bottom before writing code.
+This guide is for whoever changes DocSanitize next, whether a person or an AI assistant. The [README](README.md) says what the app does. This file explains how the code fits together, the rules it must keep, how to make common changes, and the traps already found. Read sections 1 to 3 before changing anything.
 
 ---
 
-## 1. Start here (for the next session)
+## 1. Start here
 
-1. **Working protocol (user's hard rule):** build in milestones. At the end of **every** milestone, stop writing code and ask exactly:
-   _"Milestone X complete. Shall I proceed to Milestone Y, or would you like me to generate a `handover.md` file?"_
-   When the user approves the next milestone they also want the finished one **committed and pushed** to `origin/main`. Don't commit or push at any other time unless asked.
-2. **Next up: Milestone 5** (Image ↔ PDF, PDF → images, Compress PDF). Plan in §11.
-3. Read `AGENTS.md`: this is **Next.js 16.3** and its APIs differ from older versions. Its bundled docs are in `node_modules/next/dist/docs/`; check them before using a Next API you're unsure of.
-4. Verify the baseline before changing anything:
+1. **This is Next.js 16.3.** Its APIs differ from older versions. [AGENTS.md](AGENTS.md) points to the bundled docs in `node_modules/next/dist/docs/`; check them before using a Next API you're unsure of.
+2. **Check the baseline** before changing anything:
    ```bash
    npm install
-   npx playwright-core install chromium   # once per machine, for e2e
-   npm run lint && npx tsc --noEmit && npm test   # 30 unit tests
-   npm run build && npm run e2e                    # 3 browser suites against ./out
+   npx playwright-core install chromium        # once per machine, for the browser tests
+   npm run lint && npm test                     # 109 unit tests
+   npm run build && npx tsc --noEmit            # tsc needs the route types the build generates
+   npm run e2e                                  # 8 browser suites against ./out
    ```
+3. **Deploying is pushing.** Vercel builds `main` on every push, and GitHub Actions runs the same checks (`.github/workflows/ci.yml`). After a push, check the live site (section 7.8).
+4. **Working with Claude:** the owner builds in milestones. At the end of each one, stop and ask whether to continue. When the next milestone is approved, commit the finished one and push it to `origin/main`. Don't commit at other times unless asked. Commit messages end with a `Co-Authored-By` line.
 
 ---
 
-## 2. Product brief (from the user)
+## 2. Rules the code must keep
 
-DocSanitize is a **100% client-side, open-source** privacy and PDF/image toolkit that replaces paid tools like Acrobat and iLovePDF. **No file may ever be uploaded.** Everything runs in the browser (Web Workers + client libraries), and the app is a static export.
+These are the product's promises. Every change must keep them, and the tests enforce most of them.
 
-- **Design:** navy `#263a81` as the brand/accent colour. Light **and** dark themes copied from the user's other app (https://paperless-bay-zeta.vercel.app/): warm cream/charcoal neutrals, with Paperless's orange accent replaced by navy. Feedback colours: emerald `#10b981` = clean/success, amber `#f59e0b` = warning/leaked data.
-- **Layout:**
-  - left sidebar listing the tools
-  - a header with the badge **"100% Offline / Client-Side Engine"** and a GitHub star link
-  - a central workspace where **each file opens in its own tab**
-- **Feel:** fast, drag-and-drop heavy, no logins, no waiting on servers.
+| Rule | How it's kept |
+| --- | --- |
+| **No file ever leaves the device.** No uploads, and no runtime requests except the site's own files. | No CDNs, analytics or font services; `next/font` self-hosts fonts and pdf.js assets are copied into `public/pdfjs`. The CSP has `connect-src 'self'`. Every e2e suite asserts that the only origin contacted is localhost. |
+| **Never add metadata to users' files.** | Load PDFs with `loadPdf()` (`updateMetadata: false`), create them with `createPdf()`, save them with `savePdf()`. The `.docx` and `.xlsx` writers write no `docProps`. JPEGs embedded in PDFs go through `stripJpeg` first. |
+| **Removed means gone.** | pdf-lib writes every parsed object, even unreachable ones, so call `collectGarbage(doc)` after deleting anything. `savePdf` always rewrites the file (never an incremental append) and uses object streams. Redaction rasterises the page. |
+| **Nothing is stored.** | Files, results and signatures live in memory (Zustand), never in localStorage or IndexedDB. The service worker caches app files only, and `e2e/offline.mjs` checks that. The only thing in localStorage is the theme choice. |
 
-### Decisions the user has made (don't re-ask)
+---
+
+## 3. Decisions already made (don't re-ask)
+
 | Topic | Decision |
-|---|---|
-| Framework | Next.js App Router, `output: "export"` |
-| PDF engine | **`@cantoo/pdf-lib`** (maintained fork with encryption), used for all PDF writing |
-| Password protect/unlock | `@cantoo/pdf-lib` `encrypt()` / `load(…, { password })` |
-| Redaction | **Rasterize** redacted pages (guaranteed removal; those pages lose selectable text) |
-| Word/Excel → PDF | Best-effort fidelity is fine as long as it stays client-side. Low priority; can revisit after the app is done |
-| Offline PWA + strict CSP | **Yes**, in Milestone 9 |
-| Theme | Paperless light/dark neutrals + navy accent (implemented) |
-| License | MIT, holder **Abdullah** (`LICENSE` exists) |
-| GitHub | https://github.com/4bdulllahh/DocSanitize (in `src/config/site.ts`) |
+| --- | --- |
+| Framework | Next.js App Router, `output: "export"`, `trailingSlash: true` (fully static) |
+| PDF writing | `@cantoo/pdf-lib` (maintained fork with encryption), with `@cantoo/fontkit` (`@pdf-lib/fontkit` crashes when subsetting with this fork) |
+| PDF rendering | `pdfjs-dist` 6, in its own worker |
+| Encryption | AES-256 via `@cantoo/pdf-lib` `encrypt()`; a random owner password when none is given |
+| Redaction | Rasterise redacted pages (guaranteed removal; those pages lose selectable text) |
+| Spreadsheets | SheetJS 0.20.3 installed from `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (the npm `xlsx` package is stale and has CVEs) |
+| Word reading | mammoth; `.docx` and `.xlsx` writing is hand-rolled so no metadata is added |
+| Fonts in generated PDFs | Liberation Sans from pdf.js's `standard_fonts` (Latin, Greek, Cyrillic) |
+| Office conversion fidelity | Best effort is fine, as long as it stays client-side |
+| Offline | Our own service worker, generated at build time, precaching every file, cache-first |
+| CSP | `vercel.json` header plus a hash-based `<meta>` per page (section 7.4) |
+| Theme | Light (warm cream) and dark (charcoal) neutrals from the owner's Paperless app, with navy `#263a81` as the accent |
+| License | MIT, holder "Abdullah" |
+| Hosting | Vercel, deploying `out/` as a static site (`framework: null` in `vercel.json`) |
 
 ---
 
-## 3. Status
+## 4. Stack and commands
 
-| # | Milestone | Status | Commit |
-|---|---|---|---|
-| 1 | Shell: Next/Tailwind, header, sidebar, Zustand store, themes | ✅ | `1dc01d0` |
-| 2 | Multi-tab workspace + dropzone | ✅ | `a94ed81` |
-| 3 | Privacy engine: metadata audit / strip / verify (PDF, JPEG, PNG, WebP) | ✅ | `4decddd` |
-| 4 | Merge, Split, Organize (visual page grid) | ✅ | `b474d6b` |
-| 5 | Image ↔ PDF, PDF → images, Compress | ⏭ next | |
-| 6 | Office conversions (PDF → Word/Excel, Word/Excel → PDF) | planned | |
-| 7 | Security: Protect, Unlock, Redact | planned | |
-| 8 | Markup: E-Sign, Watermark, Page numbers | planned | |
-| 9 | Open-source polish: README + Deploy to Vercel, CSP, PWA/offline | planned | |
+| Package | Version | Notes |
+| --- | --- | --- |
+| next | 16.3.6 | static export, Turbopack |
+| react / react-dom | 19.2.8 | uses `useEffectEvent` |
+| tailwindcss | 4 | CSS-first config in `src/app/globals.css` |
+| @cantoo/pdf-lib, @cantoo/fontkit | 2.11 / 2.0 | all PDF writing |
+| pdfjs-dist | 6.3 | v6 API (section 9) |
+| mammoth | 1.13 | `.docx` reading |
+| xlsx (SheetJS) | 0.20.3 from the CDN tarball | spreadsheet reading |
+| exifr | 7.1 | EXIF decoding |
+| fflate | 0.8 | ZIP |
+| zustand | 5 | tabs, toasts, signatures |
+| @dnd-kit/* | 6 / 10 / 9 / 3 | drag and drop |
+| vitest, playwright-core, serve (dev) | 5 / 1.63 / 14 | tests |
 
-**Tools live in the UI:** Sanitize Metadata, Merge PDF, Split PDF, Organize Pages. All others show a "Soon" badge and a "coming soon" card (the file still opens in a tab with a preview).
-
----
-
-## 4. Stack
-
-| Package | Version | Used for |
-|---|---|---|
-| next | 16.3.6 | App Router, static export, Turbopack |
-| react / react-dom | 19.2.8 | uses `useEffectEvent` (stable in 19.2) |
-| tailwindcss | 4 | CSS-first config in `globals.css` (`@theme`) |
-| zustand | 5 | workspace (tabs) store and toast store |
-| lucide-react | 1.x | icons. **No brand icons**: GitHub mark is inlined (`GithubIcon.tsx`) |
-| clsx | 2 | class names |
-| @cantoo/pdf-lib | 2.11 | all PDF writing/editing (fork of pdf-lib; also has `encrypt`) |
-| pdfjs-dist | 6.3 | page rendering/thumbnails (**v6 API**, see §9) |
-| exifr | 7.1 | decoding EXIF/GPS/IPTC blocks |
-| @dnd-kit/core, sortable, modifiers, utilities | 6 / 10 / 9 / 3 | drag-and-drop sorting |
-| fflate | 0.8 | ZIP output |
-| vitest (dev) | 5 | unit tests (`src/**/*.test.ts`) |
-| playwright-core, serve (dev) | 1.63 / 14 | e2e scripts in `e2e/` |
-| @types/node (dev) | 24 | matches Node 24; vitest 5 requires ≥22 |
-
-Environment the project was built on: Windows 11, Node 24.19, npm 11.
-
----
-
-## 5. Commands
+Built on Windows 11 with Node 24; CI runs Ubuntu with Node 24. Node 22.18+ is needed because the e2e suites import TypeScript fixtures directly.
 
 | Command | What it does |
-|---|---|
-| `npm run dev` | `predev` copies pdf.js assets → `public/pdfjs/`, then `next dev` |
-| `npm run build` | `prebuild` copies pdf.js assets; `next build` → static site in `out/`; `postbuild` runs `scripts/fix-export-segments.mjs` |
-| `npm test` | vitest, 30 unit tests (metadata engine + PDF assembly + page ranges) |
-| `npm run e2e [-- filter]` | serves `out/` on :3123 and runs `e2e/*.mjs` in headless Chromium; artifacts go to `e2e/.output/` (git-ignored) |
-| `npm run lint` | ESLint (ignores `out/`, `.next/`, `public/pdfjs/`) |
-| `npx tsc --noEmit` | type-check (`out/` excluded in tsconfig) |
+| --- | --- |
+| `npm run dev` | `predev` copies pdf.js assets into `public/pdfjs/`, then `next dev` (no service worker) |
+| `npm run build` | `prebuild` copies pdf.js assets, then `next build` exports to `out/`. `postbuild` runs `fix-export-segments.mjs`, then `secure-export.mjs` (CSP `<meta>` and `_headers`), then `build-service-worker.mjs` (`out/sw.js`) |
+| `npm test` | Vitest, 109 tests, in Node |
+| `npm run e2e [-- name]` | serves `out/` on :3123 **with the `vercel.json` headers** and runs `e2e/*.mjs` in headless Chromium; screenshots go to `e2e/.output/` |
+| `npm run lint` | ESLint |
+| `npx tsc --noEmit` | type check, after a build or dev run |
+| `node scripts/screenshots.mjs` | regenerates `docs/screenshots/*.webp` from the built site |
+| `node scripts/make-icons.mjs` | regenerates the favicon, SVG icon, Apple icon and PWA icons |
 
 ---
 
-## 6. Repository map
+## 5. Repository map
 
 ```
 src/
   app/
-    layout.tsx            Root layout: fonts (self-hosted Geist), pre-paint theme <script>, <AppShell>
-    globals.css           Theme tokens (light/dark) + Tailwind @theme mapping. READ THIS before styling
-    page.tsx              Home: hero, promises, tool grid by category
-    tools/[tool]/page.tsx One statically generated page per tool (generateStaticParams, dynamicParams=false)
-    not-found.tsx
-  config/site.ts          name, tagline, description, githubUrl
+    layout.tsx               fonts, metadata (Open Graph, theme colour), pre-paint theme <script>, <AppShell>
+    globals.css              ★ theme tokens (light/dark) and Tailwind @theme mapping
+    page.tsx                 home: hero, promises, tool grid
+    tools/[tool]/page.tsx    one static page per tool (generateStaticParams, dynamicParams = false)
+    manifest.ts              web app manifest (force-static)
+    icon.svg apple-icon.png favicon.ico    generated by scripts/make-icons.mjs
+  config/site.ts             name, tagline, description, live URL, GitHub URL
   lib/
-    tools.ts              ★ Tool registry: id, name, description, category, icon, accepts, multiFile, status
-    files.ts              FileKind detection, accept strings, formatBytes, createId
-    errors.ts             ProcessingError(message, code: encrypted|unsupported|corrupt|invalid), errorMessage()
-    worker-rpc.ts         ★ Typed postMessage RPC: exposeWorkerApi() in workers, createWorkerClient() on the page
-    download.ts           downloadBlob()
-    zip.ts                zipFiles() (fflate, store-only), withSuffix()
-    theme.ts              THEME_STORAGE_KEY, THEME_INIT_SCRIPT (inline pre-paint script)
-    metadata/             ★ Privacy engine (pure; runs in metadata.worker)
-      index.ts            detectFormat (magic bytes), auditMetadata, stripMetadata (strip + re-audit)
-      types.ts            MetadataEntry/Report, StripOptions (+defaults), StripResult, MetadataError
-      classify.ts         sensitivity rules (high/medium/low), humanize(), formatValue(), entry()
-      xmp.ts              worker-safe XMP reader (regex tokenizer; no DOMParser in workers)
-      exif.ts             exifr wrapper + orientation-only EXIF builder
-      jpeg.ts png.ts webp.ts  container parsers: audit + lossless strip
-      pdf.ts              PDF audit + strip (Info, XMP on any object, ID, PieceInfo, annots, attachments, JS,
-                          EXIF inside embedded JPEG photos, incremental revisions)
-      bytes.ts            binary helpers, inflate()
-      client.ts           page-side API: auditFile(blob), stripFile(blob, options)
-      __tests__/          fixtures.ts (builders for leaky PDF/JPEG/PNG/WebP) + metadata.test.ts
+    tools.ts                 ★ the tool list: id, name, description, category, icon, accepts, multiFile, status
+    files.ts                 file kinds and accept strings, formatBytes, createId
+    errors.ts                ProcessingError(message, code: encrypted | unsupported | corrupt | invalid)
+    worker-rpc.ts            ★ typed postMessage RPC: exposeWorkerApi() / createWorkerClient()
+    download.ts zip.ts       downloads, ZIP (fflate), withSuffix / replaceExtension
+    password.ts              strength meter and generator
+    theme.ts                 theme storage key and the inline pre-paint script
+    metadata/                privacy engine (pure): index.ts (detect, audit, strip + re-audit), jpeg/png/webp/pdf.ts,
+                             exif.ts, xmp.ts (regex-based; no DOMParser in workers), classify.ts (sensitivity), client.ts
     pdf/
-      load.ts             ★ loadPdf (updateMetadata:false, encrypted → ProcessingError), createPdf, savePdf
-                          (rewrite:true), collectGarbage (purges unreachable objects)
-      assemble.ts         mergePdfs, extractPages, rearrangePages (runs in pdf.worker)
-      ranges.ts           parsePageRanges("1-3, 5, 8-"), formatPageRanges, chunkPages
-      client.ts           page-side API: mergeFiles, extractFromFile, rearrangeFile (return Blobs)
-      render.ts           pdf.js loader (lazy), openPdfForRendering → { doc, destroy }, withRenderSlot queue
-      __tests__/pdf.test.ts
-  workers/
-    metadata.worker.ts    exposes { audit, strip }
-    pdf.worker.ts         exposes { merge, extract, rearrange }
-    pdfjs.worker.ts       just imports pdfjs-dist's worker (it self-initialises)
-  store/
-    workspace.ts          ★ open files = tabs (in-memory File objects), active tab, status/output, revision
-    toast.ts              toasts + imperative toast()
-  hooks/
-    useAddFiles.ts        validate kind for the tool, skip/focus duplicates, toasts
-    useFileInputs.ts      window-wide drop (+overlay state), paste, beforeunload warning
-    useTheme.ts           data-theme on <html>, localStorage, follows OS until chosen
+      load.ts                ★ loadPdf / createPdf / savePdf / collectGarbage
+      assemble.ts ranges.ts  merge, extract, rearrange; "1-3, 5, 8-" page ranges
+      images.ts              images → PDF layout (EXIF orientation, fit/fill, page sizes)
+      compress.ts            image recompression presets
+      rasterize.ts           page → image (canvas limits), used by PDF to Images and Redact
+      security.ts            protect, unlock, inspect encryption
+      redact.ts redact-search.ts annotations.ts    redaction and text/annotation search
+      stamp.ts               ★ page geometry: displayed coordinates ↔ PDF user space for any rotation/crop box
+      markup.ts              watermark, page numbers, signatures
+      render.ts              pdf.js loader and openPdfForRendering → { doc, destroy }
+      client.ts              page-side API for pdf.worker
+    office/
+      extract.ts             pdf.js text + font styles per page
+      text-layout.ts         ★ lines, columns, running headers, paragraphs, headings, table columns
+      pdf-to-office.ts       text pages → .docx / .xlsx
+      docx.ts xlsx.ts ooxml.ts   metadata-free OOXML writers
+      flow.ts                ★ PDF layout engine (paragraphs, lists, tables, images, links)
+      word.ts sheet.ts       .docx → PDF (mammoth tree), spreadsheets → PDF (SheetJS)
+      fonts.ts client.ts     Liberation Sans loader; page-side API for office.worker
+    image/                   canvas.ts (decode/encode, browser only), prepare.ts (images for PDF)
+  workers/                   metadata / pdf / office workers expose lib functions; pdfjs.worker just imports pdf.js's worker
+  store/                     workspace.ts (★ open files = tabs), toast.ts
+  hooks/                     useAddFiles, useFileInputs (drop, paste, unload warning), useTheme
   components/
-    shell/                AppShell (header+sidebar+toaster+unload warning), Header, Sidebar, OfflineBadge,
-                          ThemeToggle, Toaster, GithubIcon
-    workspace/            Workspace (tabs/dropzone/overlay), FileTabs, FilePanel (summary + tool panel),
-                          FilePreview (image / PDF first page), Dropzone (+DropOverlay)
-    pdf/                  usePdfDocument(blob) hook, PageThumbnail (lazy, rotation via CSS, fixed box)
-    files/KindIcon.tsx
-    tools/
-      ToolView.tsx        tool header + <Workspace>
-      ToolCard.tsx        home grid card
-      panels/
-        registry.tsx      ★ TOOL_PANELS: tool id → next/dynamic panel (code-split per tool)
-        shared/           OutputCard (download / ZIP / open in tabs / replace tab), PdfStates, PRIMARY/SECONDARY
-        sanitize/         SanitizePanel, AuditCard, useAudit
-        merge/ split/ organize/   (organize also has usePageHistory: undo/redo reducer)
+    shell/                   AppShell, Header, Sidebar, OfflineBadge, ThemeToggle, Toaster, ServiceWorker (registration + update prompt)
+    workspace/               Workspace, FileTabs, FilePanel, FilePreview, Dropzone
+    pdf/                     usePdfDocument, PageThumbnail, PageTile, usePageSelection, PageStage (page + overlay), PageStrip
+    tools/panels/
+      registry.tsx           ★ tool id → panel, via next/dynamic (ssr: false)
+      shared/                controls.tsx (Field, Segmented, AnchorPicker, ColorField, Slider), OutputCard, PdfStates,
+                             ConversionParts (fidelity notes, warnings, PDF result preview), StampPreview (live preview)
+      <tool folders>         sanitize, merge, split, organize, security, redact, images-to-pdf, pdf-to-images,
+                             pdf-to-office, office-to-pdf, compress, sign, markup (watermark + page numbers)
 scripts/
-  copy-pdfjs-assets.mjs   copies pdfjs-dist cmaps/standard_fonts/wasm/iccs → public/pdfjs (git-ignored)
-  fix-export-segments.mjs works around a Next 16 static-export bug on Windows (see §9)
-e2e/                      run.mjs + workspace.mjs (M2) + sanitize.mjs (M3) + organize.mjs (M4)
+  copy-pdfjs-assets.mjs      pdfjs-dist cmaps / standard_fonts / wasm / iccs → public/pdfjs (git-ignored)
+  fix-export-segments.mjs    Windows-only Next export bug fix (section 9)
+  secure-export.mjs          CSP <meta> per page (script hashes) + out/_headers, from vercel.json
+  build-service-worker.mjs   out/sw.js from service-worker.template.js with the precache list and version
+  service-worker.template.js the real service worker
+  make-icons.mjs screenshots.mjs
+public/
+  sw.js                      development stand-in that removes a leftover production worker (replaced in out/ by the build)
+  icons/                     PWA icons (generated)
+e2e/                         run.mjs + one suite per area (section 8)
+docs/screenshots/            README images (generated)
+vercel.json                  ★ build settings and security headers (the single source of truth for headers)
 ```
 
 ---
 
-## 7. Architecture
+## 6. How it works
 
-### Data flow
-1. **Routing:** `/tools/<id>/` is prerendered for every entry in `TOOLS`. `ToolView` renders the tool header and `<Workspace tool>`.
-2. **Opening files:** drop anywhere, the picker, or paste → `useAddFiles(tool)` → `useWorkspaceStore.addFiles()`.
-   - Files the tool can't accept are rejected with a toast.
-   - Duplicates (same name + size + lastModified) are skipped and their tab is focused.
-3. **Tabs are global:** they persist across tools. That's deliberate, so tools can be chained (e.g. sanitize → merge).
-   - An open file that the current tool can't take shows an "incompatible" notice with links to tools that can.
-4. **FilePanel:** shows the file summary, then the tool's panel from `TOOL_PANELS`, or a coming-soon card plus preview.
-   - Panels receive `{ tool, file, files }`, where `files` is every open file the tool accepts, in tab order.
-   - Single-file tools are keyed `${file.id}:${file.revision}`, so replacing a tab's content remounts the panel.
-   - Multi-file tools are keyed by `tool.id`, so their state survives switching tabs. The summary is hidden for them.
-5. **Heavy work goes through workers:** the panel calls `lib/<area>/client.ts`, which calls a worker via `createWorkerClient`, which runs a pure function from `lib/<area>/*.ts`.
-   - Arguments and results transfer their `ArrayBuffer`s, so always pass a **fresh** copy (`new Uint8Array(await blob.arrayBuffer())`).
-   - `ProcessingError` codes survive the worker boundary.
-6. **Results:** use `OutputCard` to download (a ZIP when there are several files), open in new tabs (`addFiles`), or replace the tab (`replaceFileContent` bumps `revision`).
-   - Per-file status (`processing`/`done`/`error`) shows as an icon on the tab.
+### Files and tabs
+- Files come in from a drop anywhere on the page, the file picker or a paste. `useAddFiles(tool)` checks the kind against the tool's `accepts`, skips duplicates (same name, size and modified time) and adds them to `useWorkspaceStore`.
+- **Tabs are global and survive switching tools**, so tools can be chained. A tab the current tool can't take shows links to tools that can.
+- `FilePanel` shows the file summary and then the tool's panel from `TOOL_PANELS`. Panels receive `{ tool, file, files }`.
+- Single-file panels are keyed by `${file.id}:${file.revision}`, so replacing a tab's content remounts them. Multi-file panels (merge, images-to-pdf) are keyed by tool.
 
-### Rendering (pdf.js 6)
-- `render.ts` lazy-imports `pdfjs-dist` and sets `GlobalWorkerOptions.workerPort` to our bundled `pdfjs.worker.ts`. Assets load from `/pdfjs/...` (same origin).
-- `usePdfDocument(blob)` opens the file on mount and destroys it on unmount. **In v6, `destroy()` lives on the loading task, not on `PDFDocumentProxy`**, hence the `{ doc, destroy }` return shape.
-- `PageThumbnail` renders only when scrolled into view (IntersectionObserver), through a 3-slot render queue. Rotation is CSS-only, and the page is fitted inside a fixed box (no layout shift).
+### Heavy work
+Panel → `lib/<area>/client.ts` → worker via `createWorkerClient` → pure function in `lib/<area>/`.
+- **Arguments and results transfer their ArrayBuffers**, which detaches them. Pass a fresh copy (`new Uint8Array(await blob.arrayBuffer())`) and copy anything you still need afterwards (see `watermarkFile` and `signFile` in `lib/pdf/client.ts`).
+- `ProcessingError` codes survive the worker boundary. UIs treat `encrypted` specially and link to Unlock.
+- Browser-only code (canvas, pdf.js rendering) lives in `lib/image/canvas.ts`, `lib/pdf/rasterize.ts`, `lib/office/extract.ts` and `lib/pdf/annotations.ts`; everything else runs in Node for the unit tests.
+
+### Results
+`OutputCard` offers download (a ZIP for several files), open in new tabs, or replace the tab (bumps `revision`). Stamp tools preview through `useStampPreview`: the first pages are extracted once, stamped with the real code after a 250 ms pause, and rendered by pdf.js.
+
+### Rendering
+`render.ts` lazy-loads pdf.js with our worker and same-origin assets. `usePdfDocument(blob)` opens a document and destroys it on unmount. `PageThumbnail` renders only when visible, through a 3-slot queue. `PageStage` renders one page at the panel's width and gives children its size for overlays (Redact and E-Sign).
 
 ### Theme
-- Tokens live in `globals.css`: `--canvas`, `--surface`, `--surface-muted`, `--surface-sunken`, `--line(-strong)`, `--fg(-muted|-subtle)`, `--brand(-hover|-fg|-soft|-text|-border)`, `--success/warning/danger(-soft|-text)`, `--elev-1/2`.
-- Tailwind utilities map to them: `bg-surface`, `text-fg-muted`, `border-line`, `bg-brand`, `text-brand-text`, `shadow-elev-1`, and so on. The `dark:` variant follows `[data-theme="dark"]`.
-- **Never use raw palette colours** (`slate-*`, `white`, …) in components; use the tokens so both themes work. The one exception is `text-white` on `bg-danger` badges.
-- `--brand` is always `#263a81` (fills). `--brand-text` is lighter in dark mode for readable navy text.
+Tokens in `globals.css`: `--canvas`, `--surface(-muted|-sunken)`, `--line(-strong)`, `--fg(-muted|-subtle)`, `--brand(-hover|-fg|-soft|-text|-border)`, `--success/warning/danger(-soft|-text)`, `--elev-1/2`. Components use utilities such as `bg-surface`, `text-fg-muted` and `border-line`, **never raw palette colours**, so both themes work. The exceptions are page "paper" whites and `text-white` on danger badges.
 
 ---
 
-## 8. Conventions and invariants (must keep)
+## 7. How to change common things
 
-- **Never add metadata to user files.**
-  - Load with `loadPdf()` (`updateMetadata: false`), create with `createPdf()`, save with `savePdf()`.
-  - `savePdf` uses `rewrite: true`, never an incremental append. `@cantoo/pdf-lib` otherwise appends to the original bytes when a document was loaded for incremental updates.
-- **Removed content must really be gone.** pdf-lib writes every parsed object, even unreachable ones, so call `collectGarbage(doc)` after deleting pages or metadata.
-- **No network requests at runtime**, apart from same-origin static assets. No CDNs, analytics or font services.
-  - `next/font` self-hosts the fonts at build time.
-  - e2e suites assert that the only origin contacted is localhost. Keep that assertion in new suites.
-- **Workers:** keep heavy work in `lib/*` as pure functions (so they're unit-testable in Node), expose them in a worker via `exposeWorkerApi`, and call them via `createWorkerClient`. No `DOMParser` in workers.
-- **Errors:** throw `ProcessingError` with a user-facing message and a code. UIs treat `encrypted` specially: they link to `/tools/unlock`.
-- **React hooks pattern:** no synchronous `setState` in effects (the lint rule enforces it).
-  - Store async results together with their input, e.g. `useState<{ blob, state }>`, and derive "loading" when the input changed. See `useAudit` / `usePdfDocument`.
-  - Use `useEffectEvent` for callbacks read inside effects.
-- **Adding a tool:**
-  1. Write pure logic in `src/lib/<area>/` with vitest tests.
-  2. Expose it in a worker, or add it to an existing one.
-  3. Add a page-side client function.
-  4. Build the panel in `src/components/tools/panels/<tool>/`.
-  5. Register it in `registry.tsx` via `next/dynamic` (`ssr: false`).
-  6. Flip the tool's `status` to `"ready"` in `src/lib/tools.ts`.
-  7. Add an e2e suite in `e2e/` that **checks downloaded bytes**, not just the UI.
-  8. Check light, dark and 390 px mobile screenshots.
-- **UX conventions:**
-  - The action column sits on the right on desktop and **first** on mobile (`order-first lg:order-0`).
-  - The primary button uses the `PRIMARY` class and secondary buttons `SECONDARY` (both exported from `OutputCard.tsx`).
-  - Result download buttons are labelled "Download result" / "Download edited PDF", so they're never confused with the summary's "Download".
-- Output filenames: `withSuffix(name, "clean" | "organized" | "part-01" …)`.
+### 7.1 Add a tool
+1. Write the logic as pure functions in `src/lib/<area>/`, with Vitest tests next to the others.
+2. Expose it in a worker (`src/workers/*.worker.ts`) and add a page-side function in `lib/<area>/client.ts`.
+3. Add the tool to `TOOLS` in `src/lib/tools.ts` (id, name, description, category, icon, accepts, `status: "ready"`). Its page is generated automatically.
+4. Build the panel in `src/components/tools/panels/<tool>/` using the shared controls and `OutputCard`, and register it in `registry.tsx` with `next/dynamic` (`ssr: false`).
+5. Add or extend an e2e suite that **checks the downloaded bytes**, not just the UI, and keeps the no-console-errors and localhost-only assertions.
+6. Look at the screenshots in light, dark and at 390 px wide.
 
----
+### 7.2 Rename a tool or change its description or category
+Edit `src/lib/tools.ts`. The sidebar, home grid, tool header and page metadata all read from it. Update the README's feature list too.
 
-## 9. Gotchas already solved (don't rediscover them)
+### 7.3 Change the name, tagline, live URL or GitHub link
+`src/config/site.ts`. The URL feeds Open Graph link previews. The manifest reads the name and tagline from here too.
 
-- **Next 16 on Windows:** the static export writes segment-prefetch files as nested folders (it builds the filename with `path.relative`, which produces backslashes). The browser then gets 404s. `scripts/fix-export-segments.mjs` flattens them in `postbuild`; it does nothing on Linux or Vercel.
-- **Turbopack workers:** `new Worker(new URL("../../workers/x.worker.ts", import.meta.url), { type: "module" })` works. The build also copies the worker's **source** into `out/_next/static/media/`, which is harmless; `out` is excluded from `tsc`.
-- **pdf.js 6:**
-  - no `isEvalSupported` option
-  - `render({ canvas, viewport })`
-  - its worker self-initialises when imported inside a worker
-  - standard 14 fonts render with system fonts, so `/pdfjs/standard_fonts` is rarely fetched. CMaps and WASM are used for CJK and JBIG2/JPX content.
-- **@cantoo/pdf-lib:**
-  - Removing every page and re-inserting them corrupts the page tree. `rearrangePages` instead rebuilds a flat `Kids` array after copying inherited `Resources`/`MediaBox`/`CropBox`/`Rotate` onto each page.
-  - `save()` defaults `addDefaultPage: true`; `savePdf` disables it.
-- **exifr:**
-  - Can't read WebP and only partially reads PNG, hence our own container parsers.
-  - Its `Options` type isn't exported; use `Parameters<typeof exifr.parse>[1]`.
-  - It names tag `0xA431` `SerialNumber`.
-- **dnd-kit:**
-  - Use `MouseSensor` (distance 5) + `TouchSensor` (250 ms long-press, so the grid still scrolls on phones) + `KeyboardSensor` with `keyboardCodes.start: ["Space"]`, which leaves Enter free for selecting.
-  - In e2e, keyboard drags need about 200 ms between key presses.
-- **PowerShell 5.1 (the user's primary shell):**
-  - `Get-Content` without `-Encoding utf8` mangles UTF-8. One em dash was corrupted this way.
-  - Paths containing `[tool]` are treated as wildcards (use `-LiteralPath`); this once blanked `src/app/tools/[tool]/page.tsx`.
-  - Prefer the Bash tool with Python for multi-file text edits.
-- **`npm install` warnings about `allow-scripts`** are expected (npm 11 policy) and harmless.
-- **Vitest hides `console.log` for passing tests.** Write to a file if you need to inspect output.
+### 7.4 Change the security headers or CSP
+- Edit **only `vercel.json`**. The build turns it into each page's `<meta>` policy (replacing `'unsafe-inline'` in `script-src` with that page's script hashes and dropping header-only directives such as `frame-ancestors`) and into `out/_headers`. The e2e server sends the same headers.
+- Anything new the app loads must come from the site itself. A new directive value (for example `blob:` for workers) is only needed if a test shows a violation: CSP violations appear as console errors and fail the suites.
+- Inline scripts are allowed only by hash, and the hashes are computed at build time, so a new inline `<script>` just works; one added at runtime is blocked.
+- Keep the README's nginx example in step with `vercel.json`.
+
+### 7.5 Change colours or the logo
+- Theme colours: `src/app/globals.css` (both theme blocks). The browser theme colours are in `layout.tsx` (`viewport.themeColor`) and `manifest.ts`.
+- Logo and icons: edit the colours or shield path in `scripts/make-icons.mjs` and run it. The header mark is the lucide `Shield` icon in `Header.tsx`.
+
+### 7.6 Change the service worker
+- Edit `scripts/service-worker.template.js`, never `out/sw.js`. Rules to keep:
+  - HEAD requests must be answered from the cache (Next checks a page exists before prefetching it).
+  - Requests with a query string, and worker scripts, must get a **rebuilt** `Response`, because Turbopack workers read their settings from their own URL (section 9).
+  - Install caches everything; activation deletes old caches; `skip-waiting` only comes from the update prompt.
+- `src/components/shell/ServiceWorker.tsx` registers it (production only) and shows the "Reload now" toast.
+- `e2e/offline.mjs` covers install, offline use, the update prompt and the stand-in.
+
+### 7.7 Update the README screenshots
+`npm run build && node scripts/screenshots.mjs`. The scenes, sample files and viewport sizes are in the script.
+
+### 7.8 Release and check the live site
+Push to `main`. Vercel runs `npm run build` and deploys `out/`. Then check:
+```bash
+curl -sI https://docsanitize.vercel.app/ | grep -i content-security-policy          # header policy
+curl -s  https://docsanitize.vercel.app/ | grep -c 'http-equiv="Content-Security-Policy"'   # 1 = meta policy present
+curl -s  https://docsanitize.vercel.app/sw.js | grep -c PRECACHE                    # ≥1 = real worker, not the stand-in
+```
+If `sw.js` is the stand-in or the `<meta>` is missing, Vercel is serving Next's own output instead of `out/`. Check `framework`, `buildCommand` and `outputDirectory` in `vercel.json`, and the project settings in the Vercel dashboard. Bump `version` in `package.json` and the README for notable releases.
+
+### 7.9 Upgrade dependencies
+- **pdfjs-dist:** `copy-pdfjs-assets.mjs` copies `cmaps`, `standard_fonts`, `wasm` and `iccs`; check they still exist. The office fonts come from `standard_fonts/LiberationSans-*.ttf`.
+- **@cantoo/pdf-lib:** re-run `security.test.ts`. It checks that no strings leak in plaintext, which depends on object streams.
+- **SheetJS:** install the new tarball URL from cdn.sheetjs.com (`npm i https://cdn.sheetjs.com/xlsx-<v>/xlsx-<v>.tgz`), not the npm package.
+- **Next.js:** read the upgrade notes in `node_modules/next/dist/docs`, then check that `fix-export-segments.mjs` and `secure-export.mjs` still match the export's layout, and run the full e2e.
 
 ---
 
-## 10. Testing and verification
+## 8. Testing
 
-- **Unit (30 tests):**
-  - `src/lib/metadata/__tests__/metadata.test.ts`: every format's audit and strip, verification reaches zero tags, lossless JPEG scan data, WebP flag clearing, a PDF with every leak type including an incremental revision, and encrypted-PDF errors.
-  - `src/lib/pdf/__tests__/pdf.test.ts`: page ranges, merge order and no producer, extract groups, rearrange order/rotation, deleted-page purge, nested page trees.
-- **Fixtures:** `src/lib/metadata/__tests__/fixtures.ts` builds a leaky PDF, JPEG, PNG and WebP (EXIF with GPS/serial, XMP, text chunks, attachments, JS, comments, revisions). It uses relative imports only, so Node 24 can import it directly (the e2e suites do).
-- **E2E (`npm run build && npm run e2e`):** all suites passed at handover.
-  - `workspace.mjs`: tabs, dropzone, drag & drop, paste, keyboard, reorder, unload warning
-  - `sanitize.mjs`: audit, strip, verify, download bytes, batch, locked PDF
-  - `organize.mjs`: organize, split, ZIP, merge, preview
-- **Quality bar used so far:**
-  - check screenshots in light, dark and mobile (390 px)
-  - no console errors
-  - no network origins other than localhost
-  - pixel-identical output for lossless image stripping (verified for M3)
+**Unit tests (`npm test`, 109):**
+| File | Covers |
+| --- | --- |
+| `lib/metadata/__tests__/metadata.test.ts` | every format's audit and strip, verification reaching zero, lossless JPEG data, PDF leaks including revisions |
+| `lib/pdf/__tests__/pdf.test.ts` | page ranges, merge, extract, rearrange, purging deleted pages |
+| `images.test.ts`, `compress.test.ts` | image layout and orientation maths, recompression rules and presets |
+| `security.test.ts` | protect/unlock round trips, real RC4/AES-128/AES-256 fixtures (`__tests__/encrypted/`, made with pypdf by `make-fixtures.py`), no plaintext leaks |
+| `redact.test.ts` | rasterised pages contain no text, form fields and structure removed, text and annotation search |
+| `markup.test.ts` | geometry against pdf.js on all rotations, watermark centring and tiling, page labels, signature placement |
+| `office/__tests__/*.test.ts` | PDF → docx/xlsx structure, docx/xlsx → PDF layout, missing-glyph warnings |
+| `lib/__tests__/password.test.ts` | strength and generator |
 
----
+Fixtures (`metadata/__tests__/fixtures.ts`, `office/__tests__/fixtures.ts`) use relative imports only, so the e2e suites import them directly.
 
-## 11. Roadmap and plans for the next milestones
+**Browser suites (`npm run build && npm run e2e`):**
+| Suite | Covers |
+| --- | --- |
+| `workspace.mjs` | tabs, drop zone, paste, keyboard reordering, unload warning |
+| `sanitize.mjs` | audit, strip, verify and downloaded bytes for every format; locked PDFs |
+| `organize.mjs` | organize, split, ZIP, merge |
+| `convert.mjs` | images → PDF, PDF → images, compress |
+| `office.mjs` | all four office conversions, checked with mammoth, SheetJS and pdf.js |
+| `security.mjs` | protect, unlock, redact (including a pixel check that form fields are blacked out) |
+| `markup.mjs` | watermark, page numbers, e-sign placement accuracy |
+| `offline.mjs` | security headers and CSP, blocked uploads and scripts, manifest, precache, offline use, update prompt, dev stand-in |
 
-### Milestone 5: Image ↔ PDF, PDF → images, Compress
-**Images → PDF** (`images-to-pdf`, multi-file; panel pattern like Merge: sortable list of images)
-- Options:
-  - page size: fit image / A4 / Letter
-  - orientation: auto / portrait / landscape
-  - margin
-  - fit or fill
-- JPEG: **run `stripJpeg` first**, otherwise EXIF/GPS gets embedded in the PDF. Then `embedJpg`.
-- PNG: `embedPng` (after stripping).
-- WebP: pdf-lib can't embed it. Decode with `createImageBitmap`, draw to an `OffscreenCanvas`, re-encode to PNG or JPEG.
-- Respect EXIF orientation: `createImageBitmap(blob, { imageOrientation: "from-image" })` when re-encoding, or rotate the page for raw JPEG embeds.
-- Where decoding is needed, run it in a worker (`OffscreenCanvas` is available in workers).
-
-**PDF → images** (`pdf-to-images`)
-- Render with pdf.js at the chosen DPI (72/150/300) to a canvas, then `toBlob` as JPEG (quality slider), PNG or WebP.
-- Page selection reuses `parsePageRanges` and the Split grid.
-- Several images download as a ZIP via `OutputCard`.
-- Cap the canvas size, since browsers limit canvases to about 16k px per side.
-
-**Compress PDF** (`compress`)
-- For each image XObject with `Filter /DCTDecode` (plain JPEG, DeviceRGB or DeviceGray, no SMask):
-  1. decode in a worker (`createImageBitmap`)
-  2. downscale to a target DPI based on the largest placement (or simply max pixel dimensions)
-  3. re-encode JPEG at the quality preset
-  4. replace the stream and update `Width`/`Height`
-- Skip CMYK, Indexed and masked images at first.
-- Then `collectGarbage` and `savePdf` with object streams.
-- Presets: Light / Balanced / Strong.
-- Show before and after sizes, and **keep the original if the result is bigger**.
-- Optional checkbox: "also remove metadata" (reuse `stripPdf`).
-
-### Milestone 6: Office conversions (best effort, client-side only)
-- **PDF → Word:** pdf.js `getTextContent()` per page. Group items into lines and paragraphs by y and font size, then write a `.docx` with the `docx` package (headings from font size, page breaks between pages).
-- **PDF → Excel:** cluster text items into rows (by y) and columns (by x gaps) into one sheet per page.
-  - Library: SheetJS is no longer maintained on npm (the registry `xlsx` is outdated); its current builds come from its own CDN tarball.
-  - Alternative: `exceljs`. **Ask the user** if unsure.
-- **Word → PDF:** `mammoth` (docx → semantic HTML), then lay out simple HTML (paragraphs, headings, lists, basic tables, images) with pdf-lib text drawing and an embedded font.
-  - Non-Latin text needs `@pdf-lib/fontkit` with a bundled TTF. Check whether `@cantoo/pdf-lib` needs `registerFontkit`.
-  - Rasterizing HTML via SVG `foreignObject` is an alternative, but produces non-selectable text.
-- **Excel → PDF:** read the sheets, then draw paginated tables with pdf-lib.
-- Be upfront in the UI that fidelity is approximate.
-
-### Milestone 7: Security
-- **Protect:**
-  - `loadPdf` → `doc.encrypt({ userPassword, ownerPassword, permissions })` → save.
-  - Verify which AES variant `@cantoo/pdf-lib` writes, and prefer AES-256.
-  - Add a password strength hint.
-  - Permissions: print / copy / modify toggles.
-- **Unlock:**
-  - `PDFDocument.load(bytes, { password })` (a new variant of `loadPdf`), then save **without** encryption.
-  - Handle owner-password-only files, which open without a password.
-  - pdf.js needs the password too for previews (`getDocument({ password })` or the `onPassword` callback).
-  - Test that the output is unencrypted.
-  - After this, update the `encrypted` error UIs, which already link to `/tools/unlock`.
-- **Redact:**
-  1. Draw boxes over the pdf.js-rendered page.
-  2. On apply, rasterize each affected page at about 200 DPI.
-  3. Paint the boxes solid black on the raster.
-  4. Replace the page with a single image of the same size, dropping its annotations.
-  5. Suggest running Sanitize afterwards (or strip automatically).
-  6. Verify with pdf.js `getTextContent()` that redacted pages contain no text.
-
-### Milestone 8: Markup
-- **E-Sign:**
-  - Capture: a signature pad on canvas (pointer events, smoothing, undo) or an uploaded PNG/JPG, with an optional "remove white background" step.
-  - Placement: drag and resize over the pdf.js page.
-  - Output: `embedPng` + `drawImage`, converting coordinates for `CropBox` and page `Rotate`.
-  - Multiple placements across pages.
-- **Watermark:** text (font, size, colour, opacity, rotation, position or tiled) or an image. Draw it with pdf-lib on every page or selected pages. Standard fonts only cover WinAnsi text, so non-Latin text needs fontkit and an embedded TTF.
-- **Page numbers:** format (`{n}`, `{n} / {total}`, `Page {n}`), position (6 spots), margin, start number, skip the first page, font size.
-
-### Milestone 9: Open-source polish
-- **README:**
-  - features, privacy model, screenshots
-  - a "Deploy to Vercel" button: `https://vercel.com/new/clone?repository-url=https://github.com/4bdulllahh/DocSanitize`
-  - self-hosting on any static host, development commands, testing
-  - the MIT licence (the `LICENSE` file already exists)
-- **CSP:**
-  - A `vercel.json` header gives Vercel a real header; also add a production-only `<meta>` fallback for other hosts.
-  - The key guard: `connect-src 'self'`.
-  - Next's static export uses inline scripts, and the theme init script is inline too: allow them with `'unsafe-inline'` or per-page hashes.
-  - Also needed: `worker-src 'self' blob:`, `'wasm-unsafe-eval'` for pdf.js WASM, `img-src 'self' blob: data:`, `object-src 'none'`, `form-action 'none'`, `base-uri 'self'`, `frame-ancestors 'none'` (header only).
-  - Test that every tool still works under the CSP.
-- **PWA/offline:**
-  - a `manifest.webmanifest` and icons
-  - a handwritten `public/sw.js` with a precache list generated in `postbuild` from the files in `out/` (pages, `_next/static`, `/pdfjs`)
-  - network-first for HTML and cache-first for hashed assets
-  - an "installable, works offline" indicator
-- **Hosting note:** asset paths assume the site is served from the domain root. For a sub-path host (e.g. a GitHub Pages project site), set `basePath` and make `render.ts`'s `ASSETS` respect it.
-- Consider a GitHub Actions workflow (lint, typecheck, unit tests, build, and e2e on Linux).
+Every suite also takes light, dark and 390 px screenshots, and fails on console errors or requests to other origins. `convert.mjs` timed out once in about ten full runs on Windows; it hasn't reproduced since.
 
 ---
 
-## 12. Known limitations and tech debt
+## 9. Traps already found (don't rediscover them)
 
-- Merge and split lose bookmarks and links between pages (pages are copied into a new document). Organize keeps them.
-- The metadata engine doesn't treat visible content as metadata (comment text, form field values, hidden text layers). Redaction (M7) is for that.
-- HEIC/AVIF images aren't supported: browsers can't decode them for preview, and there's no stripper for them.
-- Metadata inside images embedded in PDFs is only handled for plain `DCTDecode` JPEGs.
-- The multi-download "Download N clean files" in Sanitize triggers separate downloads. It could use a ZIP (`zipFiles`) instead.
-- The home page tool grid has no search; that's fine for 17 tools.
-- e2e suites are plain Node scripts using `playwright-core`, not the `@playwright/test` runner. Migrating is optional.
+**Next.js / Turbopack**
+- On Windows the static export writes segment-prefetch files as nested folders; `fix-export-segments.mjs` flattens them (it does nothing on Linux).
+- Workers: `new Worker(new URL("../../workers/x.worker.ts", import.meta.url), { type: "module" })`. Turbopack passes the worker its chunk list in the URL's `#params=` fragment, and a worker's `location` is its response's URL, so a service worker must answer worker scripts with a rebuilt `Response`, not the cached one. The build also copies worker **sources** into `out/_next/static/media/`, which is harmless.
+- In a static export, Next sends a `HEAD` request for a page before prefetching it.
+- `LayoutProps`/`PageProps` types come from the build, so run `tsc` after `npm run build`.
+- On Vercel, the Next.js preset serves Next's own output and skips `postbuild`. That's why `vercel.json` sets `framework: null` and `outputDirectory: "out"`.
+
+**pdf.js 6**
+- `destroy()` is on the loading task, not the document.
+- `render({ canvas, viewport })`. There's no `convertToViewportRectangle`; use `convertToViewportPoint`.
+- `getPermissions()` returns a Set. There's no eval, so no `isEvalSupported` concerns.
+- Text content leaves out annotation and form-field text, and items that start off the page. It merges consecutive text on one baseline into one item. Count `OPS.showText` in the operator list when you need to count drawn strings.
+- `FontFaceObject` exposes `bold`/`italic`/`black`/`name` only after `getOperatorList()`.
+
+**@cantoo/pdf-lib**
+- `encrypt()` defaults to AES-256 but encrypts only streams: strings outside object streams stay in plaintext. We always save with object streams.
+- Its decrypting parser loses Info and ID for files with cross-reference streams; `unlockPdf` restores them from a raw parse.
+- Removing and re-inserting every page corrupts the page tree, so `rearrangePages` rebuilds a flat `Kids` array.
+- `save()` adds a default page unless told not to, which `savePdf` handles.
+- `normalize()` wraps existing page content in `q`/`Q`.
+- Use `@cantoo/fontkit`; `@pdf-lib/fontkit` crashes on subset encoding.
+
+**Other libraries**
+- mammoth needs `buffer` in Node and `arrayBuffer` in the browser (both are passed).
+- SheetJS needs `cellStyles: true` to see hidden rows, columns and widths. CSV must be decoded as UTF-8 by us, falling back to windows-1252.
+- exifr can't read WebP; its `Options` type isn't exported (`Parameters<typeof exifr.parse>[1]`).
+- dnd-kit: `MouseSensor` (distance 5), `TouchSensor` (250 ms long press) and `KeyboardSensor` starting on Space; keyboard drags in e2e need about 200 ms between keys.
+- `serve` (used by e2e) matches header sources as globs, so `run.mjs` turns `/(.*)` into `/**`, and refuses to start if the CSP isn't being sent.
+
+**React**
+- No synchronous `setState` in effects (the lint rule enforces it). Keep async results together with their input and derive "loading" from a mismatch; use `useEffectEvent` for callbacks read in effects. The `react-hooks/refs` rule rejects curried handlers that read refs.
+
+**Windows and PowerShell**
+- `Get-Content` without `-Encoding utf8` mangles UTF-8, and paths containing `[tool]` are treated as wildcards (use `-LiteralPath`).
+- Files written by Python on Windows get CRLF endings unless you pass `newline=''`. `.gitattributes` normalises to LF.
+- Tool-call text containing `\uXXXX` escapes may be decoded into literal characters; build such strings in code instead.
 
 ---
 
-## 13. Persistent notes outside the repo
-Claude Code's per-project memory (`~/.claude/projects/…DocSanitize/memory/`) also holds the user's decisions and the milestone protocol, so new sessions in this folder load them automatically. This file is the complete reference either way.
+## 10. Known limitations and ideas
+
+- Scanned PDFs have no text to extract (no OCR).
+- Redacted pages become images.
+- E-Sign is visual, not a certificate signature.
+- Office conversions are best effort; generated text covers Latin, Greek and Cyrillic only.
+- Merge and Split drop bookmarks and links between pages (Organize keeps them).
+- Metadata in images embedded in PDFs is only handled for plain JPEGs.
+- HEIC/AVIF aren't supported.
+- Sanitize's "download all" triggers separate downloads; a ZIP would be nicer.
+- The e2e suites are plain Node scripts with `playwright-core`, not the `@playwright/test` runner. Migrating is optional.
