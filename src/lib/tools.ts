@@ -56,6 +56,7 @@ import {
   Workflow,
   type LucideIcon,
 } from "lucide-react";
+import { msg } from "@/i18n/msg";
 import type { FileKind } from "./files";
 
 export type ToolCategoryId = "privacy" | "inspect" | "edit" | "organize" | "security" | "convert" | "media" | "optimize";
@@ -66,14 +67,14 @@ export interface ToolCategory {
 }
 
 export const TOOL_CATEGORIES: ToolCategory[] = [
-  { id: "privacy", name: "Sanitize & Privacy" },
-  { id: "inspect", name: "Inspect" },
-  { id: "edit", name: "Edit & Sign" },
-  { id: "organize", name: "Organize" },
-  { id: "security", name: "Security" },
-  { id: "convert", name: "Convert" },
-  { id: "media", name: "Audio & Video" },
-  { id: "optimize", name: "Optimize" },
+  { id: "privacy", name: msg("Sanitize & Privacy") },
+  { id: "inspect", name: msg("Inspect") },
+  { id: "edit", name: msg("Edit & Sign") },
+  { id: "organize", name: msg("Organize") },
+  { id: "security", name: msg("Security") },
+  { id: "convert", name: msg("Convert") },
+  { id: "media", name: msg("Audio & Video") },
+  { id: "optimize", name: msg("Optimize") },
 ];
 
 export interface Tool {
@@ -96,8 +97,8 @@ export interface Tool {
 export const TOOLS: Tool[] = [
   {
     id: "sanitize",
-    name: "Sanitize Metadata",
-    description: "Audit hidden metadata (EXIF, XMP, PDF info), strip it in one click, and verify the result is clean.",
+    name: msg("Sanitize Metadata"),
+    description: msg("Audit hidden metadata (EXIF, XMP, PDF info), strip it in one click, and verify the result is clean."),
     category: "privacy",
     icon: ScanSearch,
     keywords: ["exif", "gps", "location", "privacy", "clean", "remove metadata", "strip", "author", "iphone", "photo", "heic", "xmp", "hidden data"],
@@ -106,8 +107,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "edit-metadata",
-    name: "Edit Metadata",
-    description: "Set a PDF's title, author, subject, keywords and dates to exactly what you want.",
+    name: msg("Edit Metadata"),
+    description: msg("Set a PDF's title, author, subject, keywords and dates to exactly what you want."),
     category: "privacy",
     icon: FileSliders,
     keywords: ["properties", "title", "author", "document info", "keywords", "change metadata"],
@@ -116,8 +117,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "find-pii",
-    name: "Find Personal Data",
-    description: "Find email addresses, phone numbers, card and bank account numbers and ID numbers in a PDF, then redact them in one go.",
+    name: msg("Find Personal Data"),
+    description: msg("Find email addresses, phone numbers, card and bank account numbers and ID numbers in a PDF, then redact them in one go."),
     category: "inspect",
     icon: UserSearch,
     keywords: ["pii", "personal information", "gdpr", "email", "phone", "credit card", "iban", "ssn", "social security", "national insurance", "sensitive data", "data leak", "dlp"],
@@ -126,8 +127,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "inspect-pdf",
-    name: "Inspect PDF",
-    description: "Find what a PDF hides: fake redactions, invisible text, earlier versions, scripts, attachments, comments and hidden layers. Then clean it.",
+    name: msg("Inspect PDF"),
+    description: msg("Find what a PDF hides: fake redactions, invisible text, earlier versions, scripts, attachments, comments and hidden layers. Then clean it."),
     category: "inspect",
     icon: FileSearch,
     keywords: ["hidden", "fake redaction", "redaction check", "black box", "invisible text", "white text", "versions", "javascript", "malware", "attachments", "layers", "forensic", "clean pdf"],
@@ -136,8 +137,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "inspect-office",
-    name: "Inspect Office File",
-    description: "Find names, comments, tracked changes, hidden sheets, speaker notes and file paths in Word, Excel and PowerPoint files, and remove them.",
+    name: msg("Inspect Office File"),
+    description: msg("Find names, comments, tracked changes, hidden sheets, speaker notes and file paths in Word, Excel and PowerPoint files, and remove them."),
     category: "inspect",
     icon: FileScan,
     keywords: ["word", "excel", "powerpoint", "docx", "xlsx", "pptx", "tracked changes", "comments", "hidden sheets", "speaker notes", "document inspector", "remove personal information", "author"],
@@ -146,8 +147,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "image-forensics",
-    name: "Image Forensics",
-    description: "Look for signs a photo was edited or made with AI: editing apps, AI labels, Content Credentials, a mismatched thumbnail and error levels.",
+    name: msg("Image Forensics"),
+    description: msg("Look for signs a photo was edited or made with AI: editing apps, AI labels, Content Credentials, a mismatched thumbnail and error levels."),
     category: "inspect",
     icon: ScanEye,
     keywords: ["fake photo", "photoshopped", "edited", "ai generated", "deepfake", "ela", "error level", "c2pa", "content credentials", "authenticity", "verify photo"],
@@ -156,8 +157,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "check-file",
-    name: "Check File & Hashes",
-    description: "See what any file really is, whatever its name says, spot disguised programs, and get its SHA-256, SHA-1 and MD5 hashes.",
+    name: msg("Check File & Hashes"),
+    description: msg("See what any file really is, whatever its name says, spot disguised programs, and get its SHA-256, SHA-1 and MD5 hashes."),
     category: "inspect",
     icon: FileCheck2,
     keywords: ["file type", "extension", "virus", "malware", "exe", "hash", "checksum", "sha256", "sha-256", "md5", "verify download", "integrity", "magic bytes"],
@@ -166,8 +167,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "check-links",
-    name: "Check Links & QR Codes",
-    description: "Check every link and QR code in a PDF or picture for phishing tricks, without visiting them.",
+    name: msg("Check Links & QR Codes"),
+    description: msg("Check every link and QR code in a PDF or picture for phishing tricks, without visiting them."),
     category: "inspect",
     icon: QrCode,
     keywords: ["phishing", "qr code", "url", "scam", "link checker", "quishing", "suspicious link", "fake website"],
@@ -176,8 +177,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "compare-pdf",
-    name: "Compare PDFs",
-    description: "See what changed between two versions of a PDF: words added, removed and changed, or a picture-by-picture comparison.",
+    name: msg("Compare PDFs"),
+    description: msg("See what changed between two versions of a PDF: words added, removed and changed, or a picture-by-picture comparison."),
     category: "inspect",
     icon: GitCompareArrows,
     keywords: ["diff", "difference", "changes", "versions", "revision", "redline", "track changes", "contract", "compare documents"],
@@ -187,8 +188,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "edit-pdf",
-    name: "Edit PDF",
-    description: "Add and edit text, white out, highlight, draw, add shapes, check marks, images, signatures and notes, all on one page.",
+    name: msg("Edit PDF"),
+    description: msg("Add and edit text, white out, highlight, draw, add shapes, check marks, images, signatures and notes, all on one page."),
     category: "edit",
     icon: FilePenLine,
     keywords: ["edit text", "add text", "annotate", "highlight", "underline", "strikethrough", "draw", "pen", "whiteout", "erase", "shapes", "rectangle", "arrow", "check mark", "tick", "cross", "image", "sticky note", "comment", "typewriter", "fill"],
@@ -197,8 +198,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "fill-pdf",
-    name: "Fill PDF Form",
-    description: "Type into a PDF form's fields, tick its boxes and pick its options, then save it, optionally flattened.",
+    name: msg("Fill PDF Form"),
+    description: msg("Type into a PDF form's fields, tick its boxes and pick its options, then save it, optionally flattened."),
     category: "edit",
     icon: ClipboardPen,
     keywords: ["form", "fill in", "fillable", "acroform", "fields", "application"],
@@ -207,8 +208,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "header-footer",
-    name: "Header & Footer",
-    description: "Add text at the top and bottom of pages, with page numbers, the date or the file name.",
+    name: msg("Header & Footer"),
+    description: msg("Add text at the top and bottom of pages, with page numbers, the date or the file name."),
     category: "edit",
     icon: PanelTop,
     keywords: ["header", "footer", "running head", "page x of y", "date", "file name"],
@@ -217,8 +218,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "bates",
-    name: "Bates Numbering",
-    description: "Number every page of one or more PDFs in one sequence, e.g. ACME-000001, for legal and audit work.",
+    name: msg("Bates Numbering"),
+    description: msg("Number every page of one or more PDFs in one sequence, e.g. ACME-000001, for legal and audit work."),
     category: "edit",
     icon: Hash,
     keywords: ["legal", "discovery", "stamp numbers", "sequence", "exhibit"],
@@ -228,8 +229,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "flatten",
-    name: "Flatten PDF",
-    description: "Make form answers, comments, highlights and stamps part of the page so they can't be changed.",
+    name: msg("Flatten PDF"),
+    description: msg("Make form answers, comments, highlights and stamps part of the page so they can't be changed."),
     category: "edit",
     icon: Layers2,
     keywords: ["lock form", "flatten annotations", "merge layers", "non editable"],
@@ -238,8 +239,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "bookmarks",
-    name: "Bookmarks",
-    description: "Add, rename, nest and reorder the bookmarks (outline) readers show beside a PDF.",
+    name: msg("Bookmarks"),
+    description: msg("Add, rename, nest and reorder the bookmarks (outline) readers show beside a PDF."),
     category: "edit",
     icon: Bookmark,
     keywords: ["outline", "table of contents", "toc", "navigation", "chapters"],
@@ -248,8 +249,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "merge",
-    name: "Merge PDF",
-    description: "Combine several PDFs into one document in the order you choose.",
+    name: msg("Merge PDF"),
+    description: msg("Combine several PDFs into one document in the order you choose."),
     category: "organize",
     icon: Combine,
     keywords: ["combine", "join", "append", "put together"],
@@ -259,8 +260,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "split",
-    name: "Split PDF",
-    description: "Extract page ranges or split a PDF into separate files.",
+    name: msg("Split PDF"),
+    description: msg("Extract page ranges or split a PDF into separate files."),
     category: "organize",
     icon: Scissors,
     keywords: ["extract pages", "separate", "divide", "cut", "pages"],
@@ -269,8 +270,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "organize",
-    name: "Organize Pages",
-    description: "Reorder, rotate and delete pages on a visual drag-and-drop grid.",
+    name: msg("Organize Pages"),
+    description: msg("Reorder, rotate and delete pages on a visual drag-and-drop grid."),
     category: "organize",
     icon: LayoutGrid,
     keywords: ["reorder", "rotate", "delete pages", "remove pages", "sort", "arrange", "move pages"],
@@ -279,8 +280,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "batch",
-    name: "Batch Process",
-    description: "Run several tools one after another on all your open files (clean, stamp, convert, protect, sign) and download the results together.",
+    name: msg("Batch Process"),
+    description: msg("Run several tools one after another on all your open files (clean, stamp, convert, protect, sign) and download the results together."),
     category: "organize",
     icon: Workflow,
     keywords: ["batch", "bulk", "many files", "multiple files", "all files", "at once", "automate", "action wizard", "workflow", "sequence", "steps", "recipe"],
@@ -290,8 +291,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "rotate",
-    name: "Rotate PDF",
-    description: "Turn all pages or just the ones you pick, by 90° or 180°.",
+    name: msg("Rotate PDF"),
+    description: msg("Turn all pages or just the ones you pick, by 90° or 180°."),
     category: "organize",
     icon: RotateCw,
     keywords: ["turn", "orientation", "sideways", "upside down", "landscape"],
@@ -300,8 +301,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "delete-pages",
-    name: "Delete Pages",
-    description: "Remove the pages you pick; they're purged from the file, not just hidden.",
+    name: msg("Delete Pages"),
+    description: msg("Remove the pages you pick; they're purged from the file, not just hidden."),
     category: "organize",
     icon: FileMinus,
     keywords: ["remove pages", "delete", "drop pages"],
@@ -310,8 +311,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "insert-pages",
-    name: "Insert Pages",
-    description: "Add blank pages, or pages from another PDF, anywhere in a document.",
+    name: msg("Insert Pages"),
+    description: msg("Add blank pages, or pages from another PDF, anywhere in a document."),
     category: "organize",
     icon: FilePlus2,
     keywords: ["add pages", "blank page", "insert"],
@@ -320,8 +321,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "crop",
-    name: "Crop PDF",
-    description: "Trim page edges by hand or remove white margins automatically.",
+    name: msg("Crop PDF"),
+    description: msg("Trim page edges by hand or remove white margins automatically."),
     category: "organize",
     icon: Crop,
     keywords: ["trim", "margins", "white space", "cut edges"],
@@ -330,8 +331,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "resize-pages",
-    name: "Resize Pages",
-    description: "Change the paper size (A4, Letter, Legal, A3, A5 or custom), scaling content to fit.",
+    name: msg("Resize Pages"),
+    description: msg("Change the paper size (A4, Letter, Legal, A3, A5 or custom), scaling content to fit."),
     category: "organize",
     icon: Scaling,
     keywords: ["page size", "a4", "letter", "paper size", "scale"],
@@ -340,8 +341,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "remove-blank",
-    name: "Remove Blank Pages",
-    description: "Find blank pages, including scanned ones, and remove them in one go.",
+    name: msg("Remove Blank Pages"),
+    description: msg("Find blank pages, including scanned ones, and remove them in one go."),
     category: "organize",
     icon: FileX2,
     keywords: ["empty pages", "blank", "scanner", "clean up"],
@@ -350,8 +351,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "protect",
-    name: "Protect PDF",
-    description: "Encrypt a PDF with a password (AES-256) and control printing and copying.",
+    name: msg("Protect PDF"),
+    description: msg("Encrypt a PDF with a password (AES-256) and control printing and copying."),
     category: "security",
     icon: Lock,
     keywords: ["password", "encrypt", "lock", "secure", "aes"],
@@ -360,8 +361,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "unlock",
-    name: "Unlock PDF",
-    description: "Remove the password or restrictions from a PDF you have access to.",
+    name: msg("Unlock PDF"),
+    description: msg("Remove the password or restrictions from a PDF you have access to."),
     category: "security",
     icon: LockOpen,
     keywords: ["remove password", "decrypt", "open locked", "unprotect"],
@@ -370,8 +371,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "redact",
-    name: "Redact PDF",
-    description: "Black out sensitive areas and permanently remove the content underneath.",
+    name: msg("Redact PDF"),
+    description: msg("Black out sensitive areas and permanently remove the content underneath."),
     category: "security",
     icon: EyeOff,
     keywords: ["black out", "censor", "hide text", "blackout", "remove text", "confidential"],
@@ -380,8 +381,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "images-to-pdf",
-    name: "Images to PDF",
-    description: "Turn JPG, PNG, WebP, HEIC and AVIF images into a single PDF.",
+    name: msg("Images to PDF"),
+    description: msg("Turn JPG, PNG, WebP, HEIC and AVIF images into a single PDF."),
     category: "convert",
     icon: FileImage,
     keywords: ["jpg to pdf", "png to pdf", "photo to pdf", "heic to pdf", "scan", "pictures"],
@@ -391,8 +392,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "heic-to-jpg",
-    name: "HEIC to JPG",
-    description: "Convert iPhone HEIC photos, and AVIF, WebP or PNG images, to JPG or PNG. Location and camera details aren't copied.",
+    name: msg("HEIC to JPG"),
+    description: msg("Convert iPhone HEIC photos, and AVIF, WebP or PNG images, to JPG or PNG. Location and camera details aren't copied."),
     category: "convert",
     icon: ImageDown,
     keywords: ["iphone", "photo", "heif", "jpeg"],
@@ -402,8 +403,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "convert-image",
-    name: "Convert & Resize Images",
-    description: "Convert images to JPG, PNG, WebP, BMP, TIFF, ICO or AVIF (where the browser can write it), and resize them. Location and camera details aren't copied.",
+    name: msg("Convert & Resize Images"),
+    description: msg("Convert images to JPG, PNG, WebP, BMP, TIFF, ICO or AVIF (where the browser can write it), and resize them. Location and camera details aren't copied."),
     category: "convert",
     icon: ImageUpscale,
     keywords: ["image converter", "resize", "scale", "shrink photo", "webp", "avif", "bmp", "tiff", "ico", "favicon", "icon", "png to jpg", "jpg to png", "dimensions"],
@@ -413,8 +414,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "pdf-to-images",
-    name: "PDF to Images",
-    description: "Export every page of a PDF as a JPG, PNG or WebP image.",
+    name: msg("PDF to Images"),
+    description: msg("Export every page of a PDF as a JPG, PNG or WebP image."),
     category: "convert",
     icon: Images,
     keywords: ["pdf to jpg", "pdf to png", "export pages", "screenshot", "picture"],
@@ -423,8 +424,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "pdf-to-word",
-    name: "PDF to Word",
-    description: "Extract the text of a PDF into an editable .docx document.",
+    name: msg("PDF to Word"),
+    description: msg("Extract the text of a PDF into an editable .docx document."),
     category: "convert",
     icon: FileText,
     keywords: ["docx", "doc", "editable", "text", "convert"],
@@ -433,8 +434,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "pdf-to-excel",
-    name: "PDF to Excel",
-    description: "Extract tables from a PDF into an .xlsx spreadsheet.",
+    name: msg("PDF to Excel"),
+    description: msg("Extract tables from a PDF into an .xlsx spreadsheet."),
     category: "convert",
     icon: FileSpreadsheet,
     keywords: ["xlsx", "table", "spreadsheet", "csv", "convert"],
@@ -443,8 +444,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "word-to-pdf",
-    name: "Word to PDF",
-    description: "Convert a .docx document to PDF, keeping headings, lists, tables and images.",
+    name: msg("Word to PDF"),
+    description: msg("Convert a .docx document to PDF, keeping headings, lists, tables and images."),
     category: "convert",
     icon: FileType,
     keywords: ["docx", "doc", "document", "convert"],
@@ -453,8 +454,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "excel-to-pdf",
-    name: "Excel to PDF",
-    description: "Turn Excel, OpenDocument or CSV sheets into paginated PDF tables.",
+    name: msg("Excel to PDF"),
+    description: msg("Turn Excel, OpenDocument or CSV sheets into paginated PDF tables."),
     category: "convert",
     icon: Sheet,
     keywords: ["xlsx", "csv", "spreadsheet", "ods", "convert"],
@@ -463,8 +464,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "ocr",
-    name: "OCR PDF",
-    description: "Recognise the text in scanned PDFs and photos, in 24 languages, to make them searchable and copyable or save it as text.",
+    name: msg("OCR PDF"),
+    description: msg("Recognise the text in scanned PDFs and photos, in 24 languages, to make them searchable and copyable or save it as text."),
     category: "convert",
     icon: ScanText,
     keywords: ["scan", "scanned", "searchable", "recognize text", "recognise", "image to text", "extract text", "copy text", "photo to text", "tesseract", "txt"],
@@ -473,8 +474,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "translate",
-    name: "Translate PDF",
-    description: "Translate a PDF into another language with your browser's built-in translator, keeping its layout. Nothing is sent online.",
+    name: msg("Translate PDF"),
+    description: msg("Translate a PDF into another language with your browser's built-in translator, keeping its layout. Nothing is sent online."),
     category: "convert",
     icon: Languages,
     keywords: ["translation", "language", "english", "spanish", "french", "german", "arabic", "chinese", "localize", "foreign"],
@@ -483,8 +484,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "pdf-to-pptx",
-    name: "PDF to PowerPoint",
-    description: "Turn each page of a PDF into a slide, with its text in editable text boxes or as a picture of the page.",
+    name: msg("PDF to PowerPoint"),
+    description: msg("Turn each page of a PDF into a slide, with its text in editable text boxes or as a picture of the page."),
     category: "convert",
     icon: Presentation,
     keywords: ["pptx", "ppt", "slides", "presentation", "keynote", "google slides", "deck", "convert"],
@@ -493,8 +494,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "pptx-to-pdf",
-    name: "PowerPoint to PDF",
-    description: "Convert a .pptx presentation to PDF, one page per slide, with its text, shapes, pictures and tables.",
+    name: msg("PowerPoint to PDF"),
+    description: msg("Convert a .pptx presentation to PDF, one page per slide, with its text, shapes, pictures and tables."),
     category: "convert",
     icon: Projector,
     keywords: ["pptx", "ppt", "slides", "presentation", "deck", "handout", "convert"],
@@ -503,8 +504,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "pdf-to-text",
-    name: "PDF to Text & Markdown",
-    description: "Extract a PDF's text as plain text or Markdown, with headings, lists and tables rebuilt.",
+    name: msg("PDF to Text & Markdown"),
+    description: msg("Extract a PDF's text as plain text or Markdown, with headings, lists and tables rebuilt."),
     category: "convert",
     icon: LetterText,
     keywords: ["txt", "md", "markdown", "extract text", "copy text", "plain text", "notes", "obsidian", "llm", "chatgpt"],
@@ -513,8 +514,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "text-to-pdf",
-    name: "Markdown & HTML to PDF",
-    description: "Turn Markdown, HTML or plain-text files into a clean, paginated PDF. Nothing is fetched from the web.",
+    name: msg("Markdown & HTML to PDF"),
+    description: msg("Turn Markdown, HTML or plain-text files into a clean, paginated PDF. Nothing is fetched from the web."),
     category: "convert",
     icon: FileCode,
     keywords: ["md", "markdown", "html", "htm", "web page", "txt", "text to pdf", "readme", "notes", "print"],
@@ -523,8 +524,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "compress",
-    name: "Compress PDF",
-    description: "Shrink a PDF by downscaling and re-encoding its embedded images.",
+    name: msg("Compress PDF"),
+    description: msg("Shrink a PDF by downscaling and re-encoding its embedded images."),
     category: "optimize",
     icon: Shrink,
     keywords: ["reduce size", "shrink", "smaller", "optimize", "email"],
@@ -533,8 +534,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "grayscale",
-    name: "Grayscale PDF",
-    description: "Turn a PDF's text, drawings and photos gray, for printing without colour ink.",
+    name: msg("Grayscale PDF"),
+    description: msg("Turn a PDF's text, drawings and photos gray, for printing without colour ink."),
     category: "optimize",
     icon: Contrast,
     keywords: ["black and white", "monochrome", "greyscale", "no colour", "print"],
@@ -543,8 +544,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "sign",
-    name: "E-Sign PDF",
-    description: "Draw or upload a signature and place it anywhere on a page.",
+    name: msg("E-Sign PDF"),
+    description: msg("Draw or upload a signature and place it anywhere on a page."),
     category: "edit",
     icon: Signature,
     keywords: ["signature", "e-sign", "esign", "sign document", "draw signature", "handwritten", "date", "initials"],
@@ -553,8 +554,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "watermark",
-    name: "Watermark",
-    description: "Stamp text or an image on every page, or just the pages you pick.",
+    name: msg("Watermark"),
+    description: msg("Stamp text or an image on every page, or just the pages you pick."),
     category: "edit",
     icon: Stamp,
     keywords: ["stamp", "draft", "confidential", "logo", "overlay"],
@@ -563,8 +564,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "page-numbers",
-    name: "Page Numbers",
-    description: "Add page numbers with your choice of position and format.",
+    name: msg("Page Numbers"),
+    description: msg("Add page numbers with your choice of position and format."),
     category: "edit",
     icon: ListOrdered,
     keywords: ["number pages", "footer", "header", "pagination", "page x of y"],
@@ -573,8 +574,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "digital-signature",
-    name: "Digital Signature",
-    description: "Sign a PDF with a certificate (.p12 or .pfx) so anyone can check who signed it and that nothing changed since. No certificate? Make one here.",
+    name: msg("Digital Signature"),
+    description: msg("Sign a PDF with a certificate (.p12 or .pfx) so anyone can check who signed it and that nothing changed since. No certificate? Make one here."),
     category: "edit",
     icon: FileKey,
     keywords: ["certificate", "p12", "pfx", "digital id", "pades", "cryptographic", "certify", "sign with certificate", "self-signed", "eidas", "adobe"],
@@ -583,8 +584,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "verify-signatures",
-    name: "Verify Signatures",
-    description: "Check the digital signatures in a PDF: who signed it and when, whether anything changed since, and what their certificate says.",
+    name: msg("Verify Signatures"),
+    description: msg("Check the digital signatures in a PDF: who signed it and when, whether anything changed since, and what their certificate says."),
     category: "inspect",
     icon: BadgeCheck,
     keywords: ["validate signature", "check signature", "signed pdf", "digital signature", "certificate", "tampered", "authentic", "pades", "timestamp", "certified"],
@@ -593,8 +594,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "clean-media",
-    name: "Remove Video & Audio Metadata",
-    description: "Find and remove the location, phone model, dates and names hidden in videos and recordings, without re-encoding them.",
+    name: msg("Remove Video & Audio Metadata"),
+    description: msg("Find and remove the location, phone model, dates and names hidden in videos and recordings, without re-encoding them."),
     category: "privacy",
     icon: MapPinOff,
     keywords: ["video metadata", "strip", "location", "gps video", "exif video", "mp4", "mov", "mp3 tags", "id3", "phone video", "anonymize", "clean"],
@@ -603,8 +604,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "convert-video",
-    name: "Convert Video",
-    description: "Convert videos to MP4, WebM, MOV or MKV, with a smaller resolution or frame rate, or without the sound.",
+    name: msg("Convert Video"),
+    description: msg("Convert videos to MP4, WebM, MOV or MKV, with a smaller resolution or frame rate, or without the sound."),
     category: "media",
     icon: Film,
     keywords: ["video converter", "mov to mp4", "mkv to mp4", "avi to mp4", "webm", "hevc", "h264", "720p", "1080p", "resolution", "mute", "remove sound"],
@@ -613,8 +614,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "compress-video",
-    name: "Compress Video",
-    description: "Make a video smaller: choose a quality, or a target size for email and chat apps, and a resolution.",
+    name: msg("Compress Video"),
+    description: msg("Make a video smaller: choose a quality, or a target size for email and chat apps, and a resolution."),
     category: "media",
     icon: Minimize2,
     keywords: ["reduce video size", "shrink video", "smaller video", "email", "whatsapp", "discord", "target size", "mb", "mp4"],
@@ -623,8 +624,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "convert-audio",
-    name: "Convert Audio",
-    description: "Convert music and recordings to MP3, M4A, WAV, FLAC, OGG or Opus, or save the sound from a video.",
+    name: msg("Convert Audio"),
+    description: msg("Convert music and recordings to MP3, M4A, WAV, FLAC, OGG or Opus, or save the sound from a video."),
     category: "media",
     icon: AudioLines,
     keywords: ["audio converter", "mp3", "wav to mp3", "m4a to mp3", "extract audio", "video to mp3", "mp4 to mp3", "flac", "voice memo", "normalize", "volume", "bitrate"],
@@ -633,8 +634,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "trim-media",
-    name: "Trim Video & Audio",
-    description: "Cut a video or recording down to the part you want: instantly without re-encoding, or exactly to the frame.",
+    name: msg("Trim Video & Audio"),
+    description: msg("Cut a video or recording down to the part you want: instantly without re-encoding, or exactly to the frame."),
     category: "media",
     icon: Clapperboard,
     keywords: ["cut video", "cut audio", "clip", "shorten", "start", "end", "ringtone", "split video"],
@@ -643,8 +644,8 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "video-to-gif",
-    name: "Video to GIF",
-    description: "Turn a video clip into an animated GIF, or a much smaller animated WebP.",
+    name: msg("Video to GIF"),
+    description: msg("Turn a video clip into an animated GIF, or a much smaller animated WebP."),
     category: "media",
     icon: ImagePlay,
     keywords: ["gif maker", "animated gif", "animation", "mp4 to gif", "webp", "meme"],
@@ -665,18 +666,20 @@ export function toolsInCategory(category: ToolCategoryId): Tool[] {
  * Tools matching a search, best first. Every word must match the tool's name, keywords,
  * description or category; matches in the name count most.
  */
-export function searchTools(query: string): Tool[] {
+export function searchTools(query: string, translate?: (text: string) => string): Tool[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return TOOLS.filter((t) => t.status === "ready");
+  // In another interface language, the translated name and description match as well as the English.
+  const both = (text: string) => (translate && translate(text) !== text ? `${text} | ${translate(text)}` : text);
   const scored = TOOLS.filter((t) => t.status === "ready").map((tool) => {
-    const name = tool.name.toLowerCase();
+    const name = both(tool.name).toLowerCase();
     const keywords = (tool.keywords ?? []).join(" | ").toLowerCase();
-    const description = tool.description.toLowerCase();
-    const category = TOOL_CATEGORIES.find((c) => c.id === tool.category)!.name.toLowerCase();
+    const description = both(tool.description).toLowerCase();
+    const category = both(TOOL_CATEGORIES.find((c) => c.id === tool.category)!.name).toLowerCase();
     let score = 0;
     for (const word of words) {
-      const inName = name.split(/[^a-z0-9]+/).some((part) => part.startsWith(word)) ? 6 : name.includes(word) ? 4 : 0;
-      const inKeywords = keywords.split(/[^a-z0-9-]+/).some((part) => part.startsWith(word)) ? 3 : keywords.includes(word) ? 2 : 0;
+      const inName = name.split(/[^\p{L}\p{N}]+/u).some((part) => part.startsWith(word)) ? 6 : name.includes(word) ? 4 : 0;
+      const inKeywords = keywords.split(/[^\p{L}\p{N}-]+/u).some((part) => part.startsWith(word)) ? 3 : keywords.includes(word) ? 2 : 0;
       const elsewhere = description.includes(word) || category.includes(word) ? 1 : 0;
       const best = Math.max(inName, inKeywords, elsewhere);
       if (best === 0) return { tool, score: 0 };

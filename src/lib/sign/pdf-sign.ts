@@ -29,11 +29,21 @@ export interface SignPdfOptions {
   /** Certify instead of approve: the document can only change as the level allows. */
   certify?: Certification | null;
   /** Show a signature box on this page (0-based) at this corner; omitted, the signature is invisible. */
-  appearance?: { page: number; anchor: Anchor } | null;
+  appearance?: { page: number; anchor: Anchor; labels?: BoxLabels } | null;
   fonts?: Pick<FontFiles, "regular" | "bold">;
   /** For tests. */
   now?: Date;
 }
+
+/** The words in the signature box, in the interface language when its font can draw it. */
+export interface BoxLabels {
+  signedBy: string;
+  date: string;
+  reason: string;
+  location: string;
+}
+
+const ENGLISH_LABELS: BoxLabels = { signedBy: "Digitally signed by", date: "Date", reason: "Reason", location: "Location" };
 
 const BYTE_RANGE_PLACEHOLDER = 9_999_999_999;
 
@@ -78,7 +88,7 @@ interface AppearanceText {
 }
 
 /** The signature box, drawn upright for the page's rotation; returns the widget's /Rect and appearance. */
-function buildAppearance(doc: PDFDocument, pageIndex: number, anchor: Anchor, fonts: { regular: PDFFont; bold: PDFFont }, text: AppearanceText) {
+function buildAppearance(doc: PDFDocument, pageIndex: number, anchor: Anchor, fonts: { regular: PDFFont; bold: PDFFont }, text: AppearanceText, labels: BoxLabels) {
   const page = doc.getPage(pageIndex);
   const geometry = pageGeometry(page);
   const shown = displaySize(geometry);
@@ -92,12 +102,12 @@ function buildAppearance(doc: PDFDocument, pageIndex: number, anchor: Anchor, fo
   const rect = [Math.min(...corners.map((c) => c.x)), Math.min(...corners.map((c) => c.y)), Math.max(...corners.map((c) => c.x)), Math.max(...corners.map((c) => c.y))];
 
   const { width, height } = BOX;
-  const lines: { font: PDFFont; size: number; text: string }[] = [{ font: fonts.regular, size: 7.5, text: "Digitally signed by" }];
+  const lines: { font: PDFFont; size: number; text: string }[] = [{ font: fonts.regular, size: 7.5, text: drawableText(fonts.regular, labels.signedBy) }];
   const name = drawableText(fonts.bold, text.name);
   let nameSize = 13;
   while (nameSize > 7 && fonts.bold.widthOfTextAtSize(name, nameSize) > width - 16) nameSize -= 0.5;
   lines.push({ font: fonts.bold, size: nameSize, text: name });
-  for (const [label, value] of [["Date", text.date], ["Reason", text.reason], ["Location", text.location]] as const) {
+  for (const [label, value] of [[labels.date, text.date], [labels.reason, text.reason], [labels.location, text.location]] as const) {
     if (!value) continue;
     let line = drawableText(fonts.regular, `${label}: ${value}`);
     while (line.length > 4 && fonts.regular.widthOfTextAtSize(line, 7.5) > width - 16) line = `${line.slice(0, -2)}…`;
@@ -190,7 +200,7 @@ export async function signPdf(bytes: Uint8Array, options: SignPdfOptions): Promi
       date: signatureDate(now),
       reason: options.reason?.trim(),
       location: options.location?.trim(),
-    });
+    }, options.appearance.labels ?? ENGLISH_LABELS);
     widget.Rect = rect;
     widget.AP = { N: appearance };
   } else {

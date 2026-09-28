@@ -2,6 +2,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { ProcessingError } from "../errors";
 import { resolveTarget } from "../scan/office-inspect";
 import { attr, parseXml, textOf, type XmlElement, type XmlNode } from "../scan/xml-tree";
+import { msg } from "@/i18n/msg";
 
 /*
  * PowerPoint -> PDF, the reading half: a .pptx is read into a simple model of what each slide
@@ -776,7 +777,7 @@ function colorMap(el: XmlElement | undefined): ColorMap {
 }
 
 /** Read a .pptx into slides ready to draw. */
-export function readPresentation(bytes: Uint8Array, name = "This file"): Presentation {
+export function readPresentation(bytes: Uint8Array, name = msg("This file")): Presentation {
   if (bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) {
     throw new ProcessingError(`“${name}” is password-protected or in the old .ppt format. Save it as an unprotected .pptx first.`, "unsupported");
   }

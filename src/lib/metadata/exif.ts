@@ -2,13 +2,14 @@ import exifr from "exifr";
 import { latin1, utf8 } from "./bytes";
 import { compact, entry } from "./classify";
 import type { MetadataEntry, MetadataReport } from "./types";
+import { msg } from "@/i18n/msg";
 
 const GROUPS: Record<string, string> = {
-  ifd0: "Image (EXIF)",
-  exif: "Camera (EXIF)",
-  gps: "GPS location",
-  interop: "EXIF interoperability",
-  iptc: "IPTC",
+  ifd0: msg("Image (EXIF)"),
+  exif: msg("Camera (EXIF)"),
+  gps: msg("GPS location"),
+  interop: msg("EXIF interoperability"),
+  iptc: msg("IPTC"),
 };
 
 const PARSE_OPTIONS: Parameters<typeof exifr.parse>[1] = {
@@ -49,7 +50,7 @@ export async function readExif(input: Uint8Array): Promise<ExifReadout> {
     output = await exifr.parse(input, PARSE_OPTIONS);
   } catch {
     return {
-      entries: compact([entry("EXIF", "UnreadableExif", `${input.byteLength.toLocaleString()} bytes`, { label: "Unreadable EXIF block", sensitivity: "medium" })]),
+      entries: compact([entry(msg("EXIF"), "UnreadableExif", msg`${input.byteLength.toLocaleString()} bytes`, { label: msg("Unreadable EXIF block"), sensitivity: "medium" })]),
     };
   }
   if (!output) return { entries: [] };
@@ -59,7 +60,7 @@ export async function readExif(input: Uint8Array): Promise<ExifReadout> {
     if (!values || typeof values !== "object") continue;
     if (ArrayBuffer.isView(values) || Array.isArray(values)) {
       // exifr returns the user comment as its own block of raw bytes.
-      const e = block.toLowerCase() === "usercomment" ? entry("Camera (EXIF)", "UserComment", userComment(values as ArrayLike<number>)) : entry(GROUPS[block] ?? block.toUpperCase(), block, values);
+      const e = block.toLowerCase() === "usercomment" ? entry(msg("Camera (EXIF)"), "UserComment", userComment(values as ArrayLike<number>)) : entry(GROUPS[block] ?? block.toUpperCase(), block, values);
       if (e) entries.push(e);
       continue;
     }
@@ -67,10 +68,10 @@ export async function readExif(input: Uint8Array): Promise<ExifReadout> {
       // IFD1 describes the embedded thumbnail — report it once rather than tag by tag.
       const size = values.ThumbnailLength ?? values.JPEGInterchangeFormatLength;
       entries.push({
-        group: "Embedded thumbnail",
+        group: msg("Embedded thumbnail"),
         key: "IFD1",
-        label: "Thumbnail preview",
-        value: `Small preview image${typeof size === "number" ? ` (${size.toLocaleString()} bytes)` : ""} — can show the original before cropping or edits`,
+        label: msg("Thumbnail preview"),
+        value: msg`Small preview image${typeof size === "number" ? ` (${size.toLocaleString()} bytes)` : ""} — can show the original before cropping or edits`,
         sensitivity: "high",
       });
       continue;

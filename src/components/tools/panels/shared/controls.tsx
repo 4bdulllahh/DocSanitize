@@ -2,15 +2,19 @@
 
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import clsx from "clsx";
+import { msg } from "@/i18n/msg";
+import { useT } from "@/store/locale";
 
 export const INPUT = "mt-1 w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-fg outline-none focus:border-brand-border";
 
 export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
+  const t = useT();
   return (
     <label className="mt-4 block text-sm">
       <span className="font-medium text-fg">{label}</span>
       {children}
-      {error ? <span className="mt-1 block text-xs text-danger-text">{error}</span> : hint && <span className="mt-1 block text-xs text-fg-subtle">{hint}</span>}
+      {/* Errors can come from the libraries in English. */}
+      {error ? <span className="mt-1 block text-xs text-danger-text">{t.dynamic(error)}</span> : hint && <span className="mt-1 block text-xs text-fg-subtle">{hint}</span>}
     </label>
   );
 }
@@ -42,9 +46,12 @@ export function Segmented<T extends string>({
 }) {
   const labelId = useId();
   const groupRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   const onKeyDown = (event: KeyboardEvent) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+    // Options run right to left in a right-to-left language.
+    const ahead = t.dir === "rtl" ? -1 : 1;
+    const step = { ArrowRight: ahead, ArrowDown: 1, ArrowLeft: -ahead, ArrowUp: -1 }[event.key];
     if (!step) return;
     event.preventDefault();
     let index = options.findIndex((o) => o.id === value);
@@ -84,7 +91,7 @@ export function Segmented<T extends string>({
                 checked ? "bg-surface text-fg shadow-elev-1 ring-1 ring-line-strong" : "text-fg-muted hover:text-fg",
               )}
             >
-              {o.label}
+              {t.dynamic(o.label)}
             </button>
           );
         })}
@@ -96,11 +103,22 @@ export function Segmented<T extends string>({
 
 const ANCHORS = ["top-left", "top-center", "top-right", "middle-left", "center", "middle-right", "bottom-left", "bottom-center", "bottom-right"] as const;
 export type AnchorId = (typeof ANCHORS)[number];
-const anchorLabel = (a: AnchorId) => (a === "center" ? "Centre" : a.replace("-", " ").replace("center", "centre").replace(/^./, (c) => c.toUpperCase()));
+const ANCHOR_LABELS: Record<AnchorId, string> = {
+  "top-left": msg("Top left"),
+  "top-center": msg("Top centre"),
+  "top-right": msg("Top right"),
+  "middle-left": msg("Middle left"),
+  center: msg("Centre"),
+  "middle-right": msg("Middle right"),
+  "bottom-left": msg("Bottom left"),
+  "bottom-center": msg("Bottom centre"),
+  "bottom-right": msg("Bottom right"),
+};
 
 /** A 3 × 3 grid for choosing where on the page something goes. `allowed` limits the usable spots. */
 export function AnchorPicker({ label, value, onChange, allowed = ANCHORS }: { label: string; value: AnchorId | null; onChange: (value: AnchorId) => void; allowed?: readonly AnchorId[] }) {
   const labelId = useId();
+  const t = useT();
   const groupRef = useRef<HTMLDivElement>(null);
   const onKeyDown = (event: KeyboardEvent) => {
     const index = ANCHORS.indexOf(value ?? "center");
@@ -123,7 +141,7 @@ export function AnchorPicker({ label, value, onChange, allowed = ANCHORS }: { la
       <p id={labelId} className="text-sm font-medium text-fg">
         {label}
       </p>
-      <div ref={groupRef} role="radiogroup" aria-labelledby={labelId} onKeyDown={onKeyDown} className="mt-1.5 grid w-32 grid-cols-3 gap-1 rounded-lg bg-surface-muted p-1.5">
+      <div ref={groupRef} role="radiogroup" aria-labelledby={labelId} onKeyDown={onKeyDown} dir="ltr" className="mt-1.5 grid w-32 grid-cols-3 gap-1 rounded-lg bg-surface-muted p-1.5">
         {ANCHORS.map((a) => {
           const usable = allowed.includes(a);
           const checked = value === a;
@@ -133,7 +151,7 @@ export function AnchorPicker({ label, value, onChange, allowed = ANCHORS }: { la
               type="button"
               role="radio"
               aria-checked={checked}
-              aria-label={anchorLabel(a)}
+              aria-label={t(ANCHOR_LABELS[a])}
               tabIndex={checked || (value === null && a === allowed[0]) ? 0 : -1}
               disabled={!usable}
               onClick={() => onChange(a)}
@@ -151,6 +169,7 @@ export function AnchorPicker({ label, value, onChange, allowed = ANCHORS }: { la
 /** Preset colours plus a custom picker. */
 export function ColorField({ label, value, onChange, presets }: { label: string; value: string; onChange: (value: string) => void; presets: { value: string; name: string }[] }) {
   const labelId = useId();
+  const t = useT();
   return (
     <div className="mt-4">
       <p id={labelId} className="text-sm font-medium text-fg">
@@ -162,15 +181,15 @@ export function ColorField({ label, value, onChange, presets }: { label: string;
             key={p.value}
             type="button"
             onClick={() => onChange(p.value)}
-            aria-label={p.name}
+            aria-label={t(p.name)}
             aria-pressed={value.toLowerCase() === p.value.toLowerCase()}
             className={clsx("size-7 rounded-full border border-line-strong", value.toLowerCase() === p.value.toLowerCase() && "ring-2 ring-brand-border ring-offset-2 ring-offset-surface")}
             style={{ backgroundColor: p.value }}
           />
         ))}
         <label className="flex items-center gap-2 text-xs text-fg-muted">
-          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="size-7 cursor-pointer rounded border border-line bg-transparent" aria-label={`Custom ${label.toLowerCase()}`} />
-          Custom
+          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="size-7 cursor-pointer rounded border border-line bg-transparent" aria-label={t("Custom {label}", { label: label.toLowerCase() })} />
+          {t("Custom")}
         </label>
       </div>
     </div>

@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_Arabic } from "next/font/google";
 import { AppShell } from "@/components/shell/AppShell";
 import { siteConfig } from "@/config/site";
+import { LOCALE_INIT_SCRIPT } from "@/i18n/locales";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -14,6 +15,13 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Arabic letters (Geist has none). Its unicode-range means it's only downloaded when Arabic is shown.
+const notoArabic = Noto_Sans_Arabic({
+  variable: "--font-arabic",
+  subsets: ["arabic"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -45,10 +53,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // suppressHydrationWarning: THEME_INIT_SCRIPT sets data-theme on <html> before React hydrates.
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
+    // suppressHydrationWarning: THEME_INIT_SCRIPT and LOCALE_INIT_SCRIPT set data-theme, lang and dir
+    // on <html> before React hydrates.
+    <html lang="en" dir="ltr" className={`${geistSans.variable} ${geistMono.variable} ${notoArabic.variable} antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: LOCALE_INIT_SCRIPT }} />
       </head>
       <body className="font-sans">
         <AppShell>{children}</AppShell>

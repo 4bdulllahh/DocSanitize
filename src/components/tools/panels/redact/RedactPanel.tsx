@@ -27,6 +27,9 @@ import { FidelityNote } from "../shared/ConversionParts";
 import { INPUT, Segmented } from "../shared/controls";
 import { OutputCard, PRIMARY, SECONDARY } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import { Rich } from "@/i18n/Rich";
 
 interface RedactBox extends Box {
   id: string;
@@ -55,6 +58,7 @@ function handedOff(file: WorkspaceFile): { boxes: Boxes; note: string | null } {
 }
 
 function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const pageCount = doc.numPages;
   const [initial] = useState(() => handedOff(file));
   const [boxes, setBoxes] = useState<Boxes>(initial.boxes);
@@ -107,7 +111,7 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
       }
       setSearchNote(describe(count, pages));
     } catch (error) {
-      toast({ tone: "error", title: "Search failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Search failed"), description: errorMessage(error) });
     } finally {
       setSearching(false);
     }
@@ -119,7 +123,12 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
     void markAll(
       // Page text, plus form fields and comments, which are drawn on the page too.
       (text, annotations) => text.map((page, i) => [...findTextBoxes(page, query), ...findAnnotationBoxes(annotations[i], query, page.width, page.height)]),
-      (count, pages) => (count ? `Marked ${count} match${count === 1 ? "" : "es"} on ${pages.length === 1 ? "page" : "pages"} ${formatPageRanges(pages)}.` : `No selectable text matches “${query.trim()}”.`),
+      (count, pages) =>
+        count
+          ? pages.length === 1
+            ? t.plural(count, "Marked {n} match on page {pages}.", "Marked {n} matches on page {pages}.", { pages: formatPageRanges(pages) })
+            : t.plural(count, "Marked {n} match on pages {pages}.", "Marked {n} matches on pages {pages}.", { pages: formatPageRanges(pages) })
+          : t("No selectable text matches “{query}”.", { query: query.trim() }),
     );
   };
 
@@ -129,7 +138,12 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
         const findings = findPiiInPages(text, annotations);
         return text.map((_, i) => findings.filter((f) => f.page === i).flatMap((f) => f.boxes));
       },
-      (count, pages) => (count ? `Marked ${count} piece${count === 1 ? "" : "s"} of personal data on ${pages.length === 1 ? "page" : "pages"} ${formatPageRanges(pages)}. Check each one.` : "No emails, phone numbers, card or account numbers found in the selectable text."),
+      (count, pages) =>
+        count
+          ? pages.length === 1
+            ? t.plural(count, "Marked {n} piece of personal data on page {pages}. Check each one.", "Marked {n} pieces of personal data on page {pages}. Check each one.", { pages: formatPageRanges(pages) })
+            : t.plural(count, "Marked {n} piece of personal data on pages {pages}. Check each one.", "Marked {n} pieces of personal data on pages {pages}. Check each one.", { pages: formatPageRanges(pages) })
+          : t("No emails, phone numbers, card or account numbers found in the selectable text."),
     );
 
   const apply = async () => {
@@ -152,7 +166,7 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
       updateFile(file.id, { status: "idle" });
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Redaction failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Redaction failed"), description: errorMessage(error) });
     } finally {
       setProgress(null);
     }
@@ -161,7 +175,7 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
   const pageBoxes = boxes[current] ?? [];
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Pages">
+      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Pages")}>
         <PageStrip
           doc={doc}
           current={current}
@@ -170,22 +184,22 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
             setSelected(null);
           }}
           counts={Object.fromEntries(markedPages.map((i) => [i, boxes[i].length]))}
-          noun="redaction"
+          countLabel={(n) => t.plural(n, "{n} redaction", "{n} redactions")}
         />
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 text-sm">
-          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label="Previous page">
+          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label={t("Previous page")}>
             <ChevronLeft className="size-4" />
           </button>
           <span className="text-fg-muted tabular-nums">
-            Page {current + 1} of {pageCount}
+            {t("Page {page} of {count}", { page: current + 1, count: pageCount })}
           </span>
-          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === pageCount - 1} onClick={() => setCurrent(current + 1)} aria-label="Next page">
+          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === pageCount - 1} onClick={() => setCurrent(current + 1)} aria-label={t("Next page")}>
             <ChevronRight className="size-4" />
           </button>
           <span className="flex-1" />
           <button type="button" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-fg-muted hover:bg-surface-muted hover:text-fg" onClick={() => addBoxes(current, [{ x: 0, y: 0, width: 1, height: 1 }])}>
             <Square className="size-3.5" aria-hidden="true" />
-            Cover whole page
+            {t("Cover whole page")}
           </button>
           <button
             type="button"
@@ -194,7 +208,7 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
             onClick={() => update((prev) => ({ ...prev, [current]: [] }))}
           >
             <Trash2 className="size-3.5" aria-hidden="true" />
-            Clear page
+            {t("Clear page")}
           </button>
         </div>
         <div className="bg-surface-muted p-3 sm:p-5">
@@ -207,7 +221,7 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
             onAdd={(box) => addBoxes(current, [box])}
             onRemove={(id) => removeBox(current, id)}
           />
-          <p className="mt-3 text-center text-xs text-fg-subtle">Drag on the page to draw a box. Select a box to remove it (or press Delete).</p>
+          <p className="mt-3 text-center text-xs text-fg-subtle">{t("Drag on the page to draw a box. Select a box to remove it (or press Delete).")}</p>
         </div>
       </section>
 
@@ -215,27 +229,26 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <EyeOff className="size-4 text-brand-text" aria-hidden="true" />
-            Redact PDF
+            {t("Redact PDF")}
           </h2>
           <FidelityNote>
-            Pages with boxes become flat images: what&apos;s under a box is permanently gone, and the rest of those pages can no longer be selected or
-            searched. Other pages are untouched.
+            {t("Pages with boxes become flat images: what's under a box is permanently gone, and the rest of those pages can no longer be selected or searched. Other pages are untouched.")}
           </FidelityNote>
 
           <form onSubmit={search} className="mt-4">
             <label htmlFor="redact-search" className="text-sm font-medium text-fg">
-              Find text to redact
+              {t("Find text to redact")}
             </label>
             <div className="mt-1 flex gap-2">
-              <input id="redact-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, email, number…" className={clsx(INPUT, "mt-0")} />
+              <input id="redact-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Name, email, number…")} className={clsx(INPUT, "mt-0")} />
               <button type="submit" disabled={searching || !query.trim()} className={clsx(SECONDARY, "shrink-0 px-3")}>
                 {searching ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
-                Mark all
+                {t("Mark all")}
               </button>
             </div>
             <button type="button" onClick={markPersonalData} disabled={searching} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline disabled:opacity-50">
               <UserSearch className="size-4" aria-hidden="true" />
-              Mark personal data (emails, phone and card numbers…)
+              {t("Mark personal data (emails, phone and card numbers…)")}
             </button>
             {searchNote && (
               <p className="mt-1.5 text-xs text-fg-muted" aria-live="polite">
@@ -247,22 +260,23 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
           <div className="mt-4 flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2 text-sm">
             <span className="text-fg-muted">
               {total === 0 ? (
-                "Nothing marked yet"
+                t("Nothing marked yet")
               ) : (
-                <>
-                  <span className="font-semibold text-fg">{total}</span> box{total === 1 ? "" : "es"} on {markedPages.length === 1 ? "page" : "pages"} {formatPageRanges(markedPages)}
-                </>
+                <Rich
+                  text={markedPages.length === 1 ? t.plural(total, "{count} box on page {pages}", "{count} boxes on page {pages}", { pages: formatPageRanges(markedPages) }) : t.plural(total, "{count} box on pages {pages}", "{count} boxes on pages {pages}", { pages: formatPageRanges(markedPages) })}
+                  values={{ count: <span className="font-semibold text-fg">{total}</span> }}
+                />
               )}
             </span>
             {total > 0 && (
               <button type="button" className="text-brand-text hover:underline" onClick={() => update(() => ({}))}>
-                Clear all
+                {t("Clear all")}
               </button>
             )}
           </div>
 
           <Segmented
-            label="Resolution of redacted pages"
+            label={t("Resolution of redacted pages")}
             value={dpi}
             onChange={(v) => {
               setDpi(v);
@@ -285,21 +299,21 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
               className="mt-0.5 size-4 shrink-0 accent-brand"
             />
             <span>
-              <span className="block text-sm font-medium text-fg">Also remove metadata</span>
-              <span className="block text-xs text-fg-muted">Author, title, dates and more can name what you redacted.</span>
+              <span className="block text-sm font-medium text-fg">{t("Also remove metadata")}</span>
+              <span className="block text-xs text-fg-muted">{t("Author, title, dates and more can name what you redacted.")}</span>
             </span>
           </label>
 
           <button type="button" onClick={apply} disabled={total === 0 || progress !== null} className={clsx(PRIMARY, "mt-5 w-full")}>
             {progress ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <EyeOff className="size-4" aria-hidden="true" />}
-            {progress ? (progress.done < progress.total ? `Flattening page ${progress.done + 1} of ${progress.total}…` : "Finishing…") : "Apply redactions"}
+            {progress ? (progress.done < progress.total ? t("Flattening page {page} of {count}…", { page: progress.done + 1, count: progress.total }) : t("Finishing…")) : t("Apply redactions")}
           </button>
         </section>
 
         {result && (
           <>
             <RedactionCheck blob={result.blob} pages={result.pages} query={result.query} />
-            <OutputCard title="Redacted" outputs={[{ name: withSuffix(file.name, "redacted"), blob: result.blob }]} replaceFileId={file.id} />
+            <OutputCard title={t("Redacted")} outputs={[{ name: withSuffix(file.name, "redacted"), blob: result.blob }]} replaceFileId={file.id} />
           </>
         )}
       </div>
@@ -328,6 +342,7 @@ function PageEditor({
   onAdd: (box: Box) => void;
   onRemove: (id: string) => void;
 }) {
+  const t = useT();
   const start = useRef<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<Box | null>(null);
 
@@ -374,7 +389,7 @@ function PageEditor({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          aria-label={`Page ${index + 1}: drag to draw a redaction box`}
+          aria-label={t("Page {page}: drag to draw a redaction box", { page: index + 1 })}
           role="group"
         >
           {boxes.map((b, i) => (
@@ -382,7 +397,7 @@ function PageEditor({
               key={b.id}
               role="button"
               tabIndex={0}
-              aria-label={`Redaction ${i + 1} on page ${index + 1}${selected === b.id ? ", selected" : ""}`}
+              aria-label={selected === b.id ? t("Redaction {n} on page {page}, selected", { n: i + 1, page: index + 1 }) : t("Redaction {n} on page {page}", { n: i + 1, page: index + 1 })}
               aria-pressed={selected === b.id}
               onClick={() => onSelect(b.id)}
               onKeyDown={(e) => onBoxKey(e, b.id)}
@@ -398,7 +413,7 @@ function PageEditor({
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => onRemove(b.id)}
-                aria-label="Remove the selected redaction"
+                aria-label={t("Remove the selected redaction")}
                 className="absolute z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-danger text-white shadow-elev-2"
                 style={{ left: `${(b.x + b.width) * 100}%`, top: `${b.y * 100}%` }}
               >
@@ -414,6 +429,7 @@ function PageEditor({
 
 /** Re-open the result like any reader would and confirm the redacted pages carry no text. */
 function RedactionCheck({ blob, pages, query }: { blob: Blob; pages: number[]; query: string }) {
+  const t = useT();
   const pdf = usePdfDocument(blob);
   const [check, setCheck] = useState<{ blob: Blob; textOnRedacted: number; stillFound: number[] } | null>(null);
 
@@ -437,7 +453,7 @@ function RedactionCheck({ blob, pages, query }: { blob: Blob; pages: number[]; q
     return (
       <section className="flex items-center gap-2 rounded-xl border border-line bg-surface p-4 text-sm text-fg-muted">
         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-        Verifying the result…
+        {t("Verifying the result…")}
       </section>
     );
   }
@@ -447,17 +463,17 @@ function RedactionCheck({ blob, pages, query }: { blob: Blob; pages: number[]; q
       <p className="flex items-start gap-2 font-medium text-fg">
         {clean ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />}
         {clean
-          ? `Verified: the redacted ${pages.length === 1 ? "page contains" : `${pages.length} pages contain`} no text.`
-          : `${check.textOnRedacted} text items remain on redacted pages. Don't share this file.`}
+          ? t.plural(pages.length, "Verified: the redacted page contains no text.", "Verified: the {n} redacted pages contain no text.")
+          : t("{count} text items remain on redacted pages. Don't share this file.", { count: check.textOnRedacted })}
       </p>
       {query && (
-        <p className="mt-1.5 pl-6 text-fg-muted">
+        <p className="mt-1.5 ps-6 text-fg-muted">
           {check.stillFound.length === 0 ? (
-            <>“{query}” no longer appears anywhere in the file.</>
+            t("“{query}” no longer appears anywhere in the file.", { query })
           ) : (
-            <>
-              “{query}” still appears on {check.stillFound.length === 1 ? "page" : "pages"} {formatPageRanges(check.stillFound)}.
-            </>
+            check.stillFound.length === 1
+              ? t("“{query}” still appears on page {pages}.", { query, pages: formatPageRanges(check.stillFound) })
+              : t("“{query}” still appears on pages {pages}.", { query, pages: formatPageRanges(check.stillFound) })
           )}
         </p>
       )}

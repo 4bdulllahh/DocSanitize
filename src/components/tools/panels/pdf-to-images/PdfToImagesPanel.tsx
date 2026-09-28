@@ -16,6 +16,9 @@ import type { ToolPanelProps } from "../registry";
 import { Field, INPUT, Segmented } from "../shared/controls";
 import { OutputCard, PRIMARY, SECONDARY, type OutputFile } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import { Rich } from "@/i18n/Rich";
 
 type Dpi = "72" | "150" | "300";
 
@@ -27,6 +30,7 @@ export default function PdfToImagesPanel({ file }: ToolPanelProps) {
 }
 
 function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const pageCount = doc.numPages;
   const [format, setFormat] = useState<RasterFormat>("jpeg");
   const [dpi, setDpi] = useState<Dpi>("150");
@@ -90,27 +94,27 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
         results.push({
           blob: image.blob,
           name: withSuffix(file.name, `page-${String(index + 1).padStart(digits, "0")}`, target.extension),
-          detail: `Page ${index + 1} · ${image.width} × ${image.height} px`,
+          detail: `${t("Page {page}", { page: index + 1 })} · ${image.width} × ${image.height} px`,
         });
         setProgress({ done: n + 1, total: pages.length });
         updateFile(file.id, { status: "processing", progress: Math.round(((n + 1) / pages.length) * 100) });
       }
       updateFile(file.id, { status: "idle", progress: undefined });
       if (cancelled.current) {
-        toast({ tone: "info", title: "Conversion cancelled" });
+        toast({ tone: "info", title: msg("Conversion cancelled") });
         return;
       }
       setOutputs(results);
       if (capped) {
         toast({
           tone: "warning",
-          title: "Some pages were rendered smaller",
-          description: "They were too large for your browser at this resolution, so they were scaled down to fit.",
+          title: msg("Some pages were rendered smaller"),
+          description: msg("They were too large for your browser at this resolution, so they were scaled down to fit."),
         });
       }
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Conversion failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Conversion failed"), description: errorMessage(error) });
     } finally {
       setProgress(null);
     }
@@ -123,17 +127,17 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="rounded-xl border border-line bg-surface" aria-label="Pages">
+      <section className="rounded-xl border border-line bg-surface" aria-label={t("Pages")}>
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <p className="text-sm text-fg-muted">
-            <span className="font-semibold text-fg">{count}</span> of {pageCount} pages selected
+            <Rich text={t.plural(pageCount, "{count} of {n} page selected", "{count} of {n} pages selected")} values={{ count: <span className="font-semibold text-fg">{count}</span> }} />
           </p>
           <div className="flex gap-3 text-sm">
             <button type="button" className="text-brand-text hover:underline disabled:opacity-40" disabled={busy} onClick={selection.selectAll}>
-              Select all
+              {t("Select all")}
             </button>
             <button type="button" className="text-brand-text hover:underline disabled:opacity-40" disabled={busy || count === 0} onClick={selection.clear}>
-              Clear
+              {t("Clear")}
             </button>
           </div>
         </header>
@@ -148,7 +152,7 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
                   selected={selected}
                   dimmed={!selected}
                   pressed={selected}
-                  label={`Page ${i + 1}`}
+                  label={t("Page {page}", { page: i + 1 })}
                   onClick={(e) => !busy && selection.click(i, e)}
                 />
               </li>
@@ -161,16 +165,16 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <Images className="size-4 text-brand-text" aria-hidden="true" />
-            Convert to images
+            {t("Convert to images")}
           </h2>
-          <p className="mt-1 text-sm text-fg-muted">Each selected page becomes one image file.</p>
+          <p className="mt-1 text-sm text-fg-muted">{t("Each selected page becomes one image file.")}</p>
 
           <Segmented
-            label="Format"
+            label={t("Format")}
             value={format}
             onChange={change(setFormat)}
             disabled={busy}
-            hint={webp ? undefined : "Your browser can't create WebP images."}
+            hint={webp ? undefined : t("Your browser can't create WebP images.")}
             options={(Object.keys(RASTER_FORMATS) as RasterFormat[]).map((id) => ({
               id,
               label: RASTER_FORMATS[id].label,
@@ -178,11 +182,11 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
             }))}
           />
           <Segmented
-            label="Resolution"
+            label={t("Resolution")}
             value={dpi}
             onChange={change(setDpi)}
             disabled={busy}
-            hint={estimate ? `Page 1 → ${estimate.width.toLocaleString()} × ${estimate.height.toLocaleString()} px${estimate.capped ? " (reduced to fit browser limits)" : ""}` : undefined}
+            hint={estimate ? (estimate.capped ? t("Page 1 → {width} × {height} px (reduced to fit browser limits)", { width: estimate.width, height: estimate.height }) : t("Page 1 → {width} × {height} px", { width: estimate.width, height: estimate.height })) : undefined}
             options={[
               { id: "72", label: "72 DPI" },
               { id: "150", label: "150 DPI" },
@@ -192,7 +196,7 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
           {RASTER_FORMATS[format].lossy && (
             <label className="mt-4 block text-sm">
               <span className="flex justify-between font-medium text-fg">
-                Quality <span className="font-normal text-fg-muted tabular-nums">{quality}%</span>
+                {t("Quality")} <span className="font-normal text-fg-muted tabular-nums">{quality}%</span>
               </span>
               <input
                 type="range"
@@ -206,15 +210,15 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
               />
             </label>
           )}
-          <Field label="Pages" hint="Click pages or type ranges, e.g. 1-3, 5, 8-" error={selection.error}>
-            <input value={selection.text} disabled={busy} onChange={(e) => selection.type(e.target.value)} placeholder="None selected" className={INPUT} />
+          <Field label={t("Pages")} hint={t("Click pages or type ranges, e.g. 1-3, 5, 8-")} error={selection.error}>
+            <input value={selection.text} disabled={busy} onChange={(e) => selection.type(e.target.value)} placeholder={t("None selected")} className={INPUT} />
           </Field>
 
           {busy ? (
             <div className="mt-5 space-y-2">
               <div className="flex items-center gap-2 text-sm text-fg-muted" aria-live="polite">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                Rendering page {Math.min(progress.done + 1, progress.total)} of {progress.total}…
+                {t("Rendering page {page} of {count}…", { page: Math.min(progress.done + 1, progress.total), count: progress.total })}
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted">
                 <div className="h-full rounded-full bg-brand transition-[width]" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
@@ -223,20 +227,20 @@ function Converter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
                   cancelled.current = true;
                 }} className={clsx(SECONDARY, "w-full")}>
                 <X className="size-4" aria-hidden="true" />
-                Cancel
+                {t("Cancel")}
               </button>
             </div>
           ) : (
             <button type="button" onClick={run} disabled={count === 0} className={clsx(PRIMARY, "mt-5 w-full")}>
               <Images className="size-4" aria-hidden="true" />
-              {count === 1 ? "Convert 1 page" : `Convert ${count} pages`}
+              {t.plural(count, "Convert {n} page", "Convert {n} pages")}
             </button>
           )}
         </section>
 
         {outputs && (
           <OutputCard
-            title={outputs.length === 1 ? "Image ready" : `${outputs.length} images ready`}
+            title={outputs.length === 1 ? t("Image ready") : t("{count} images ready", { count: outputs.length })}
             outputs={outputs}
             zipName={`${baseName}-images.zip`}
           />

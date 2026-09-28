@@ -17,6 +17,8 @@ import type { PptxToPdfOptions } from "./pptx-to-pdf";
 import { PPTX_MIME, type SlideInput, type SlideText } from "./pptx-write";
 import { dataUrlBytes, decodeText, hasContent, readTextDocument, textFormatOf } from "./text-document";
 import type { TextToPdfOptions } from "./text-to-pdf";
+import { msg } from "@/i18n/msg";
+import { createTranslator, type Translator } from "@/i18n/translate";
 
 /*
  * The page side of the M15 conversions: reading with pdf.js and DOMParser here, writing in the
@@ -69,9 +71,9 @@ export async function textFileToPdf(file: Blob, name: string, options: TextPdfOp
   if (!hasContent(read.blocks)) throw new ProcessingError(`“${name}” has no text to put in a PDF.`, "invalid");
   const { bytes, pages, warnings } = await officeWorker.blocksToPdf(read.blocks, { pageSize: options.pageSize, margins: options.margins });
   if (read.linkedImages) {
-    warnings.unshift(`${plural(read.linkedImages, "picture")} on the web or in other files ${read.linkedImages === 1 ? "was" : "were"} left out: only pictures stored inside the file are used, and nothing is downloaded.`);
+    warnings.unshift(msg`${plural(read.linkedImages, "picture")} on the web or in other files ${read.linkedImages === 1 ? "was" : "were"} left out: only pictures stored inside the file are used, and nothing is downloaded.`);
   }
-  if (read.skippedImages) warnings.unshift(`${plural(read.skippedImages, "picture")} couldn't be placed (inside a table, or in a format that can't be read).`);
+  if (read.skippedImages) warnings.unshift(msg`${plural(read.skippedImages, "picture")} couldn't be placed (inside a table, or in a format that can't be read).`);
   return { blob: new Blob([bytes as BlobPart], { type: PDF_MIME }), pages, warnings, format };
 }
 
@@ -212,7 +214,7 @@ export async function comparePdfs(before: PDFDocumentProxy, after: PDFDocumentPr
 const COLORS = { removed: "#f87171", added: "#4ade80", changed: "#fbbf24" };
 
 /** Highlights (and notes) marking the changes, for Edit PDF to add as annotations. */
-export function changeMarks(comparison: ComparedDocuments, side: "before" | "after"): EditObject[] {
+export function changeMarks(comparison: ComparedDocuments, side: "before" | "after", t: Translator = createTranslator("en")): EditObject[] {
   const sizes = comparison.sizes[side];
   const objects: EditObject[] = [];
   comparison.changes.forEach((change, c) => {
@@ -238,8 +240,8 @@ export function changeMarks(comparison: ComparedDocuments, side: "before" | "aft
     }
     for (const [page, rects] of byPage) objects.push({ id: `c${c}p${page}`, kind: "highlight", page, rects, color, opacity: 0.45 });
     if (side === "after" && change.kind !== "added") {
-      const quote = (t: string) => `“${t.length > 300 ? `${t.slice(0, 300)}…` : t}”`;
-      const text = change.kind === "removed" ? `Removed: ${quote(change.before)}` : `Was: ${quote(change.before)}`;
+      const quoted = change.before.length > 300 ? `${change.before.slice(0, 300)}…` : change.before;
+      const text = change.kind === "removed" ? t("Removed: “{text}”", { text: quoted }) : t("Was: “{text}”", { text: quoted });
       const at = change.afterWords[0] ?? change.anchor;
       const anchor = at?.boxes[0];
       const page = at?.page ?? change.afterPage;

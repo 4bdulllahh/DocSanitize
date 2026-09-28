@@ -1,3 +1,5 @@
+import { msg } from "@/i18n/msg";
+
 export type FileKind = "pdf" | "image" | "word" | "excel" | "powerpoint" | "text" | "video" | "audio" | "unknown";
 
 const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
@@ -29,15 +31,15 @@ const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
 };
 
 export const KIND_LABELS: Record<FileKind, string> = {
-  pdf: "PDF",
-  image: "Image",
-  word: "Word",
-  excel: "Excel",
-  powerpoint: "PowerPoint",
-  text: "Text",
-  video: "Video",
-  audio: "Audio",
-  unknown: "File",
+  pdf: msg("PDF"),
+  image: msg("Image"),
+  word: msg("Word"),
+  excel: msg("Excel"),
+  powerpoint: msg("PowerPoint"),
+  text: msg("Text"),
+  video: msg("Video"),
+  audio: msg("Audio"),
+  unknown: msg("File"),
 };
 
 function extensionOf(name: string): string {
@@ -70,11 +72,11 @@ export function acceptFor(kinds: readonly FileKind[]): string {
  * takes "unknown" files takes any file.
  */
 export function extensionsFor(kinds: readonly FileKind[]): string[] {
-  if (kinds.includes("unknown")) return ["Any file"];
-  if (kinds.length > 4) return kinds.map((kind) => (kind === "image" ? "Images" : KIND_LABELS[kind]));
+  if (kinds.includes("unknown")) return [msg("Any file")];
+  if (kinds.length > 4) return kinds.map((kind) => (kind === "image" ? msg("Images") : KIND_LABELS[kind]));
   return kinds.flatMap((kind) => {
     if (kind === "unknown") return [];
-    if (kind === "video" || kind === "audio") return [`${kind} (${EXTENSIONS[kind].slice(0, 4).join(", ")}…)`];
+    if (kind === "video" || kind === "audio") return [kind === "video" ? msg`video (${EXTENSIONS.video.slice(0, 4).join(", ")}…)` : msg`audio (${EXTENSIONS.audio.slice(0, 4).join(", ")}…)`];
     return EXTENSIONS[kind];
   });
 }

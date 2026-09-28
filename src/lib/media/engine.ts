@@ -2,6 +2,7 @@ import engine from "./engine.json";
 import { ProcessingError } from "../errors";
 import { extensionOf, type MediaJob } from "./jobs";
 import { parseProbe, type MediaInfo, type ProbeJson } from "./probe";
+import { msg } from "@/i18n/msg";
 
 /*
  * The media engine (FFmpeg compiled to WebAssembly) is an add-on: a worker, a small script and a
@@ -181,7 +182,7 @@ export async function probeMedia(file: File, options: MediaRunOptions = {}): Pro
   } catch {
     json = {};
   }
-  if (!json.streams?.length) throw engineError("couldn't be read as audio or video");
+  if (!json.streams?.length) throw engineError(msg("couldn't be read as audio or video"));
   return parseProbe(json);
 }
 

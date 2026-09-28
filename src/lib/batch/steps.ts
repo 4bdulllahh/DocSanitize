@@ -4,6 +4,8 @@ import type { Anchor } from "../pdf/anchor";
 import type { CompressPreset } from "../pdf/compress";
 import type { PageSizeName } from "../pdf/pages";
 import type { AudioTarget } from "../media/jobs";
+import { msg } from "@/i18n/msg";
+import type { Translator } from "@/i18n/translate";
 
 /*
  * Batch Process: a list of steps run over every open file. Each step is one of the existing tools
@@ -38,12 +40,12 @@ export type StepOf<T extends StepType> = Extract<BatchStep, { type: T }>;
 export type StepGroup = "clean" | "pages" | "stamp" | "convert" | "secure" | "media";
 
 export const STEP_GROUPS: { id: StepGroup; name: string }[] = [
-  { id: "clean", name: "Clean up and shrink" },
-  { id: "pages", name: "Pages" },
-  { id: "stamp", name: "Stamps and numbers" },
-  { id: "convert", name: "Convert and combine" },
-  { id: "secure", name: "Protect and sign" },
-  { id: "media", name: "Audio and video" },
+  { id: "clean", name: msg("Clean up and shrink") },
+  { id: "pages", name: msg("Pages") },
+  { id: "stamp", name: msg("Stamps and numbers") },
+  { id: "convert", name: msg("Convert and combine") },
+  { id: "secure", name: msg("Protect and sign") },
+  { id: "media", name: msg("Audio and video") },
 ];
 
 export interface StepInfo {
@@ -64,25 +66,25 @@ export interface StepInfo {
 const OFFICE: FileKind[] = ["image", "word", "excel", "powerpoint", "text"];
 
 export const STEP_INFO: Record<StepType, StepInfo> = {
-  sanitize: { name: "Remove metadata", description: "Author, GPS location, camera, dates, hidden history.", group: "clean", accepts: ["pdf", "image"] },
-  flatten: { name: "Flatten", description: "Draw form fields and comments into the pages.", group: "clean", accepts: ["pdf"] },
-  grayscale: { name: "Grayscale", description: "Turn the pages black and white.", group: "clean", accepts: ["pdf"] },
-  compress: { name: "Compress", description: "Make PDFs smaller by shrinking their pictures.", group: "clean", accepts: ["pdf"] },
-  rotate: { name: "Rotate pages", description: "Turn every page.", group: "pages", accepts: ["pdf"] },
-  "delete-pages": { name: "Delete pages", description: "Remove the same pages from each PDF, such as a cover.", group: "pages", accepts: ["pdf"] },
-  resize: { name: "Resize pages", description: "Fit every page to A4, Letter or another size.", group: "pages", accepts: ["pdf"] },
-  watermark: { name: "Watermark", description: "Text such as CONFIDENTIAL across the pages.", group: "stamp", accepts: ["pdf"] },
-  "page-numbers": { name: "Page numbers", description: "Number the pages of each PDF.", group: "stamp", accepts: ["pdf"] },
-  "header-footer": { name: "Header and footer", description: "Text at the top or bottom, with the file name or date.", group: "stamp", accepts: ["pdf"] },
-  bates: { name: "Bates numbers", description: "Numbers that run on from one file to the next.", group: "stamp", accepts: ["pdf"], together: true, once: true },
-  "to-pdf": { name: "Convert to PDF", description: "Photos, Word, Excel, PowerPoint and text files.", group: "convert", accepts: OFFICE, produces: "pdf" },
-  ocr: { name: "Make searchable (OCR)", description: "Add selectable text to scanned pages.", group: "convert", accepts: ["pdf"] },
-  merge: { name: "Combine into one PDF", description: "Join all the PDFs, in tab order.", group: "convert", accepts: ["pdf"], together: true, once: true },
-  "convert-image": { name: "Convert images", description: "Change the format or size of photos and pictures.", group: "convert", accepts: ["image"] },
-  protect: { name: "Password-protect", description: "Lock each PDF with a password.", group: "secure", accepts: ["pdf"] },
-  sign: { name: "Digital signature", description: "Sign each PDF with your certificate.", group: "secure", accepts: ["pdf"] },
-  "clean-media": { name: "Remove video and audio metadata", description: "Location, device and dates, without re-encoding.", group: "media", accepts: ["video", "audio"] },
-  "convert-audio": { name: "Convert to audio", description: "MP3, M4A, WAV and more, from sound or video files.", group: "media", accepts: ["audio", "video"], produces: "audio" },
+  sanitize: { name: msg("Remove metadata"), description: msg("Author, GPS location, camera, dates, hidden history."), group: "clean", accepts: ["pdf", "image"] },
+  flatten: { name: msg("Flatten"), description: msg("Draw form fields and comments into the pages."), group: "clean", accepts: ["pdf"] },
+  grayscale: { name: msg("Grayscale"), description: msg("Turn the pages black and white."), group: "clean", accepts: ["pdf"] },
+  compress: { name: msg("Compress"), description: msg("Make PDFs smaller by shrinking their pictures."), group: "clean", accepts: ["pdf"] },
+  rotate: { name: msg("Rotate pages"), description: msg("Turn every page."), group: "pages", accepts: ["pdf"] },
+  "delete-pages": { name: msg("Delete pages"), description: msg("Remove the same pages from each PDF, such as a cover."), group: "pages", accepts: ["pdf"] },
+  resize: { name: msg("Resize pages"), description: msg("Fit every page to A4, Letter or another size."), group: "pages", accepts: ["pdf"] },
+  watermark: { name: msg("Watermark"), description: msg("Text such as CONFIDENTIAL across the pages."), group: "stamp", accepts: ["pdf"] },
+  "page-numbers": { name: msg("Page numbers"), description: msg("Number the pages of each PDF."), group: "stamp", accepts: ["pdf"] },
+  "header-footer": { name: msg("Header and footer"), description: msg("Text at the top or bottom, with the file name or date."), group: "stamp", accepts: ["pdf"] },
+  bates: { name: msg("Bates numbers"), description: msg("Numbers that run on from one file to the next."), group: "stamp", accepts: ["pdf"], together: true, once: true },
+  "to-pdf": { name: msg("Convert to PDF"), description: msg("Photos, Word, Excel, PowerPoint and text files."), group: "convert", accepts: OFFICE, produces: "pdf" },
+  ocr: { name: msg("Make searchable (OCR)"), description: msg("Add selectable text to scanned pages."), group: "convert", accepts: ["pdf"] },
+  merge: { name: msg("Combine into one PDF"), description: msg("Join all the PDFs, in tab order."), group: "convert", accepts: ["pdf"], together: true, once: true },
+  "convert-image": { name: msg("Convert images"), description: msg("Change the format or size of photos and pictures."), group: "convert", accepts: ["image"] },
+  protect: { name: msg("Password-protect"), description: msg("Lock each PDF with a password."), group: "secure", accepts: ["pdf"] },
+  sign: { name: msg("Digital signature"), description: msg("Sign each PDF with your certificate."), group: "secure", accepts: ["pdf"] },
+  "clean-media": { name: msg("Remove video and audio metadata"), description: msg("Location, device and dates, without re-encoding."), group: "media", accepts: ["video", "audio"] },
+  "convert-audio": { name: msg("Convert to audio"), description: msg("MP3, M4A, WAV and more, from sound or video files."), group: "media", accepts: ["audio", "video"], produces: "audio" },
 };
 
 export function defaultStep<T extends StepType>(type: T): StepOf<T> {
@@ -151,9 +153,9 @@ function parsePart(part: string): { from: number; to: number | null } | { fromEn
 
 function pageSpecProblem(spec: string): string | null {
   const parts = splitSpec(spec);
-  if (!parts.length) return "Type the pages to delete, such as 1 or 1-2.";
+  if (!parts.length) return msg("Type the pages to delete, such as 1 or 1-2.");
   const bad = parts.find((p) => !parsePart(p));
-  return bad ? `“${bad}” isn't a page number or range.` : null;
+  return bad ? msg`“${bad}” isn't a page number or range.` : null;
 }
 
 // ---------------------------------------------------------------------------- Checking and planning
@@ -175,8 +177,8 @@ export function checkSteps(steps: BatchStep[], context: { hasCertificate: boolea
       add(
         index,
         locked.by === "protect"
-          ? "A password-protected PDF can't be changed any more: move this step before Password-protect."
-          : "Changing a PDF after signing it breaks the signature: move this step before Digital signature.",
+          ? msg("A password-protected PDF can't be changed any more: move this step before Password-protect.")
+          : msg("Changing a PDF after signing it breaks the signature: move this step before Digital signature."),
       );
     }
     if (info.once && seen.has(step.type)) add(index, `${info.name} can only be used once.`);
@@ -193,24 +195,24 @@ function settingsProblem(step: BatchStep, context: { hasCertificate: boolean }):
     case "delete-pages":
       return pageSpecProblem(step.pages);
     case "watermark":
-      return step.text.trim() ? null : "Type the watermark text.";
+      return step.text.trim() ? null : msg("Type the watermark text.");
     case "page-numbers":
-      return step.format.includes("{n}") ? null : "The format needs {n} where the number goes.";
+      return step.format.includes("{n}") ? null : msg("The format needs {n} where the number goes.");
     case "header-footer":
-      return step.header.trim() || step.footer.trim() ? null : "Type a header or a footer.";
+      return step.header.trim() || step.footer.trim() ? null : msg("Type a header or a footer.");
     case "bates":
-      if (!Number.isInteger(step.start) || step.start < 0) return "The first number must be a whole number, 0 or more.";
-      return Number.isInteger(step.digits) && step.digits >= 1 && step.digits <= 12 ? null : "Use between 1 and 12 digits.";
+      if (!Number.isInteger(step.start) || step.start < 0) return msg("The first number must be a whole number, 0 or more.");
+      return Number.isInteger(step.digits) && step.digits >= 1 && step.digits <= 12 ? null : msg("Use between 1 and 12 digits.");
     case "ocr":
-      return step.languages.length ? null : "Choose at least one language.";
+      return step.languages.length ? null : msg("Choose at least one language.");
     case "merge":
-      return step.name.trim() ? null : "Name the combined PDF.";
+      return step.name.trim() ? null : msg("Name the combined PDF.");
     case "protect":
       return step.password ? null : "Choose a password.";
     case "sign":
-      return context.hasCertificate ? null : "Open or create a certificate to sign with.";
+      return context.hasCertificate ? null : msg("Open or create a certificate to sign with.");
     case "convert-image":
-      return step.maxSide === null || (Number.isInteger(step.maxSide) && step.maxSide >= 16 && step.maxSide <= 16384) ? null : "The longest side must be 16 to 16384 pixels.";
+      return step.maxSide === null || (Number.isInteger(step.maxSide) && step.maxSide >= 16 && step.maxSide <= 16384) ? null : msg("The longest side must be 16 to 16384 pixels.");
     default:
       return null;
   }
@@ -242,46 +244,55 @@ export function planFiles(kinds: FileKind[], steps: BatchStep[]): FilePlan[] {
   });
 }
 
+
+const PRESET_NAMES = { light: msg("Light"), balanced: msg("Balanced"), strong: msg("Strong") };
+
 /** A short line describing a step's settings, for its collapsed card. */
-export function describeStep(step: BatchStep): string {
+export function describeStep(step: BatchStep, t: Translator): string {
   switch (step.type) {
     case "sanitize":
-      return step.keepTechnical ? "Keeps technical photo data" : "Everything";
-    case "to-pdf":
-      return `${step.pageSize === "a4" ? "A4" : "Letter"} pages${step.photoPages === "fit" ? "; photos at their own size" : ""}`;
+      return step.keepTechnical ? t("Keeps technical photo data") : t("Everything");
+    case "to-pdf": {
+      const size = step.pageSize === "a4" ? "A4" : t("Letter");
+      return step.photoPages === "fit" ? t("{size} pages; photos at their own size", { size }) : t("{size} pages", { size });
+    }
     case "rotate":
-      return `${step.angle}° clockwise`;
+      return t("{angle}° clockwise", { angle: step.angle });
     case "delete-pages":
-      return `Pages ${step.pages.trim()}`;
+      return t("Pages {pages}", { pages: step.pages.trim() });
     case "resize":
-      return step.size === "a4" || step.size === "a3" || step.size === "a5" ? step.size.toUpperCase() : step.size[0].toUpperCase() + step.size.slice(1);
+      return step.size === "letter" ? t("Letter") : step.size === "legal" ? t("Legal") : step.size.toUpperCase();
     case "watermark":
-      return `“${step.text}”${step.position === "tile" ? ", tiled" : ""}`;
+      return step.position === "tile" ? t("“{text}”, tiled", { text: step.text }) : `“${step.text}”`;
     case "page-numbers":
       return step.format;
     case "header-footer":
-      return [step.header && `Header “${step.header}”`, step.footer && `Footer “${step.footer}”`].filter(Boolean).join(" · ");
+      return [step.header && t("Header “{text}”", { text: step.header }), step.footer && t("Footer “{text}”", { text: step.footer })].filter(Boolean).join(" · ");
     case "bates":
-      return `${step.prefix}${String(step.start).padStart(step.digits, "0")} onwards`;
+      return t("{first} onwards", { first: `${step.prefix}${String(step.start).padStart(step.digits, "0")}` });
     case "grayscale":
-      return "Every page";
+      return t("Every page");
     case "flatten":
-      return [step.forms && "Forms", step.annotations && "Comments"].filter(Boolean).join(" and ") || "Nothing";
+      return step.forms && step.annotations ? t("Forms and comments") : step.forms ? t("Forms") : step.annotations ? t("Comments") : t("Nothing");
     case "compress":
-      return { light: "Light", balanced: "Balanced", strong: "Strong" }[step.preset];
+      return t(PRESET_NAMES[step.preset]);
     case "ocr":
-      return `${step.languages.join(", ")}${step.skipText ? "; skips pages with text" : ""}`;
+      return step.skipText ? t("{languages}; skips pages with text", { languages: step.languages.join(", ") }) : step.languages.join(", ");
     case "merge":
       return step.name;
     case "protect":
-      return step.password ? "Password set" : "No password yet";
-    case "sign":
-      return `${step.certify ? "Certify" : "Sign"}, ${step.visible ? "with a box on the last page" : "invisible"}`;
-    case "convert-image":
-      return `${step.format === "jpeg" ? "JPG" : step.format.toUpperCase()}${step.maxSide ? `, up to ${step.maxSide} px` : ""}`;
+      return step.password ? t("Password set") : t("No password yet");
+    case "sign": {
+      const kind = step.certify ? t("Certify") : t("Sign");
+      return step.visible ? t("{kind}, with a box on the last page", { kind }) : t("{kind}, invisible", { kind });
+    }
+    case "convert-image": {
+      const format = step.format === "jpeg" ? "JPG" : step.format.toUpperCase();
+      return step.maxSide ? t("{format}, up to {size} px", { format, size: step.maxSide }) : format;
+    }
     case "clean-media":
-      return step.keepCover ? "Keeps cover art" : "Removes cover art too";
+      return step.keepCover ? t("Keeps cover art") : t("Removes cover art too");
     case "convert-audio":
-      return `${step.target.toUpperCase()}${["wav", "flac"].includes(step.target) ? "" : `, ${step.bitrate} kbps`}`;
+      return ["wav", "flac"].includes(step.target) ? step.target.toUpperCase() : t("{format}, {rate} kbps", { format: step.target.toUpperCase(), rate: step.bitrate });
   }
 }

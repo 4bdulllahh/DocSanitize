@@ -163,7 +163,7 @@ await page.screenshot({ path: "m7-03-redact-marked.png" });
 step("redact: search marks all 3 occurrences (text and form field); drawn box added; stray box removed with Delete");
 
 await page.getByRole("button", { name: "Apply redactions" }).click();
-await page.getByText("Verified: the redacted 2 pages contain no text.").waitFor();
+await page.getByText("Verified: the 2 redacted pages contain no text.").waitFor();
 await page.getByText("“jane doe” no longer appears anywhere in the file.").waitFor();
 await page.screenshot({ path: "m7-04-redact-done.png" });
 const redacted = await download(() => page.getByRole("button", { name: "Download result" }).click());

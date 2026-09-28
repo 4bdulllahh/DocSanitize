@@ -23,6 +23,7 @@ import {
   type Der,
 } from "./der";
 import { describeKey, digest, keyKind, readAlgorithm, sign, signatureAlgorithmFor, verifySignature, type SigningKey } from "./crypto";
+import { msg } from "@/i18n/msg";
 
 /* X.509 certificates: reading the parts people care about, and making a self-signed one. */
 
@@ -80,7 +81,7 @@ export interface Certificate {
   signature: Uint8Array;
 }
 
-const KEY_USAGE = ["digital signature", "non-repudiation", "key encipherment", "data encipherment", "key agreement", "certificate signing", "CRL signing", "encipher only", "decipher only"];
+const KEY_USAGE = [msg("digital signature"), "non-repudiation", msg("key encipherment"), msg("data encipherment"), msg("key agreement"), msg("certificate signing"), "CRL signing", msg("encipher only"), msg("decipher only")];
 
 export function parseCertificate(der: Uint8Array): Certificate {
   const cert = parseDer(der);

@@ -24,8 +24,11 @@ import { toast } from "@/store/toast";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
 import { OutputCard, PRIMARY, type OutputFile } from "../shared/OutputCard";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 export default function MergePanel({ files }: ToolPanelProps) {
+  const t = useT();
   const moveFile = useWorkspaceStore((s) => s.moveFile);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   // Page count per file once opened; null means it couldn't be opened (e.g. password-protected).
@@ -66,9 +69,9 @@ export default function MergePanel({ files }: ToolPanelProps) {
     try {
       const name = /\.pdf$/i.test(outputName.trim()) ? outputName.trim() : `${outputName.trim() || "merged"}.pdf`;
       const blob = await mergeFiles(included.map((f) => ({ name: f.name, file: f.file })));
-      setOutput({ name, blob, detail: `${totalPages} pages from ${included.length} files` });
+      setOutput({ name, blob, detail: t("{pages} pages from {files} files", { pages: totalPages, files: included.length }) });
     } catch (error) {
-      toast({ tone: "error", title: "Merge failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Merge failed"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -78,9 +81,9 @@ export default function MergePanel({ files }: ToolPanelProps) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong bg-surface px-6 py-14 text-center">
         <Plus className="size-8 text-fg-subtle" aria-hidden="true" />
-        <p className="font-semibold text-fg">Add at least one more PDF</p>
+        <p className="font-semibold text-fg">{t("Add at least one more PDF")}</p>
         <p className="max-w-sm text-sm text-fg-muted">
-          Drop more PDFs anywhere on this page, or use “Add files” above. Every open PDF appears here in tab order.
+          {t("Drop more PDFs anywhere on this page, or use “Add files” above. Every open PDF appears here in tab order.")}
         </p>
       </div>
     );
@@ -92,12 +95,12 @@ export default function MergePanel({ files }: ToolPanelProps) {
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-5 py-4">
           <div>
             <h2 id="merge-heading" className="font-semibold text-fg">
-              Merge order
+              {t("Merge order")}
             </h2>
-            <p className="mt-0.5 text-sm text-fg-muted">Drag to reorder. Untick a file to leave it out.</p>
+            <p className="mt-0.5 text-sm text-fg-muted">{t("Drag to reorder. Untick a file to leave it out.")}</p>
           </div>
           <p className="text-sm text-fg-subtle">
-            {included.length} of {files.length} files · {totalPages} pages
+            {t("{included} of {total} files · {pages} pages", { included: included.length, total: files.length, pages: totalPages })}
           </p>
         </header>
         <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEnd}>
@@ -122,11 +125,11 @@ export default function MergePanel({ files }: ToolPanelProps) {
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <Combine className="size-4 text-brand-text" aria-hidden="true" />
-            Merge PDFs
+            {t("Merge PDFs")}
           </h2>
-          <p className="mt-1 text-sm text-fg-muted">The merged file gets no author, producer or date metadata.</p>
+          <p className="mt-1 text-sm text-fg-muted">{t("The merged file gets no author, producer or date metadata.")}</p>
           <label className="mt-4 block text-sm">
-            <span className="font-medium text-fg">File name</span>
+            <span className="font-medium text-fg">{t("File name")}</span>
             <input
               value={outputName}
               onChange={(e) => {
@@ -138,11 +141,11 @@ export default function MergePanel({ files }: ToolPanelProps) {
           </label>
           <button type="button" onClick={merge} disabled={busy || included.length < 2} className={clsx(PRIMARY, "mt-4 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Combine className="size-4" aria-hidden="true" />}
-            {busy ? "Merging…" : `Merge ${included.length} PDFs`}
+            {busy ? t("Merging…") : t("Merge {count} PDFs", { count: included.length })}
           </button>
-          {included.length < 2 && <p className="mt-2 text-xs text-fg-subtle">Select at least two files.</p>}
+          {included.length < 2 && <p className="mt-2 text-xs text-fg-subtle">{t("Select at least two files.")}</p>}
         </section>
-        {output && <OutputCard title="Merged" outputs={[output]} />}
+        {output && <OutputCard title={t("Merged")} outputs={[output]} />}
       </div>
     </div>
   );
@@ -161,6 +164,7 @@ function MergeRow({
   onToggle: () => void;
   onOpened: (pageCount: number | null) => void;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: file.id });
   const pdf = usePdfDocument(file.file);
   const pages = pdf.status === "ready" ? pdf.doc.numPages : null;
@@ -184,12 +188,12 @@ function MergeRow({
         type="button"
         {...attributes}
         {...listeners}
-        aria-label={`Reorder ${file.name}, position ${position}`}
+        aria-label={t("Reorder {name}, position {position}", { name: file.name, position })}
         className="cursor-grab touch-none rounded p-1 text-fg-subtle hover:bg-surface-muted hover:text-fg active:cursor-grabbing"
       >
         <GripVertical className="size-4" />
       </button>
-      <span className="w-5 text-right text-sm font-medium text-fg-subtle tabular-nums">{position}</span>
+      <span className="w-5 text-end text-sm font-medium text-fg-subtle tabular-nums">{position}</span>
       <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-muted">
         {pdf.status === "ready" ? (
           <PageThumbnail doc={pdf.doc} pageNumber={1} width={48} height={56} />
@@ -200,7 +204,7 @@ function MergeRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{file.name}</p>
         <p className={clsx("text-xs", pdf.status === "error" ? "text-danger-text" : "text-fg-subtle")}>
-          {pdf.status === "error" ? pdf.message : `${pages ?? "…"} page${pages === 1 ? "" : "s"} · ${formatBytes(file.size)}`}
+          {pdf.status === "error" ? t.dynamic(pdf.message) : `${pages === null ? "…" : t.plural(pages, "{n} page", "{n} pages")} · ${formatBytes(file.size)}`}
         </p>
       </div>
       <input
@@ -208,7 +212,7 @@ function MergeRow({
         checked={included}
         disabled={pdf.status === "error"}
         onChange={onToggle}
-        aria-label={`Include ${file.name}`}
+        aria-label={t("Include {name}", { name: file.name })}
         className="size-4 accent-brand"
       />
     </li>

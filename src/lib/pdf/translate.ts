@@ -5,6 +5,7 @@ import { fitText, type Measure } from "../translate/layout";
 import { applyEdits, fontSet } from "./edit/apply";
 import { baselineOffset, type EditResult, type ReplaceObject } from "./edit/types";
 import { createPdf } from "./load";
+import { msg } from "@/i18n/msg";
 
 /*
  * Writes translations into a PDF in place of the original text, through Edit PDF's "replace"
@@ -61,6 +62,6 @@ export async function translatePdf(bytes: Uint8Array, blocks: TranslatedBlock[],
     });
   }
   const result = await applyEdits(bytes, { objects, images: {}, flatten: true }, files);
-  if (overflow) result.warnings.unshift("Some translations are much longer than the original, so they may run past their space and overlap what's below.");
+  if (overflow) result.warnings.unshift(msg("Some translations are much longer than the original, so they may run past their space and overlap what's below."));
   return result;
 }

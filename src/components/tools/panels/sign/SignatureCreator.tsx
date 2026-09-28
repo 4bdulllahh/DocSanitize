@@ -9,6 +9,8 @@ import { decodeImage } from "@/lib/image/canvas";
 import { toast } from "@/store/toast";
 import { Field, INPUT, Segmented } from "../shared/controls";
 import { PRIMARY, SECONDARY } from "../shared/OutputCard";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 export interface SignatureAsset {
   id: string;
@@ -61,17 +63,18 @@ async function trimmedPng(source: HTMLCanvasElement): Promise<SignatureAsset | n
 type Mode = "draw" | "type" | "upload";
 
 export function SignatureCreator({ onDone }: { onDone: (asset: SignatureAsset | null) => void }) {
+  const t = useT();
   const [mode, setMode] = useState<Mode>("draw");
   return (
     <div className="mt-4 rounded-lg border border-line p-3">
       <Segmented
-        label="New signature"
+        label={t("New signature")}
         value={mode}
         onChange={setMode}
         options={[
-          { id: "draw", label: "Draw" },
-          { id: "type", label: "Type" },
-          { id: "upload", label: "Upload" },
+          { id: "draw", label: t("Draw") },
+          { id: "type", label: t("Type") },
+          { id: "upload", label: t("Upload") },
         ]}
       />
       {mode === "draw" && <DrawPad onDone={onDone} />}
@@ -82,14 +85,15 @@ export function SignatureCreator({ onDone }: { onDone: (asset: SignatureAsset | 
 }
 
 function Actions({ onCancel, onSave, disabled }: { onCancel: () => void; onSave: () => void; disabled: boolean }) {
+  const t = useT();
   return (
     <div className="mt-3 grid grid-cols-2 gap-2">
       <button type="button" onClick={onCancel} className={SECONDARY}>
-        Cancel
+        {t("Cancel")}
       </button>
       <button type="button" onClick={onSave} disabled={disabled} className={clsx(PRIMARY, "py-2")}>
         <Check className="size-4" aria-hidden="true" />
-        Save signature
+        {t("Save signature")}
       </button>
     </div>
   );
@@ -98,8 +102,8 @@ function Actions({ onCancel, onSave, disabled }: { onCancel: () => void; onSave:
 // ---------------------------------------------------------------------------- Draw
 
 const INKS = [
-  { id: "#111827", label: "Black" },
-  { id: "#1d3a8a", label: "Blue" },
+  { id: "#111827", label: msg("Black") },
+  { id: "#1d3a8a", label: msg("Blue") },
 ];
 // The pad's own resolution; it's shown scaled to the panel width.
 const PAD = { width: 900, height: 360 };
@@ -111,6 +115,7 @@ interface Point {
 }
 
 function DrawPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strokes, setStrokes] = useState<{ ink: string; points: Point[] }[]>([]);
   const [ink, setInk] = useState(INKS[0].id);
@@ -162,7 +167,7 @@ function DrawPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
           ref={canvasRef}
           width={PAD.width}
           height={PAD.height}
-          aria-label="Signature pad: draw your signature with a mouse, pen or finger"
+          aria-label={t("Signature pad: draw your signature with a mouse, pen or finger")}
           role="img"
           className="block aspect-[5/2] w-full cursor-crosshair touch-none"
           // Read the event before calling setStrokes: React may run an updater later, during render,
@@ -183,8 +188,8 @@ function DrawPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
           onPointerCancel={() => (drawing.current = false)}
         />
         {/* A signing line; it's a guide only and isn't part of the signature. */}
-        <div className="pointer-events-none absolute right-6 bottom-[22%] left-6 border-b border-dashed border-gray-300" aria-hidden="true" />
-        {strokes.length === 0 && <p className="pointer-events-none absolute inset-x-0 top-1/3 text-center text-sm text-gray-400">Sign here</p>}
+        <div className="pointer-events-none absolute end-6 bottom-[22%] start-6 border-b border-dashed border-gray-300" aria-hidden="true" />
+        {strokes.length === 0 && <p className="pointer-events-none absolute inset-x-0 top-1/3 text-center text-sm text-gray-400">{t("Sign here")}</p>}
       </div>
       <div className="mt-2 flex items-center gap-2">
         {INKS.map((i) => (
@@ -192,17 +197,17 @@ function DrawPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
             key={i.id}
             type="button"
             onClick={() => setInk(i.id)}
-            aria-label={`${i.label} ink`}
+            aria-label={t("{colour} ink", { colour: t(i.label) })}
             aria-pressed={ink === i.id}
             className={clsx("size-6 rounded-full border border-line-strong", ink === i.id && "ring-2 ring-brand-border ring-offset-2 ring-offset-surface")}
             style={{ backgroundColor: i.id }}
           />
         ))}
         <span className="flex-1" />
-        <button type="button" onClick={() => setStrokes((s) => s.slice(0, -1))} disabled={strokes.length === 0} className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" aria-label="Undo the last stroke">
+        <button type="button" onClick={() => setStrokes((s) => s.slice(0, -1))} disabled={strokes.length === 0} className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" aria-label={t("Undo the last stroke")}>
           <Undo2 className="size-4" />
         </button>
-        <button type="button" onClick={() => setStrokes([])} disabled={strokes.length === 0} className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" aria-label="Clear the pad">
+        <button type="button" onClick={() => setStrokes([])} disabled={strokes.length === 0} className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" aria-label={t("Clear the pad")}>
           <Eraser className="size-4" />
         </button>
       </div>
@@ -215,12 +220,13 @@ function DrawPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
 
 // Handwriting-style fonts already on the device (Windows, macOS, then any cursive font).
 const STYLES = [
-  { id: "script", label: "Script", font: '"Segoe Script", "Snell Roundhand", "Brush Script MT", cursive' },
-  { id: "hand", label: "Hand", font: '"Lucida Handwriting", "Apple Chancery", "Bradley Hand", cursive' },
-  { id: "serif", label: "Serif", font: 'Georgia, "Times New Roman", serif' },
+  { id: "script", label: msg("Script"), font: '"Segoe Script", "Snell Roundhand", "Brush Script MT", cursive' },
+  { id: "hand", label: msg("Hand"), font: '"Lucida Handwriting", "Apple Chancery", "Bradley Hand", cursive' },
+  { id: "serif", label: msg("Serif"), font: 'Georgia, "Times New Roman", serif' },
 ];
 
 function TypePad({ onDone }: { onDone: (asset: SignatureAsset | null) => void }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [style, setStyle] = useState(STYLES[0].id);
   const font = STYLES.find((s) => s.id === style)!.font;
@@ -241,12 +247,12 @@ function TypePad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
 
   return (
     <div>
-      <Field label="Your name">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" className={INPUT} maxLength={60} autoComplete="name" />
+      <Field label={t("Your name")}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Jane Doe")} className={INPUT} maxLength={60} autoComplete="name" />
       </Field>
-      <Segmented label="Style" value={style} onChange={setStyle} options={STYLES} />
+      <Segmented label={t("Style")} value={style} onChange={setStyle} options={STYLES} />
       <div className="mt-3 flex h-20 items-center justify-center overflow-hidden rounded-lg border border-line-strong bg-white px-3 text-3xl text-gray-900 italic" style={{ fontFamily: font }}>
-        {name || <span className="text-base text-gray-400 not-italic">Preview</span>}
+        {name || <span className="text-base text-gray-400 not-italic">{t("Preview")}</span>}
       </div>
       <Actions onCancel={() => onDone(null)} disabled={!name.trim()} onSave={save} />
     </div>
@@ -256,6 +262,7 @@ function TypePad({ onDone }: { onDone: (asset: SignatureAsset | null) => void })
 // ---------------------------------------------------------------------------- Upload
 
 function UploadPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void }) {
+  const t = useT();
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   const [removeBackground, setRemoveBackground] = useState(true);
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -286,7 +293,7 @@ function UploadPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void 
     try {
       setBitmap(await decodeImage(new Uint8Array(await file.arrayBuffer()), file.type));
     } catch {
-      toast({ tone: "error", title: "Couldn't read that image", description: "Use a PNG, JPEG, WebP, HEIC or AVIF picture of your signature." });
+      toast({ tone: "error", title: msg("Couldn't read that image"), description: msg("Use a PNG, JPEG, WebP, HEIC or AVIF picture of your signature.") });
     }
   };
 
@@ -294,18 +301,18 @@ function UploadPad({ onDone }: { onDone: (asset: SignatureAsset | null) => void 
     <div className="mt-3">
       {bitmap ? (
         <div className="rounded-lg border border-line-strong bg-[repeating-conic-gradient(var(--surface-muted)_0_25%,var(--surface)_0_50%)] bg-[length:16px_16px] p-2">
-          <canvas ref={previewRef} className="mx-auto block max-h-40 max-w-full" aria-label="Uploaded signature" role="img" />
+          <canvas ref={previewRef} className="mx-auto block max-h-40 max-w-full" aria-label={t("Uploaded signature")} role="img" />
         </div>
       ) : (
         <label className={clsx(SECONDARY, "w-full cursor-pointer py-6")}>
           <ImagePlus className="size-4" aria-hidden="true" />
-          Choose a photo or scan
+          {t("Choose a photo or scan")}
           <input type="file" accept={acceptFor(["image"])} onChange={choose} className="sr-only" />
         </label>
       )}
       <label className="mt-3 flex cursor-pointer items-center gap-3 text-sm text-fg">
         <input type="checkbox" checked={removeBackground} onChange={(e) => setRemoveBackground(e.target.checked)} className="size-4 accent-brand" />
-        Remove the white background
+        {t("Remove the white background")}
       </label>
       <Actions onCancel={() => onDone(null)} disabled={!bitmap} onSave={async () => onDone(await trimmedPng(previewRef.current!))} />
     </div>

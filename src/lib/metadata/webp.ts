@@ -2,6 +2,7 @@ import { ascii, concat, startsWith, utf8 } from "./bytes";
 import { readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
+import { msg } from "@/i18n/msg";
 
 const IMAGE_CHUNKS = new Set(["VP8 ", "VP8L", "VP8X", "ALPH", "ANIM", "ANMF"]);
 
@@ -58,13 +59,13 @@ export async function auditWebp(bytes: Uint8Array): Promise<MetadataReport> {
     } else if (fourcc === "XMP ") {
       entries.push(...xmpEntries(utf8.decode(data)));
     } else if (fourcc === "ICCP") {
-      entries.push({ group: "Color profile", key: "ICCP", label: "ICC color profile", value: "Embedded color profile (may name the device or editing software)", sensitivity: "low" });
+      entries.push({ group: msg("Color profile"), key: "ICCP", label: msg("ICC color profile"), value: msg("Embedded color profile (may name the device or editing software)"), sensitivity: "low" });
     } else if (!IMAGE_CHUNKS.has(fourcc)) {
       entries.push({
-        group: "Other chunks",
+        group: msg("Other chunks"),
         key: fourcc.trim(),
-        label: `${fourcc.trim()} chunk`,
-        value: `${data.length.toLocaleString()} bytes of application data`,
+        label: msg`${fourcc.trim()} chunk`,
+        value: msg`${data.length.toLocaleString()} bytes of application data`,
         sensitivity: "medium",
       });
     }

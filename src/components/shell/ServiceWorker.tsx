@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { msg } from "@/i18n/msg";
 import { toast } from "@/store/toast";
 
 const UPDATE_CHECK_MS = 60 * 60 * 1000;
@@ -24,10 +25,10 @@ export function ServiceWorker() {
       toast(
         {
           tone: "info",
-          title: "A new version of DocSanitize is ready",
-          description: "Reload to start using it. Files you have open will need to be added again.",
+          title: msg("A new version of DocSanitize is ready"),
+          description: msg("Reload to start using it. Files you have open will need to be added again."),
           action: {
-            label: "Reload now",
+            label: msg("Reload now"),
             onClick: () => {
               reloadOnChange = true;
               worker.postMessage("skip-waiting");

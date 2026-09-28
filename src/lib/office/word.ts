@@ -6,6 +6,7 @@ import { isPng } from "../metadata/png";
 import { DEFAULT_STRIP_OPTIONS } from "../metadata/types";
 import { PAGE_SIZES } from "../pdf/images";
 import { renderFlow, type Align, type Block, type FontFiles, type InlineRun, type ParagraphBlock, type TableBlock } from "./flow";
+import { msg } from "@/i18n/msg";
 
 /*
  * Word (.docx) -> PDF. mammoth parses the document into a tree (paragraphs, runs, tables, images,
@@ -46,7 +47,7 @@ interface State {
   skippedImages: number;
 }
 
-export async function docxToPdf(bytes: Uint8Array, options: OfficeToPdfOptions, fonts: FontFiles, name = "This file"): Promise<ConversionResult> {
+export async function docxToPdf(bytes: Uint8Array, options: OfficeToPdfOptions, fonts: FontFiles, name = msg("This file")): Promise<ConversionResult> {
   // Encrypted Office files (and legacy .doc) are OLE containers, not zip packages.
   if (bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) {
     throw new ProcessingError(`“${name}” is password-protected or in the old .doc format. Save it as an unprotected .docx first.`, "unsupported");
@@ -83,13 +84,13 @@ export async function docxToPdf(bytes: Uint8Array, options: OfficeToPdfOptions, 
   const [width, height] = PAGE_SIZES[options.pageSize];
   const result = await renderFlow(state.blocks, { pageWidth: width, pageHeight: height, margin: MARGIN, fonts, size: BODY_SIZE });
   const warnings: string[] = [];
-  if (state.skippedImages) warnings.push(`${state.skippedImages} image${state.skippedImages === 1 ? " is" : "s are"} in a format that can't be placed in a PDF here (only JPEG and PNG are).`);
+  if (state.skippedImages) warnings.push(msg`${state.skippedImages} image${state.skippedImages === 1 ? " is" : "s are"} in a format that can't be placed in a PDF here (only JPEG and PNG are).`);
   if (result.missingCharacters) warnings.push(missingCharactersWarning(result.missingCharacters));
   return { bytes: result.bytes, pages: result.pages, warnings };
 }
 
 export const missingCharactersWarning = (n: number) =>
-  `${n.toLocaleString()} character${n === 1 ? "" : "s"} (for example Chinese, Japanese, Arabic or emoji) aren't covered by the built-in font and show as “?”.`;
+  msg`${n.toLocaleString()} character${n === 1 ? "" : "s"} (for example Chinese, Japanese, Arabic or emoji) aren't covered by the built-in font and show as “?”.`;
 
 const isParagraph = (b: Block): b is ParagraphBlock => b.type === "paragraph";
 

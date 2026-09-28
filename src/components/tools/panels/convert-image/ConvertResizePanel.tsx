@@ -13,6 +13,7 @@ import { FidelityNote } from "../shared/ConversionParts";
 import { ColorField, Field, INPUT, Segmented, Slider } from "../shared/controls";
 import { OutputCard, PRIMARY, type OutputFile } from "../shared/OutputCard";
 import { ImageRow } from "./ConvertImagePanel";
+import { useT } from "@/store/locale";
 
 const FORMATS: TargetFormat[] = ["jpeg", "png", "webp", "avif", "bmp", "tiff", "ico"];
 const LOSSY = new Set<TargetFormat>(["jpeg", "webp", "avif"]);
@@ -21,6 +22,7 @@ type ResizeKind = ResizeMode["mode"];
 
 /** Converts every open image to another format, optionally resized. */
 export default function ConvertResizePanel({ files }: ToolPanelProps) {
+  const t = useT();
   const [format, setFormat] = useState<TargetFormat>("webp");
   const [supported, setSupported] = useState<Record<string, boolean>>({});
   const [quality, setQuality] = useState(85);
@@ -84,7 +86,7 @@ export default function ConvertResizePanel({ files }: ToolPanelProps) {
         done.push({
           name: replaceExtension(f.name, TARGET_TYPES[chosen].extension),
           blob: new Blob([result.bytes as BlobPart], { type: TARGET_TYPES[chosen].mime }),
-          detail: chosen === "ico" ? `${iconSizes.length} size${iconSizes.length === 1 ? "" : "s"}, up to ${result.width} px` : `${result.width} × ${result.height}`,
+          detail: chosen === "ico" ? t.plural(iconSizes.length, "{n} size, up to {width} px", "{n} sizes, up to {width} px", { width: result.width }) : `${result.width} × ${result.height}`,
         });
       } catch (error) {
         failed[f.id] = errorMessage(error);
@@ -95,7 +97,7 @@ export default function ConvertResizePanel({ files }: ToolPanelProps) {
     if (done.length) setOutputs(done);
     const failedCount = Object.keys(failed).length;
     if (failedCount) {
-      toast({ tone: done.length ? "warning" : "error", title: `${failedCount} image${failedCount === 1 ? "" : "s"} couldn't be converted`, description: Object.values(failed)[0] });
+      toast({ tone: done.length ? "warning" : "error", title: t.plural(failedCount, "{n} image couldn't be converted", "{n} images couldn't be converted"), description: Object.values(failed)[0] });
     }
   };
 
@@ -104,12 +106,12 @@ export default function ConvertResizePanel({ files }: ToolPanelProps) {
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Images to convert">
+      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Images to convert")}>
         <header className="border-b border-line px-5 py-4">
           <h2 className="font-semibold text-fg">
-            {files.length} image{files.length === 1 ? "" : "s"}
+            {t.plural(files.length, "{n} image", "{n} images")}
           </h2>
-          <p className="mt-0.5 text-sm text-fg-muted">Every open image is converted. Add more by dropping them anywhere.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">{t("Every open image is converted. Add more by dropping them anywhere.")}</p>
         </header>
         <ul className="divide-y divide-line">
           {files.map((f, i) => (
@@ -122,23 +124,23 @@ export default function ConvertResizePanel({ files }: ToolPanelProps) {
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <ImageUpscale className="size-4 text-brand-text" aria-hidden="true" />
-            Convert &amp; resize
+            {t("Convert & resize")}
           </h2>
-          <Field label="Format">
+          <Field label={t("Format")}>
             <select value={chosen} onChange={(e) => change(setFormat)(e.target.value as TargetFormat)} className={INPUT}>
               {available.map((f) => (
                 <option key={f} value={f}>
                   {TARGET_TYPES[f].label}
-                  {f === "png" ? " (lossless)" : f === "ico" ? " (icon)" : ""}
+                  {f === "png" ? t(" (lossless)") : f === "ico" ? t(" (icon)") : ""}
                 </option>
               ))}
             </select>
           </Field>
-          {LOSSY.has(chosen) && <Slider label="Quality" value={quality} min={40} max={100} step={5} format={(v) => `${v}%`} onChange={change(setQuality)} />}
+          {LOSSY.has(chosen) && <Slider label={t("Quality")} value={quality} min={40} max={100} step={5} format={(v) => `${v}%`} onChange={change(setQuality)} />}
 
           {chosen === "ico" ? (
             <fieldset className="mt-4">
-              <legend className="text-sm font-medium text-fg">Icon sizes</legend>
+              <legend className="text-sm font-medium text-fg">{t("Icon sizes")}</legend>
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {ICON_SIZES.map((size) => (
                   <label key={size} className={clsx("flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs tabular-nums", iconSizes.includes(size) ? "border-brand-border bg-brand-soft text-fg" : "border-line text-fg-muted")}>
@@ -147,34 +149,34 @@ export default function ConvertResizePanel({ files }: ToolPanelProps) {
                   </label>
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-fg-subtle">Non-square pictures are centred on a transparent square.</p>
+              <p className="mt-1.5 text-xs text-fg-subtle">{t("Non-square pictures are centred on a transparent square.")}</p>
             </fieldset>
           ) : (
             <>
               <Segmented
-                label="Size"
+                label={t("Size")}
                 value={resize}
                 onChange={change(setResize)}
                 options={[
-                  { id: "none", label: "Keep" },
-                  { id: "percent", label: "Scale" },
-                  { id: "fit", label: "Fit" },
-                  { id: "exact", label: "Exact" },
+                  { id: "none", label: t("Keep") },
+                  { id: "percent", label: t("Scale") },
+                  { id: "fit", label: t("Fit") },
+                  { id: "exact", label: t("Exact") },
                 ]}
               />
-              {resize === "percent" && <Slider label="Scale" value={percent} min={5} max={200} step={5} format={(v) => `${v}%`} onChange={change(setPercent)} />}
+              {resize === "percent" && <Slider label={t("Scale")} value={percent} min={5} max={200} step={5} format={(v) => `${v}%`} onChange={change(setPercent)} />}
               {(resize === "fit" || resize === "exact") && (
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Width (px)">
+                  <Field label={t("Width (px)")}>
                     <input inputMode="numeric" value={width} onChange={(e) => change(setWidth)(e.target.value.replace(/\D/g, ""))} className={INPUT} />
                   </Field>
-                  <Field label="Height (px)">
+                  <Field label={t("Height (px)")}>
                     <input inputMode="numeric" value={height} onChange={(e) => change(setHeight)(e.target.value.replace(/\D/g, ""))} className={INPUT} />
                   </Field>
                 </div>
               )}
-              {resize === "fit" && <p className="mt-1.5 text-xs text-fg-subtle">Shrinks to fit inside the box, keeping proportions; smaller images stay as they are. Leave one side empty to fit the other.</p>}
-              {resize === "exact" && <p className="mt-1.5 text-xs text-fg-subtle">Stretches to exactly this size.</p>}
+              {resize === "fit" && <p className="mt-1.5 text-xs text-fg-subtle">{t("Shrinks to fit inside the box, keeping proportions; smaller images stay as they are. Leave one side empty to fit the other.")}</p>}
+              {resize === "exact" && <p className="mt-1.5 text-xs text-fg-subtle">{t("Stretches to exactly this size.")}</p>}
             </>
           )}
 
@@ -182,31 +184,31 @@ export default function ConvertResizePanel({ files }: ToolPanelProps) {
             <label className="mt-4 flex cursor-pointer items-start gap-3">
               <input type="checkbox" checked={keepTransparency} onChange={(e) => change(setKeepTransparency)(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-brand" />
               <span>
-                <span className="block text-sm font-medium text-fg">Keep transparency</span>
-                <span className="block text-xs text-fg-muted">Off: transparent areas are filled with the background colour.</span>
+                <span className="block text-sm font-medium text-fg">{t("Keep transparency")}</span>
+                <span className="block text-xs text-fg-muted">{t("Off: transparent areas are filled with the background colour.")}</span>
               </span>
             </label>
           )}
           {(opaque || !keepTransparency) && (
             <ColorField
-              label="Background"
+              label={t("Background")}
               value={background}
               onChange={change(setBackground)}
               presets={[
-                { value: "#ffffff", name: "White" },
-                { value: "#000000", name: "Black" },
+                { value: "#ffffff", name: t("White") },
+                { value: "#000000", name: t("Black") },
               ]}
             />
           )}
-          <FidelityNote>Photos are turned the right way up. Location, camera and date details aren&apos;t copied to the new files.</FidelityNote>
+          <FidelityNote>{t("Photos are turned the right way up. Location, camera and date details aren't copied to the new files.")}</FidelityNote>
           <button type="button" onClick={convert} disabled={busy || files.length === 0 || (chosen === "ico" ? iconSizes.length === 0 : sizeInvalid)} className={clsx(PRIMARY, "mt-4 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ImageUpscale className="size-4" aria-hidden="true" />}
-            {busy ? `Converting ${progress + 1} of ${files.length}…` : `Convert ${files.length === 1 ? "to" : `${files.length} images to`} ${label}`}
+            {busy ? t("Converting {done} of {count}…", { done: progress + 1, count: files.length }) : files.length === 1 ? t("Convert to {format}", { format: label }) : t("Convert {count} images to {format}", { count: files.length, format: label })}
           </button>
         </section>
         {outputs && (
           <OutputCard
-            title={`${outputs.length} image${outputs.length === 1 ? "" : "s"} converted to ${label}`}
+            title={t.plural(outputs.length, "{n} image converted to {format}", "{n} images converted to {format}", { format: label })}
             outputs={outputs}
             zipName={`images-${label.toLowerCase()}.zip`}
             replaceFileId={outputs.length === 1 && files.length === 1 && chosen !== "tiff" && chosen !== "bmp" && chosen !== "ico" ? files[0].id : undefined}

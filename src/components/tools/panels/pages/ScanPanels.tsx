@@ -17,9 +17,10 @@ import { OutputCard, PRIMARY, SECONDARY } from "../shared/OutputCard";
 import { DocGate, Layout, PageGrid, SelectionSummary, ToolCard, useApply, usePageField } from "../shared/toolkit";
 import { usePageSizes } from "./PagePanels";
 import { scanPages, type PageScan } from "./scan";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 const all = (n: number) => Array.from({ length: n }, (_, i) => i);
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 const mm = (pt: number) => Math.round((pt / 72) * 25.4 * 10) / 10;
 const pt = (mmValue: number) => (mmValue / 25.4) * 72;
@@ -49,6 +50,7 @@ const HANDLES: Exclude<Edge, "move">[] = ["nw", "n", "ne", "e", "se", "s", "sw",
 const MIN = 0.05;
 
 function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const { busy, output, setOutput, apply } = useApply(file, "cropped");
   const sizes = usePageSizes(doc);
   const [current, setCurrent] = useState(0);
@@ -133,7 +135,7 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
             const s = sizes![i];
             return { page: i, box: { x: box.x * s.width, y: box.y * s.height, width: box.width * s.width, height: box.height * s.height } };
           });
-      if (!crops.length) throw new Error("There's nothing to crop.");
+      if (!crops.length) throw new Error(msg("There's nothing to crop."));
       return cropFile(file.file, crops);
     });
   const scanning = auto && !scan?.results;
@@ -141,21 +143,21 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
   return (
     <Layout
       main={
-        <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Page">
-          {doc.numPages > 1 && <PageStrip doc={doc} current={current} onSelect={setCurrent} counts={{}} noun="crop" />}
+        <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Page")}>
+          {doc.numPages > 1 && <PageStrip doc={doc} current={current} onSelect={setCurrent} counts={{}} countLabel={(n) => String(n)} />}
           <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm">
-            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label="Previous page">
+            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label={t("Previous page")}>
               <ChevronLeft className="size-4" />
             </button>
             <span className="text-fg-muted tabular-nums">
-              Page {current + 1} of {doc.numPages}
+              {t("Page {page} of {count}", { page: current + 1, count: doc.numPages })}
             </span>
-            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => setCurrent(current + 1)} aria-label="Next page">
+            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => setCurrent(current + 1)} aria-label={t("Next page")}>
               <ChevronRight className="size-4" />
             </button>
             {size && shown && (
-              <span className="ml-auto text-fg-subtle tabular-nums">
-                Result: {mm(shown.width * size.width)} × {mm(shown.height * size.height)} mm
+              <span className="ms-auto text-fg-subtle tabular-nums">
+                {t("Result: {width} × {height} mm", { width: mm(shown.width * size.width), height: mm(shown.height * size.height) })}
               </span>
             )}
           </div>
@@ -163,7 +165,7 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
             <PageStage doc={doc} index={current}>
               {(stage) =>
                 shown ? (
-                  <div className="absolute inset-0 overflow-hidden" aria-label="Crop area" role="group">
+                  <div className="absolute inset-0 overflow-hidden" aria-label={t("Crop area")} role="group">
                     <div
                       className={clsx("absolute border-2 border-brand shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]", !auto && "cursor-move touch-none")}
                       style={{ left: `${shown.x * 100}%`, top: `${shown.y * 100}%`, width: `${shown.width * 100}%`, height: `${shown.height * 100}%` }}
@@ -191,7 +193,7 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
                     </div>
                   </div>
                 ) : (
-                  auto && scan?.results && <p className="absolute inset-x-0 top-1/2 text-center text-sm text-fg-muted">This page is empty; it isn&apos;t cropped.</p>
+                  auto && scan?.results && <p className="absolute inset-x-0 top-1/2 text-center text-sm text-fg-muted">{t("This page is empty; it isn't cropped.")}</p>
                 )
               }
             </PageStage>
@@ -200,9 +202,9 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
       }
       actions={
         <>
-          <ToolCard icon={Crop} title="Crop pages">
+          <ToolCard icon={Crop} title={t("Crop pages")}>
             <Segmented
-              label="How"
+              label={t("How")}
               value={auto ? "auto" : "manual"}
               onChange={(v) => {
                 if (v === "manual" && auto) {
@@ -213,8 +215,8 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
                 changed();
               }}
               options={[
-                { id: "manual", label: "Draw the area" },
-                { id: "auto", label: "Remove white margins" },
+                { id: "manual", label: t("Draw the area") },
+                { id: "auto", label: t("Remove white margins") },
               ]}
             />
             {auto ? (
@@ -222,19 +224,19 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
                 {scanning ? (
                   <p className="mt-3 flex items-center gap-2 text-sm text-fg-muted">
                     <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                    Finding the content on page {Math.min((scan?.done ?? 0) + 1, doc.numPages)} of {doc.numPages}…
+                    {t("Finding the content on page {page} of {count}…", { page: Math.min((scan?.done ?? 0) + 1, doc.numPages), count: doc.numPages })}
                   </p>
                 ) : (
                   <p className="mt-3 text-sm text-fg-muted">
-                    <Wand2 className="mr-1 inline size-4 text-brand-text" aria-hidden="true" />
-                    Each page is trimmed to its own content.
+                    <Wand2 className="me-1 inline size-4 text-brand-text" aria-hidden="true" />
+                    {t("Each page is trimmed to its own content.")}
                   </p>
                 )}
-                <Slider label="Keep around the content" value={padding} min={0} max={30} format={(v) => `${v} mm`} onChange={(v) => (setPadding(v), changed())} />
+                <Slider label={t("Keep around the content")} value={padding} min={0} max={30} format={(v) => `${v} mm`} onChange={(v) => (setPadding(v), changed())} />
               </>
             ) : (
               <>
-                <p className="mt-3 text-sm text-fg-muted">Drag the frame or its handles, or type the margins to cut.</p>
+                <p className="mt-3 text-sm text-fg-muted">{t("Drag the frame or its handles, or type the margins to cut.")}</p>
                 <div className="grid grid-cols-2 gap-x-3">
                   {(["top", "bottom", "left", "right"] as const).map((side) => (
                     <Field key={side} label={`${side[0].toUpperCase()}${side.slice(1)} (mm)`}>
@@ -243,29 +245,29 @@ function Cropper({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) 
                   ))}
                 </div>
                 <Segmented
-                  label="Apply to"
+                  label={t("Apply to")}
                   value={target}
                   onChange={(v) => (setTarget(v), changed())}
                   options={[
-                    { id: "all", label: "All pages" },
-                    { id: "this", label: "This page" },
-                    { id: "pages", label: "Pages…" },
+                    { id: "all", label: t("All pages") },
+                    { id: "this", label: t("This page") },
+                    { id: "pages", label: t("Pages…") },
                   ]}
                 />
                 {target === "pages" && (
-                  <Field label="Pages" error={range.error}>
+                  <Field label={t("Pages")} error={range.error}>
                     <input value={range.text} onChange={(e) => (range.setText(e.target.value), changed())} placeholder="e.g. 1-3, 5" className={INPUT} />
                   </Field>
                 )}
               </>
             )}
-            <FidelityNote>Cropping hides the edges of the page; what&apos;s outside the frame is still in the file. To remove content for good, use Redact.</FidelityNote>
+            <FidelityNote>{t("Cropping hides the edges of the page; what's outside the frame is still in the file. To remove content for good, use Redact.")}</FidelityNote>
             <button type="button" onClick={run} disabled={busy || !sizes || scanning || (!auto && (!pages.length || Boolean(range.error)))} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Crop className="size-4" aria-hidden="true" />}
-              {busy ? "Cropping…" : auto ? "Crop all pages" : `Crop ${plural(pages.length, "page")}`}
+              {busy ? t("Cropping…") : auto ? t("Crop all pages") : t.plural(pages.length, "Crop {n} page", "Crop {n} pages")}
             </button>
           </ToolCard>
-          {output && <OutputCard title="Pages cropped" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Pages cropped")} outputs={[output]} replaceFileId={file.id} />}
         </>
       }
     />
@@ -283,6 +285,7 @@ const THRESHOLDS = { strict: 0.00002, normal: 0.0003, scanned: 0.004 } as const;
 type Sensitivity = keyof typeof THRESHOLDS;
 
 function BlankRemover({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const { busy, output, setOutput, apply } = useApply(file, "no-blanks");
   const scan = usePageScan(doc, true);
   const [sensitivity, setSensitivity] = useState<Sensitivity>("normal");
@@ -305,55 +308,55 @@ function BlankRemover({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProx
       main={
         <PageGrid
           doc={doc}
-          header={results ? <SelectionSummary count={chosen.size} total={doc.numPages} noun="to remove" onAll={selection.selectAll} onClear={selection.clear} /> : <p className="text-sm text-fg-muted">Looking at the pages…</p>}
+          header={results ? <SelectionSummary count={chosen.size} total={doc.numPages} action="remove" onAll={selection.selectAll} onClear={selection.clear} /> : <p className="text-sm text-fg-muted">{t("Looking at the pages…")}</p>}
           tile={(i) => ({
             selected: chosen.has(i),
             dimmed: chosen.has(i),
-            label: `Page ${i + 1}${chosen.has(i) ? ", will be removed" : ""}`,
-            badge: blanks(sensitivity).includes(i) && <span className="absolute top-3 left-3 rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-semibold text-fg-muted">Blank</span>,
+            label: chosen.has(i) ? t("Page {page}, will be removed", { page: i + 1 }) : t("Page {page}", { page: i + 1 }),
+            badge: blanks(sensitivity).includes(i) && <span className="absolute top-3 left-3 rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-semibold text-fg-muted">{t("Blank")}</span>,
           })}
           onTileClick={(i, e) => selection.click(i, e)}
         />
       }
       actions={
         <>
-          <ToolCard icon={ScanSearch} title="Remove blank pages">
+          <ToolCard icon={ScanSearch} title={t("Remove blank pages")}>
             {!results ? (
               <p className="mt-3 flex items-center gap-2 text-sm text-fg-muted">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                Checking page {Math.min((scan?.done ?? 0) + 1, doc.numPages)} of {doc.numPages}…
+                {t("Checking page {page} of {count}…", { page: Math.min((scan?.done ?? 0) + 1, doc.numPages), count: doc.numPages })}
               </p>
             ) : (
               <>
                 <p className="mt-1 text-sm text-fg-muted">
-                  Found {plural(blanks(sensitivity).length, "blank page")}. Pages with any text are never counted as blank. Click pages to change what&apos;s removed.
+                  {t.plural(blanks(sensitivity).length, "Found {n} blank page.", "Found {n} blank pages.")} {t("Pages with any text are never counted as blank. Click pages to change what's removed.")}
                 </p>
                 <Segmented
-                  label="What counts as blank"
+                  label={t("What counts as blank")}
                   value={sensitivity}
                   onChange={(v) => {
                     setSensitivity(v);
                     selection.select(blanks(v));
                   }}
                   options={[
-                    { id: "strict", label: "Perfectly white" },
-                    { id: "normal", label: "Nearly white" },
-                    { id: "scanned", label: "Scanned" },
+                    { id: "strict", label: t("Perfectly white") },
+                    { id: "normal", label: t("Nearly white") },
+                    { id: "scanned", label: t("Scanned") },
                   ]}
                 />
-                <p className="mt-2 text-xs text-fg-subtle">“Scanned” allows specks and shadows from a scanner.</p>
+                <p className="mt-2 text-xs text-fg-subtle">{t("“Scanned” allows specks and shadows from a scanner.")}</p>
               </>
             )}
-            {everything && <p className="mt-2 text-xs text-danger-text">Every page is selected; keep at least one.</p>}
+            {everything && <p className="mt-2 text-xs text-danger-text">{t("Every page is selected; keep at least one.")}</p>}
             <button type="button" onClick={() => apply(() => deletePagesOfFile(file.file, selection.selected))} disabled={busy || !results || !chosen.size || everything} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <FileX2 className="size-4" aria-hidden="true" />}
-              {busy ? "Removing…" : chosen.size ? `Remove ${plural(chosen.size, "page")}` : "No pages to remove"}
+              {busy ? t("Removing…") : chosen.size ? t.plural(chosen.size, "Remove {n} page", "Remove {n} pages") : t("No pages to remove")}
             </button>
           </ToolCard>
-          {output && <OutputCard title="Blank pages removed" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Blank pages removed")} outputs={[output]} replaceFileId={file.id} />}
           {results && !chosen.size && !output && (
             <button type="button" className={clsx(SECONDARY, "w-full")} onClick={() => (setSensitivity("scanned"), selection.select(blanks("scanned")))}>
-              Try the “Scanned” setting
+              {t("Try the “Scanned” setting")}
             </button>
           )}
         </>

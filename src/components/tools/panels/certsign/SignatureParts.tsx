@@ -1,19 +1,18 @@
 "use client";
 
-import clsx from "clsx";
 import type { CertificateSummary } from "@/lib/sign/x509";
-
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
-export const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "long" });
+import { useT } from "@/store/locale";
 
 /** Who a certificate names, who issued it, and when it's valid. */
 export function CertificateFacts({ summary, className, showFingerprint = true }: { summary: CertificateSummary; className?: string; showFingerprint?: boolean }) {
+  const t = useT();
+  const day = (iso: string) => t.date(iso, { dateStyle: "medium" });
   const rows: [string, string][] = [];
-  if (summary.email) rows.push(["Email", summary.email]);
-  if (summary.organization) rows.push(["Organisation", summary.organization]);
-  rows.push(["Issued by", summary.selfSigned ? "Itself (self-signed)" : summary.issuer]);
-  rows.push(["Valid", `${dateFormat.format(new Date(summary.notBefore))} – ${dateFormat.format(new Date(summary.notAfter))}`]);
-  rows.push(["Key", summary.key]);
+  if (summary.email) rows.push([t("Email"), summary.email]);
+  if (summary.organization) rows.push([t("Organisation"), summary.organization]);
+  rows.push([t("Issued by"), summary.selfSigned ? t("Itself (self-signed)") : summary.issuer]);
+  rows.push([t("Valid"), `${day(summary.notBefore)} – ${day(summary.notAfter)}`]);
+  rows.push([t("Key"), t.dynamic(summary.key)]);
   return (
     <div className={className}>
       <p className="font-semibold wrap-anywhere text-fg">{summary.name}</p>
@@ -27,8 +26,10 @@ export function CertificateFacts({ summary, className, showFingerprint = true }:
       </dl>
       {showFingerprint && (
         <details className="mt-2 text-xs text-fg-muted">
-          <summary className="cursor-pointer">SHA-256 fingerprint</summary>
-          <p className={clsx("mt-1 font-mono text-[11px] break-all text-fg")}>{summary.fingerprint}</p>
+          <summary className="cursor-pointer">{t("SHA-256 fingerprint")}</summary>
+          <p className="mt-1 font-mono text-[11px] break-all text-fg" dir="ltr">
+            {summary.fingerprint}
+          </p>
         </details>
       )}
     </div>

@@ -5,6 +5,7 @@ import { ProcessingError } from "../errors";
 import { withRenderSlot } from "../pdf/render";
 import { OCR_LANGUAGES, TESSDATA_DIR } from "./languages";
 import { readTesseractPage, type OcrPageResult, type TesseractPage } from "./result";
+import { msg } from "@/i18n/msg";
 
 /*
  * OCR with Tesseract (tesseract.js), an add-on: its worker, engine and language models are served
@@ -48,10 +49,10 @@ export function ocrScale(width: number, height: number, fromImage = false): numb
 }
 
 const LOADING_LABELS: Record<string, string> = {
-  "loading tesseract core": "Loading the OCR engine…",
-  "initializing tesseract": "Starting the OCR engine…",
-  "loading language traineddata": "Loading the language data…",
-  "initializing api": "Starting the OCR engine…",
+  "loading tesseract core": msg("Loading the OCR engine…"),
+  "initializing tesseract": msg("Starting the OCR engine…"),
+  "loading language traineddata": msg("Loading the language data…"),
+  "initializing api": msg("Starting the OCR engine…"),
 };
 
 function unavailable(): ProcessingError {
@@ -141,10 +142,10 @@ export async function pagesWithText(doc: PDFDocumentProxy, cancelled: () => bool
 /** Recognise the text of the given pages (0-based), one page at a time. */
 export async function recognizePages(doc: PDFDocumentProxy, pages: number[], options: OcrOptions): Promise<OcrPageResult[]> {
   const { onProgress, signal } = options;
-  onProgress?.({ stage: "loading", label: "Loading the OCR engine…" });
+  onProgress?.({ stage: "loading", label: msg("Loading the OCR engine…") });
   const engine = await startEngine(options.languages, onProgress);
   const aborted = new Promise<never>((_, reject) => {
-    const stop = () => reject(new DOMException("OCR was cancelled.", "AbortError"));
+    const stop = () => reject(new DOMException(msg("OCR was cancelled."), "AbortError"));
     if (signal?.aborted) stop();
     signal?.addEventListener("abort", stop, { once: true });
   });

@@ -16,6 +16,8 @@ Strip hidden metadata from photos and documents, find what files hide (fake reda
 
 55 tools in eight groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
+The interface is available in English, Arabic (right to left), Spanish, French and German. It follows your browser's language, and the language button in the header switches it; that choice is remembered on your device.
+
 ### Sanitize and privacy
 
 - **Sanitize Metadata.** Opens PDFs, JPEGs, PNGs, WebPs and iPhone HEIC and AVIF photos and lists everything hidden inside, from the author, device and serial number to editing software, dates, XMP history and the GPS location a photo was taken at. Each item is marked **Sensitive**, **Revealing** or **Technical**, and you can filter the list to check one kind at a time. One click removes it all, or, for photos, everything except technical data. The file is then read again from scratch to confirm nothing is left.
@@ -118,7 +120,7 @@ All of it works in light and dark themes, from a phone to a desktop, and offline
 
 ## Privacy
 
-DocSanitize has no backend. Files are read from your disk into the browser tab's memory, processed there by background threads (Web Workers), and handed back to you as a download. Nothing is uploaded, nothing is stored, and everything is forgotten when you close the tab. There are no analytics, cookies, accounts or third-party requests; fonts and the PDF engine's files are served by the site itself.
+DocSanitize has no backend. Files are read from your disk into the browser tab's memory, processed there by background threads (Web Workers), and handed back to you as a download. Nothing is uploaded, nothing is stored, and everything is forgotten when you close the tab. The only things the site remembers are your theme and language choices, kept in your own browser. There are no analytics, cookies, accounts or third-party requests; fonts and the PDF engine's files are served by the site itself.
 
 You don't have to take that on trust. The site's security policy tells your browser to refuse connections to any other server, so a file couldn't leave even if the code tried. You can check it in your browser's developer tools: the Network tab shows no outgoing requests while a file is processed.
 
@@ -147,6 +149,7 @@ Documents DocSanitize creates carry no author, software or tracking metadata of 
 | Digital signatures | Our own ASN.1, X.509 and CMS code over WebCrypto (RSA, RSA-PSS, ECDSA, SHA-2); [node-forge](https://github.com/digitalbazaar/forge) opens `.p12`/`.pfx` files, including older 3DES/RC2 ones; tested against [pyHanko](https://github.com/MatthiasValvekens/pyHanko) and OpenSSL |
 | Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP/HEIF parsers, [libheif](https://github.com/strukturag/libheif) (WebAssembly, via libheif-js) for decoding HEIC, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
 | Drag and drop | dnd-kit (mouse, touch and keyboard) |
+| Interface languages | Our own small translator: catalogs keyed by the English text, loaded only for the chosen language, with the browser's `Intl` for plurals, numbers, dates and language names; Noto Sans Arabic, self-hosted |
 | Quality | ESLint, Vitest unit tests, Playwright browser tests, GitHub Actions CI |
 | Offline | A service worker generated at build time that precaches the whole app |
 
@@ -229,6 +232,14 @@ Batch Process calls the same code as each tool, one step at a time over all the 
 
 The media tools share one engine: FFmpeg compiled to WebAssembly, run in a worker. Your file isn't copied into it: the worker reads it in place from the browser's File object (Emscripten's WORKERFS), and only the result is copied back. Every job runs FFmpeg with `-map_metadata -1` for the file and each track, drops chapters, data tracks and attachments, and sets FFmpeg's "bit-exact" flags so it writes no encoder version or creation time of its own. Remove Metadata copies the tracks with `-c copy`, so the picture and sound are bit-for-bit the same, and keeps a phone video's rotation (stored in the track header, not as metadata). The tools read the file with ffprobe first, to know its length (for progress), size, rotation and whether it's HDR. Cancel stops the worker immediately; the next job starts a fresh one.
 
+## How the interface languages work
+
+English is written in the code. Every other language is a set of JSON catalogs in [`src/i18n/catalogs`](src/i18n/catalogs), keyed by the English text, so there are no made-up message IDs to keep in sync. Components call `t("Text with {value}")`; plurals use `t.plural(n, one, other)` and each catalog gives the forms its language needs (Arabic has six). Text defined outside components is marked with `msg()`, and messages built from templates, such as errors from a worker, are matched back to their template and translated with `t.dynamic()`. Only the chosen language's catalog is downloaded. A small script in the page's `<head>` sets the language and direction before the first paint, from your saved choice or your browser's languages, so the page never flashes in English first.
+
+For Arabic the whole layout mirrors: the layout uses logical sides (start and end rather than left and right), arrows and direction icons flip, and arrow keys follow the reading direction. Page previews, the editor canvas and other views of the page itself stay left to right, because a PDF page doesn't mirror.
+
+`node scripts/i18n-scan.mjs` finds text that isn't wrapped for translation (`unwrapped`), keys a catalog is missing (`missing ar`) or no longer uses (`stale ar`), and regenerates the catalog index (`index`). A unit test fails if any text isn't wrapped, if a catalog misses a key, or if a translation drops a `{value}` or a plural form.
+
 ## Placing stamps on rotated pages
 
 Signatures, watermarks and page numbers are positioned as you see the page, whatever its rotation or crop box. [`stamp.ts`](src/lib/pdf/stamp.ts) converts between the page as displayed and the PDF's own coordinates for pages rotated 0, 90, 180 or 270 degrees, and the conversion is tested against pdf.js on every rotation. A signature dragged to a spot on screen lands within 1% of that spot in the downloaded file.
@@ -281,6 +292,7 @@ flowchart LR
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
 | `src/components/tools/panels` | One folder per tool, plus shared controls, previews and output cards |
 | `src/components/workspace`, `pdf`, `shell` | Tabs and drop zone; page thumbnails and page views; header, sidebar, toasts and service-worker registration |
+| `src/i18n` | Interface languages: the locale list, the translator, `msg()`, `Rich` (elements inside translated text) and the catalogs |
 | `src/lib/tools.ts` | The tool list: names, descriptions, categories and accepted file types |
 | `scripts` | Build steps: pdf.js assets, add-ons, the CSP, the service worker, icons and README screenshots |
 | `e2e` | Browser test suites |
@@ -293,7 +305,8 @@ For a guide to changing or extending the code, see [handover.md](handover.md).
 
 - Everything works from the keyboard, including dragging: pages and tabs reorder with Space and the arrow keys, placed signatures move with the arrow keys, signatures and redaction boxes delete with Delete, and the position picker is a grid you move through with the arrow keys.
 - Progress, results and errors are announced to screen readers.
-- Layouts are tested at 390 px wide with no horizontal scrolling, in both themes.
+- Layouts are tested at 390 px wide with no horizontal scrolling, in both themes, in every interface language.
+- The page's `lang` and `dir` follow the interface language, so screen readers pronounce it correctly and Arabic reads right to left.
 
 ## Getting started
 
@@ -318,6 +331,7 @@ The development server has no service worker; run a production build to try offl
 | `npm run e2e` | Browser tests against the built site (`npm run build` first); `npm run e2e -- security` runs one suite |
 | `node scripts/screenshots.mjs` | Regenerates the README screenshots from the built site |
 | `node scripts/make-icons.mjs` | Regenerates the favicon and app icons |
+| `node scripts/i18n-scan.mjs <command>` | Translation checks: `unwrapped`, `missing <lang>`, `stale <lang>`, `index` |
 
 The browser tests use Playwright's Chromium; install it once with `npx playwright-core install chromium`. They drive every tool like a user would and check the downloaded files with independent readers (pdf.js, mammoth, SheetJS), saving screenshots to `e2e/.output/`. CI runs lint, unit tests, the build, the type check and every browser suite on each push.
 
@@ -370,6 +384,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **The Inspect tools** find what they're built to recognise. Find Personal Data can't recognise names or postal addresses; Check Links judges addresses without visiting them; Image Forensics reads what a file says about itself, which can be faked or removed. Inspect Office reads `.docx`, `.xlsx` and `.pptx`, not older `.doc`/`.xls`/`.ppt` or OpenDocument files.
 - **Audio and video** are converted by a single-threaded engine, so it's slower than desktop software: about 25 frames a second for 720p video on a laptop, slower for 1080p and on phones. WebM output uses VP8 (VP9 crashes this build of the engine). Very long or high-resolution videos can run out of memory in the browser; trim them first. Only the first sound track is converted, and subtitles are kept only by a fast Trim and by Remove Metadata.
 - **Batch Process** offers the tools' main settings, not every option (a watermark is text only, page numbers and stamps apply to every page, OCR reads up to three languages). Files run one at a time, so a batch of long videos or big scans takes as long as doing them one by one.
+- **Interface translations** were written with AI assistance and haven't yet been reviewed by native speakers; corrections are welcome. Metadata tag names (such as EXIF's `GPSLatitude`), file format names and messages from third-party engines stay in English. The visible box on a digital signature uses English labels when the interface is in Arabic, because the signature font has no Arabic letters.
 - **Very large files** are limited by your device's memory.
 
 ## Roadmap
@@ -392,7 +407,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M16** Audio and video: convert, compress, trim, video to GIF, and remove video and audio metadata
 - [x] **M17** Certificate-based digital signatures (sign, certify, create a certificate) and signature verification
 - [x] **M18** Batch processing
-- [ ] **M19** Interface languages, including right-to-left
+- [x] **M19** Interface languages: Arabic (right to left), Spanish, French and German
 
 Ideas for later: keep bookmarks when merging.
 

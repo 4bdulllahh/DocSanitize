@@ -50,6 +50,7 @@ import { removeTextInRegions } from "./content";
 import { pageFontMetrics } from "./fonts";
 import { bounds } from "./geometry";
 import { baselineOffset, LINE_HEIGHT, type Box, type EditObject, type EditRequest, type EditResult, type ReplaceObject, type TextObject } from "./types";
+import { msg } from "@/i18n/msg";
 
 /*
  * Writes the editor's objects into a PDF. Everything is drawn in "upright" space: points from
@@ -329,8 +330,8 @@ async function draw(object: EditObject, ctx: DrawContext): Promise<PDFOperator[]
     case "replace": {
       if (object.kind === "replace") ops.push(setFillingRgbColor(...rgbOf(object.background)), rect(object.cover), fill());
       const { font, text, fellBack, missing } = await ctx.fonts.pick(object);
-      if (fellBack) ctx.warnings.add("Some text uses characters the serif or monospaced font doesn't have, so it was set in the sans font.");
-      if (missing) ctx.warnings.add("Some characters aren't in the built-in font (it covers Latin, Greek and Cyrillic) and were replaced with “?”.");
+      if (fellBack) ctx.warnings.add(msg("Some text uses characters the serif or monospaced font doesn't have, so it was set in the sans font."));
+      if (missing) ctx.warnings.add(msg("Some characters aren't in the built-in font (it covers Latin, Greek and Cyrillic) and were replaced with “?”."));
       const name = ctx.resources.font(font);
       ops.push(beginText(), setFillingRgbColor(...rgbOf(object.color)), setFontAndSize(name, object.size));
       text.split("\n").forEach((line, i) => {
@@ -503,7 +504,7 @@ export async function applyEdits(bytes: Uint8Array, request: EditRequest, files:
     removedAny ||= missed.length < replaced.length;
     for (const m of missed) {
       const original = m.sources.map((r) => r.str).join(" ");
-      warnings.add(`“${original.length > 40 ? `${original.slice(0, 40)}…` : original}” is covered, but some of its original text is still in the file because of the way the page draws it. Use Redact to remove it for good.`);
+      warnings.add(msg`“${original.length > 40 ? `${original.slice(0, 40)}…` : original}” is covered, but some of its original text is still in the file because of the way the page draws it. Use Redact to remove it for good.`);
     }
   }
   if (removedAny) collectGarbage(doc);

@@ -6,6 +6,7 @@ import { CircleAlert, CircleCheck, LoaderCircle, Plus, X } from "lucide-react";
 import { KindIcon } from "@/components/files/KindIcon";
 import { formatBytes, KIND_LABELS } from "@/lib/files";
 import type { Tool } from "@/lib/tools";
+import { useT } from "@/store/locale";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 
 const TAB_DRAG_TYPE = "application/x-docsanitize-tab";
@@ -20,6 +21,7 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
   const removeFile = useWorkspaceStore((s) => s.removeFile);
   const reorderFiles = useWorkspaceStore((s) => s.reorderFiles);
   const clearFiles = useWorkspaceStore((s) => s.clearFiles);
+  const t = useT();
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -40,9 +42,11 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
 
   function onKeyDown(e: KeyboardEvent, index: number, file: WorkspaceFile) {
     const last = files.length - 1;
+    // The tabs run right to left in a right-to-left language.
+    const [next, previous] = t.dir === "rtl" ? ["ArrowLeft", "ArrowRight"] : ["ArrowRight", "ArrowLeft"];
     const keys: Record<string, () => void> = {
-      ArrowRight: () => focusTab(index === last ? 0 : index + 1),
-      ArrowLeft: () => focusTab(index === 0 ? last : index - 1),
+      [next]: () => focusTab(index === last ? 0 : index + 1),
+      [previous]: () => focusTab(index === 0 ? last : index - 1),
       Home: () => focusTab(0),
       End: () => focusTab(last),
       Delete: () => {
@@ -70,7 +74,7 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
     <div className="flex bg-canvas">
       <div
         role="tablist"
-        aria-label="Open files"
+        aria-label={t("Open files")}
         className="relative flex min-w-0 flex-1 items-end gap-1 overflow-x-auto px-2 pt-2 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-line scrollbar-thin lg:px-4"
       >
         {files.map((file, index) => {
@@ -118,19 +122,23 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
                 onClick={() => setActiveFile(file.id)}
                 onAuxClick={(e) => e.button === 1 && removeFile(file.id)}
                 onKeyDown={(e) => onKeyDown(e, index, file)}
-                title={`${file.name} — ${KIND_LABELS[file.kind]}, ${formatBytes(file.size)}${compatible ? "" : ` (not supported by ${tool.name})`}`}
-                className="flex min-w-0 items-center gap-2 py-2 pr-1 pl-3 text-sm"
+                title={
+                  compatible
+                    ? t("{name} — {kind}, {size}", { name: file.name, kind: t(KIND_LABELS[file.kind]), size: formatBytes(file.size) })
+                    : t("{name} — {kind}, {size} (not supported by {tool})", { name: file.name, kind: t(KIND_LABELS[file.kind]), size: formatBytes(file.size), tool: t(tool.name) })
+                }
+                className="flex min-w-0 items-center gap-2 py-2 ps-3 pe-1 text-sm"
               >
-                <TabStatusIcon file={file} active={active} />
+                <TabStatusIcon file={file} active={active} t={t} />
                 <span className="truncate">{file.name}</span>
               </button>
               <button
                 type="button"
                 onClick={() => removeFile(file.id)}
                 tabIndex={-1}
-                aria-label={`Close ${file.name}`}
+                aria-label={t("Close {name}", { name: file.name })}
                 className={clsx(
-                  "mr-1.5 rounded p-0.5 text-fg-subtle transition-opacity hover:bg-surface-muted hover:text-fg",
+                  "me-1.5 rounded p-0.5 text-fg-subtle transition-opacity hover:bg-surface-muted hover:text-fg",
                   active ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
                 )}
               >
@@ -141,15 +149,15 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
         })}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 border-b border-line px-2 pt-2 pb-1 lg:pr-4">
+      <div className="flex shrink-0 items-center gap-1 border-b border-line px-2 pt-2 pb-1 lg:pe-4">
         <button
           type="button"
           onClick={onAddFiles}
           className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand-text hover:bg-brand-soft"
         >
           <Plus className="size-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Add files</span>
-          <span className="sr-only sm:hidden">Add files</span>
+          <span className="hidden sm:inline">{t("Add files")}</span>
+          <span className="sr-only sm:hidden">{t("Add files")}</span>
         </button>
         {files.length > 1 && (
           <button
@@ -157,7 +165,7 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
             onClick={clearFiles}
             className="rounded-lg px-2.5 py-1.5 text-sm text-fg-muted hover:bg-surface-muted hover:text-fg"
           >
-            Close all
+            {t("Close all")}
           </button>
         )}
       </div>
@@ -165,14 +173,14 @@ export function FileTabs({ tool, onAddFiles }: { tool: Tool; onAddFiles: () => v
   );
 }
 
-function TabStatusIcon({ file, active }: { file: WorkspaceFile; active: boolean }) {
+function TabStatusIcon({ file, active, t }: { file: WorkspaceFile; active: boolean; t: ReturnType<typeof useT> }) {
   switch (file.status) {
     case "processing":
-      return <LoaderCircle className="size-4 shrink-0 animate-spin text-brand-text" aria-label="Processing" />;
+      return <LoaderCircle className="size-4 shrink-0 animate-spin text-brand-text" aria-label={t("Processing")} />;
     case "done":
-      return <CircleCheck className="size-4 shrink-0 text-success" aria-label="Done" />;
+      return <CircleCheck className="size-4 shrink-0 text-success" aria-label={t("Done")} />;
     case "error":
-      return <CircleAlert className="size-4 shrink-0 text-danger" aria-label="Error" />;
+      return <CircleAlert className="size-4 shrink-0 text-danger" aria-label={t("Error")} />;
     default:
       return <KindIcon kind={file.kind} className={clsx("size-4 shrink-0", active && "text-brand-text")} />;
   }

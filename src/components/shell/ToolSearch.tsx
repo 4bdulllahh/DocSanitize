@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { CornerDownLeft, Search } from "lucide-react";
 import { searchTools, TOOL_CATEGORIES, type Tool } from "@/lib/tools";
+import { useT } from "@/store/locale";
 
 const noSubscribe = () => () => {};
 const isApple = () => /Mac|iPhone|iPad/.test(navigator.platform);
@@ -16,7 +17,8 @@ export function ToolSearch() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const apple = useSyncExternalStore(noSubscribe, isApple, () => false);
-  const results = searchTools(query);
+  const t = useT();
+  const results = searchTools(query, t);
   const current = Math.min(active, results.length - 1);
 
   const open = () => {
@@ -62,13 +64,13 @@ export function ToolSearch() {
         className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
       >
         <Search className="size-4" aria-hidden="true" />
-        <span className="sr-only sm:not-sr-only">Search tools</span>
+        <span className="sr-only sm:not-sr-only">{t("Search tools")}</span>
         <kbd className="hidden rounded border border-line bg-surface-muted px-1.5 font-sans text-[11px] text-fg-subtle md:inline">{apple ? "⌘K" : "Ctrl K"}</kbd>
       </button>
 
       <dialog
         ref={dialogRef}
-        aria-label="Search tools"
+        aria-label={t("Search tools")}
         onClick={(e) => e.target === e.currentTarget && close()}
         className="m-auto mt-[10vh] w-[min(36rem,calc(100%-2rem))] overflow-hidden rounded-xl border border-line bg-surface p-0 text-fg shadow-elev-2 backdrop:bg-black/40"
       >
@@ -87,13 +89,13 @@ export function ToolSearch() {
             aria-controls="tool-search-results"
             aria-autocomplete="list"
             aria-activedescendant={results[current] ? `tool-search-${results[current].id}` : undefined}
-            aria-label="Search tools"
-            placeholder="Search tools — e.g. compress, iPhone photo, password"
+            aria-label={t("Search tools")}
+            placeholder={t("Search tools — e.g. compress, iPhone photo, password")}
             className="h-14 w-full bg-transparent text-base text-fg outline-none placeholder:text-fg-subtle focus-visible:outline-none"
           />
         </div>
         {results.length ? (
-          <ul id="tool-search-results" role="listbox" aria-label="Tools" className="max-h-[min(26rem,60vh)] overflow-y-auto p-2">
+          <ul id="tool-search-results" role="listbox" aria-label={t("Tools")} className="max-h-[min(26rem,60vh)] overflow-y-auto p-2">
             {results.map((tool, i) => {
               const Icon = tool.icon;
               return (
@@ -110,18 +112,18 @@ export function ToolSearch() {
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={clsx("block text-sm font-medium", i === current ? "text-brand-text" : "text-fg")}>{tool.name}</span>
-                    <span className="block truncate text-xs text-fg-muted">{tool.description}</span>
+                    <span className={clsx("block text-sm font-medium", i === current ? "text-brand-text" : "text-fg")}>{t(tool.name)}</span>
+                    <span className="block truncate text-xs text-fg-muted">{t(tool.description)}</span>
                   </span>
-                  <span className="hidden shrink-0 text-[11px] text-fg-subtle sm:block">{TOOL_CATEGORIES.find((c) => c.id === tool.category)?.name}</span>
-                  {i === current && <CornerDownLeft className="hidden size-3.5 shrink-0 text-fg-subtle sm:block" aria-hidden="true" />}
+                  <span className="hidden shrink-0 text-[11px] text-fg-subtle sm:block">{t(TOOL_CATEGORIES.find((c) => c.id === tool.category)!.name)}</span>
+                  {i === current && <CornerDownLeft className="hidden size-3.5 shrink-0 text-fg-subtle sm:block rtl:-scale-x-100" aria-hidden="true" />}
                 </li>
               );
             })}
           </ul>
         ) : (
           <p className="px-4 py-10 text-center text-sm text-fg-muted" role="status">
-            No tools match &ldquo;{query.trim()}&rdquo;.
+            {t("No tools match “{query}”.", { query: query.trim() })}
           </p>
         )}
       </dialog>

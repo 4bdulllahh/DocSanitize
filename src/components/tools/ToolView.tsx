@@ -2,10 +2,18 @@
 
 import { Workspace } from "@/components/workspace/Workspace";
 import { extensionsFor } from "@/lib/files";
+import { useEffect } from "react";
+import { siteConfig } from "@/config/site";
 import { getTool, TOOL_CATEGORIES } from "@/lib/tools";
+import { useT } from "@/store/locale";
 
 export function ToolView({ toolId }: { toolId: string }) {
   const tool = getTool(toolId);
+  const t = useT();
+  // The prerendered <title> is English; follow the interface language.
+  useEffect(() => {
+    if (tool) document.title = `${t(tool.name)} · ${siteConfig.name}`;
+  }, [t, tool]);
   if (!tool) return null;
 
   const Icon = tool.icon;
@@ -19,21 +27,21 @@ export function ToolView({ toolId }: { toolId: string }) {
             <Icon className="size-5" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium tracking-wider text-fg-subtle uppercase">{category?.name}</p>
-            <h1 className="text-lg leading-tight font-semibold text-fg">{tool.name}</h1>
+            <p className="text-[11px] font-medium tracking-wider text-fg-subtle uppercase">{category && t(category.name)}</p>
+            <h1 className="text-lg leading-tight font-semibold text-fg">{t(tool.name)}</h1>
           </div>
-          <div className="hidden flex-wrap justify-end gap-1.5 md:flex">
+          <div className="hidden flex-wrap justify-end gap-1.5 md:flex" dir="ltr">
             {extensionsFor(tool.accepts).map((ext) => (
               <span
                 key={ext}
                 className="rounded border border-line bg-canvas px-1.5 py-0.5 font-mono text-[11px] text-fg-muted"
               >
-                {ext}
+                {t.dynamic(ext)}
               </span>
             ))}
           </div>
         </div>
-        <p className="mt-2 text-sm text-fg-muted">{tool.description}</p>
+        <p className="mt-2 text-sm text-fg-muted">{t(tool.description)}</p>
       </div>
 
       <Workspace tool={tool} />

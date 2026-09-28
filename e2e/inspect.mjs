@@ -202,7 +202,7 @@ await links.waitFor({ timeout: 60_000 });
 const linkText = await links.innerText();
 assert.ok(linkText.includes("The text shows “www.mybank.com”, but the link goes to evil.test."), linkText);
 assert.ok(linkText.includes("A shortened link"), linkText);
-assert.ok(linkText.includes("QR code: web link") && linkText.includes("Uses “paypal” in the address, but the site is example.xyz"), linkText);
+assert.ok(linkText.includes("QR code: Web link") && linkText.includes("Uses “paypal” in the address, but the site is example.xyz"), linkText);
 await page.screenshot({ path: "m14-02-check-links.png" });
 await page.getByRole("tab", { name: /qr\.png/ }).click();
 await page.getByText("QR code: wi-fi network").waitFor();

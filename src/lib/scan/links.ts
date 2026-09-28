@@ -1,4 +1,5 @@
 import type { Severity } from "./findings";
+import { msg } from "@/i18n/msg";
 
 /*
  * Warning signs in web addresses and QR codes, judged from the address itself. Nothing is looked
@@ -127,57 +128,57 @@ export function analyzeUrl(raw: string, shown?: string): UrlVerdict {
   try {
     url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`);
   } catch {
-    return { severity: "medium", flags: [{ severity: "medium", text: "Not a valid web address." }], host: null, domain: null };
+    return { severity: "medium", flags: [{ severity: "medium", text: msg("Not a valid web address.") }], host: null, domain: null };
   }
   const scheme = url.protocol.replace(/:$/, "").toLowerCase();
   if (["javascript", "data", "vbscript", "file"].includes(scheme)) {
-    add("high", scheme === "file" ? "Opens a file on your computer or network instead of a web page." : "Runs code or loads hidden content instead of opening a web page.");
+    add("high", scheme === "file" ? msg("Opens a file on your computer or network instead of a web page.") : msg("Runs code or loads hidden content instead of opening a web page."));
     return { severity: "high", flags, host: null, domain: null };
   }
-  if (scheme !== "http" && scheme !== "https") return { severity: "info", flags: [{ severity: "info", text: `A “${scheme}:” link, not a web page.` }], host: null, domain: null };
+  if (scheme !== "http" && scheme !== "https") return { severity: "info", flags: [{ severity: "info", text: msg`A “${scheme}:” link, not a web page.` }], host: null, domain: null };
 
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   const unicode = hostname.split(".").map(punycodeToUnicode).join(".");
   const domain = registrableDomain(unicode);
-  if (scheme === "http") add("medium", "Not encrypted (http, not https): what you send can be read or changed on the way.");
-  if (url.username || url.password || /^[a-z]+:\/\/[^/]*@/i.test(raw)) add("high", `The part before “@” is only decoration: this link goes to ${unicode}.`);
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":")) add("high", "Goes to a bare IP address instead of a named website.");
+  if (scheme === "http") add("medium", msg("Not encrypted (http, not https): what you send can be read or changed on the way."));
+  if (url.username || url.password || /^[a-z]+:\/\/[^/]*@/i.test(raw)) add("high", msg`The part before “@” is only decoration: this link goes to ${unicode}.`);
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":")) add("high", msg("Goes to a bare IP address instead of a named website."));
   if (hostname.split(".").some((l) => l.startsWith("xn--"))) {
     const scripts = SCRIPTS.filter(([, re]) => re.test(unicode)).map(([name]) => name);
-    add(scripts.length > 1 ? "high" : "medium", scripts.length > 1 ? `Mixes ${scripts.join(" and ")} letters, a way to imitate another site: “${unicode}”.` : `Uses international characters: “${unicode}”. Check it's the site you expect.`);
+    add(scripts.length > 1 ? "high" : "medium", scripts.length > 1 ? msg`Mixes ${scripts.join(" and ")} letters, a way to imitate another site: “${unicode}”.` : msg`Uses international characters: “${unicode}”. Check it's the site you expect.`);
   }
-  if (SHORTENERS.has(domain) || SHORTENERS.has(hostname)) add("medium", "A shortened link: where it really goes is hidden until it's opened.");
+  if (SHORTENERS.has(domain) || SHORTENERS.has(hostname)) add("medium", msg("A shortened link: where it really goes is hidden until it's opened."));
   const labels = unicode.toLowerCase().split(".");
   const name = domain.split(".")[0];
   for (const [brand, owned] of Object.entries(BRANDS)) {
     if (owned.includes(domain) || owned.some((d) => unicode.toLowerCase().endsWith(`.${d}`))) continue;
     const inHost = labels.some((l) => l === brand || l.split(/[-_]/).includes(brand)) || (name !== brand && name.includes(brand));
     if (inHost) {
-      add("high", `Uses “${brand}” in the address, but the site is ${domain}, which doesn't belong to ${brand}.`);
+      add("high", msg`Uses “${brand}” in the address, but the site is ${domain}, which doesn't belong to ${brand}.`);
       break;
     }
   }
   const tld = labels[labels.length - 1];
-  if (FILE_LIKE_TLDS.has(tld)) add("medium", `Ends in “.${tld}”, which looks like a file name but is a website.`);
-  else if (CHEAP_TLDS.has(tld)) add("info", `A “.${tld}” address: cheap domains like this are often used for spam.`);
-  if (url.port && url.port !== "80" && url.port !== "443") add("medium", `Uses an unusual port (${url.port}).`);
-  if (labels.length > 5) add("info", "Has many subdomains, which can bury the real site name.");
+  if (FILE_LIKE_TLDS.has(tld)) add("medium", msg`Ends in “.${tld}”, which looks like a file name but is a website.`);
+  else if (CHEAP_TLDS.has(tld)) add("info", msg`A “.${tld}” address: cheap domains like this are often used for spam.`);
+  if (url.port && url.port !== "80" && url.port !== "443") add("medium", msg`Uses an unusual port (${url.port}).`);
+  if (labels.length > 5) add("info", msg("Has many subdomains, which can bury the real site name."));
   for (const [key, value] of url.searchParams) {
     if (/^(url|redirect|redirect_uri|next|target|dest|destination|u|r|continue|return|goto|link)$/i.test(key) && /^https?:\/\//i.test(value)) {
       try {
         const onward = new URL(value).hostname;
-        if (registrableDomain(onward) !== domain) add("medium", `Passes you on to another site: ${onward}.`);
+        if (registrableDomain(onward) !== domain) add("medium", msg`Passes you on to another site: ${onward}.`);
       } catch {
         // Not a usable address.
       }
       break;
     }
   }
-  if (raw.length > 300) add("info", "A very long address, which makes it hard to see where it goes.");
+  if (raw.length > 300) add("info", msg("A very long address, which makes it hard to see where it goes."));
   if (shown) {
     const match = /(?:https?:\/\/)?((?:[\p{L}\p{N}-]+\.)+\p{L}{2,})/u.exec(shown.trim());
     if (match && registrableDomain(match[1]) !== domain) {
-      add("high", `The text shows “${match[1]}”, but the link goes to ${unicode}.`);
+      add("high", msg`The text shows “${match[1]}”, but the link goes to ${unicode}.`);
     }
   }
   return { severity: worst(flags), flags, host: unicode, domain };
@@ -202,7 +203,7 @@ export function describeQr(raw: string): QrContent {
   const lower = text.toLowerCase();
   if (/^https?:\/\//.test(lower) || /^www\.[^\s]+\.[a-z]{2,}/.test(lower)) {
     const verdict = analyzeUrl(text);
-    return { kind: "url", label: "Web link", details: [text], url: text, flags: verdict.flags };
+    return { kind: "url", label: msg("Web link"), details: [text], url: text, flags: verdict.flags };
   }
   if (lower.startsWith("wifi:")) {
     const body = text.slice(5);
@@ -210,25 +211,25 @@ export function describeQr(raw: string): QrContent {
     return {
       kind: "wifi",
       label: "Wi-Fi network",
-      details: [`Network: ${field(body, "S") ?? "?"}`, `Security: ${security}`, ...(field(body, "P") ? ["Includes the password"] : [])],
-      flags: /^(nopass|none|)$/i.test(security) ? [{ severity: "medium", text: "An open network: others on it can see unencrypted traffic." }] : [],
+      details: [`Network: ${field(body, "S") ?? "?"}`, `Security: ${security}`, ...(field(body, "P") ? [msg("Includes the password")] : [])],
+      flags: /^(nopass|none|)$/i.test(security) ? [{ severity: "medium", text: msg("An open network: others on it can see unencrypted traffic.") }] : [],
     };
   }
   if (lower.startsWith("mailto:")) return { kind: "email", label: "Email", details: [text.slice(7).split("?")[0]], flags: [] };
-  if (lower.startsWith("tel:")) return { kind: "phone", label: "Phone call", details: [text.slice(4)], flags: [{ severity: "info", text: "Calls this number when opened." }] };
-  if (lower.startsWith("smsto:") || lower.startsWith("sms:")) return { kind: "sms", label: "Text message", details: [text.replace(/^smsto?:/i, "").replace(/:/, " — ")], flags: [{ severity: "medium", text: "Prepares a text message; premium-rate numbers can cost money." }] };
+  if (lower.startsWith("tel:")) return { kind: "phone", label: msg("Phone call"), details: [text.slice(4)], flags: [{ severity: "info", text: msg("Calls this number when opened.") }] };
+  if (lower.startsWith("smsto:") || lower.startsWith("sms:")) return { kind: "sms", label: msg("Text message"), details: [text.replace(/^smsto?:/i, "").replace(/:/, " — ")], flags: [{ severity: "medium", text: msg("Prepares a text message; premium-rate numbers can cost money.") }] };
   if (lower.startsWith("begin:vcard") || lower.startsWith("mecard:")) {
     const name = /\nFN:(.*)/i.exec(text)?.[1] ?? field(text.slice(7), "N") ?? "Contact";
-    return { kind: "contact", label: "Contact card", details: [name.trim()], flags: [] };
+    return { kind: "contact", label: msg("Contact card"), details: [name.trim()], flags: [] };
   }
-  if (lower.startsWith("geo:")) return { kind: "location", label: "Map location", details: [text.slice(4)], flags: [] };
+  if (lower.startsWith("geo:")) return { kind: "location", label: msg("Map location"), details: [text.slice(4)], flags: [] };
   if (lower.startsWith("otpauth://")) {
-    return { kind: "authenticator", label: "Two-factor login code", details: [decodeURIComponent(text.replace(/^otpauth:\/\/[^/]+\//i, "").split("?")[0])], flags: [{ severity: "high", text: "Adds a login code to your authenticator app. Only scan this from the website you're setting up; anyone with this code can generate your codes." }] };
+    return { kind: "authenticator", label: msg("Two-factor login code"), details: [decodeURIComponent(text.replace(/^otpauth:\/\/[^/]+\//i, "").split("?")[0])], flags: [{ severity: "high", text: msg("Adds a login code to your authenticator app. Only scan this from the website you're setting up; anyone with this code can generate your codes.") }] };
   }
   if (/^(bitcoin|ethereum|litecoin|monero|upi):/i.test(text) || /^BCD\r?\n/.test(text)) {
     const epc = /^BCD\r?\n/.test(text) ? text.split(/\r?\n/) : null;
     const details = epc ? [`To: ${epc[5] ?? "?"}`, `Account: ${epc[6] ?? "?"}`, ...(epc[7] ? [`Amount: ${epc[7]}`] : [])] : [text.split("?")[0]];
-    return { kind: "payment", label: epc ? "Bank transfer" : "Payment request", details, flags: [{ severity: "high", text: "Starts a payment. Check the recipient before paying; fake payment codes are stuck over real ones." }] };
+    return { kind: "payment", label: epc ? msg("Bank transfer") : msg("Payment request"), details, flags: [{ severity: "high", text: msg("Starts a payment. Check the recipient before paying; fake payment codes are stuck over real ones.") }] };
   }
   return { kind: "text", label: "Text", details: [text.length > 300 ? `${text.slice(0, 300)}…` : text], flags: [] };
 }

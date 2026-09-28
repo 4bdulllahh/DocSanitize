@@ -1,3 +1,4 @@
+import { msg } from "@/i18n/msg";
 export interface PasswordStrength {
   /** 0 (too weak) to 4 (very strong). */
   score: 0 | 1 | 2 | 3 | 4;
@@ -12,12 +13,12 @@ const COMMON = new Set([
   "master", "shadow", "trustno1", "111111", "000000", "secret", "changeme", "p@ssw0rd", "login", "starwars",
 ]);
 
-const LABELS = ["Too weak", "Weak", "Fair", "Strong", "Very strong"] as const;
+const LABELS = [msg("Too weak"), "Weak", "Fair", "Strong", msg("Very strong")] as const;
 
 /** A rough entropy estimate: character variety × length, discounted for repeats and runs like "1234". */
 export function passwordStrength(password: string): PasswordStrength {
   if (!password) return { score: 0, label: "" };
-  if (COMMON.has(password.toLowerCase())) return { score: 0, label: LABELS[0], hint: "This is one of the most common passwords." };
+  if (COMMON.has(password.toLowerCase())) return { score: 0, label: LABELS[0], hint: msg("This is one of the most common passwords.") };
 
   let pool = 0;
   if (/[a-z]/.test(password)) pool += 26;
@@ -40,9 +41,9 @@ export function passwordStrength(password: string): PasswordStrength {
   const score = bits < 28 ? 0 : bits < 40 ? 1 : bits < 60 ? 2 : bits < 80 ? 3 : 4;
   let hint: string | undefined;
   if (score < 3) {
-    if (chars.length < 12) hint = "Use at least 12 characters.";
-    else if (pool <= 36) hint = "Mix upper and lower case, numbers or symbols.";
-    else hint = "Avoid repeated characters and runs like 1234.";
+    if (chars.length < 12) hint = msg("Use at least 12 characters.");
+    else if (pool <= 36) hint = msg("Mix upper and lower case, numbers or symbols.");
+    else hint = msg("Avoid repeated characters and runs like 1234.");
   }
   return { score: score as PasswordStrength["score"], label: LABELS[score], hint };
 }

@@ -12,8 +12,9 @@ import {
   type TextPage,
 } from "./text-layout";
 import { writeXlsx, type CellValue } from "./xlsx";
+import { msg } from "@/i18n/msg";
 
-export const NO_TEXT = "This PDF has no selectable text — it's probably a scan or made of images. Run OCR PDF on it first to make its text readable.";
+export const NO_TEXT = msg("This PDF has no selectable text — it's probably a scan or made of images. Run OCR PDF on it first to make its text readable.");
 
 export type PreviewBlock = { kind: "h1" | "h2" | "h3" | "li" | "p"; text: string };
 

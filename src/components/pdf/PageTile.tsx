@@ -40,7 +40,7 @@ export function PageTile({ doc, index, selected, dimmed, pressed, label, badge, 
       <PageThumbnail doc={doc} pageNumber={index + 1} rotation={rotation} width={120} height={156} className={clsx("mx-auto", dimmed && "opacity-40")} />
       <span className="mt-1.5 block text-center text-xs font-semibold text-fg tabular-nums">{index + 1}</span>
       {selected && (
-        <span className="absolute top-3 right-3 flex size-5 items-center justify-center rounded-full bg-brand text-brand-fg">
+        <span className="absolute top-3 end-3 flex size-5 items-center justify-center rounded-full bg-brand text-brand-fg">
           <Check className="size-3.5" aria-hidden="true" />
         </span>
       )}

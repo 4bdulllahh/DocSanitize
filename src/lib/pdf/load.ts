@@ -1,12 +1,13 @@
 import { PDFArray, PDFDict, PDFDocument, PDFRef, PDFStream, type PDFObject } from "@cantoo/pdf-lib";
 import { ProcessingError } from "../errors";
+import { msg } from "@/i18n/msg";
 
 /**
  * Load a PDF for editing. `updateMetadata: false` stops the library from stamping its own
  * Producer/ModDate — DocSanitize never adds metadata to a user's file.
  */
 export async function loadPdf(bytes: Uint8Array, name?: string): Promise<PDFDocument> {
-  const label = name ? `“${name}”` : "This PDF";
+  const label = name ? `“${name}”` : msg("This PDF");
   let doc: PDFDocument;
   try {
     doc = await PDFDocument.load(bytes, { updateMetadata: false, throwOnInvalidObject: false });

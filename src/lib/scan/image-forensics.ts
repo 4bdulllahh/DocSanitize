@@ -1,6 +1,7 @@
 import exifr from "exifr";
 import { auditMetadata, type MetadataEntry } from "../metadata";
 import { plural, type Finding } from "./findings";
+import { msg } from "@/i18n/msg";
 
 /*
  * Signs of how a photo was made and changed: editing apps, AI generators and Content Credentials
@@ -87,43 +88,43 @@ export async function inspectImage(bytes: Uint8Array): Promise<ImageForensics> {
   // AI generators.
   const aiSigns: string[] = [];
   for (const e of entries) {
-    if (AI_SOURCE.test(e.value)) aiSigns.push(`${e.label}: ${/composite/i.test(e.value) ? "partly made with AI" : "made with AI"}`);
-    else if (AI_KEYS.has(e.key.toLowerCase())) aiSigns.push(`Generator settings (“${e.key}”): ${e.value.length > 140 ? `${e.value.slice(0, 140)}…` : e.value}`);
+    if (AI_SOURCE.test(e.value)) aiSigns.push(`${e.label}: ${/composite/i.test(e.value) ? msg("partly made with AI") : msg("made with AI")}`);
+    else if (AI_KEYS.has(e.key.toLowerCase())) aiSigns.push(msg`Generator settings (“${e.key}”): ${e.value.length > 140 ? `${e.value.slice(0, 140)}…` : e.value}`);
     else if (/software|creatortool|make|model|description|comment|artist/i.test(e.key) && AI_TOOLS.test(e.value)) aiSigns.push(`${e.label}: ${e.value}`);
   }
-  if (c2pa && AI_SOURCE.test(head)) aiSigns.push("Content Credentials say it was made or changed with AI");
-  if (aiSigns.length) add({ id: "ai", severity: "high", title: "Marked as made with AI", detail: "The file carries labels that AI image tools write. Without them, AI images are hard to tell apart; their absence proves nothing.", items: [...new Set(aiSigns)] });
+  if (c2pa && AI_SOURCE.test(head)) aiSigns.push(msg("Content Credentials say it was made or changed with AI"));
+  if (aiSigns.length) add({ id: "ai", severity: "high", title: msg("Marked as made with AI"), detail: msg("The file carries labels that AI image tools write. Without them, AI images are hard to tell apart; their absence proves nothing."), items: [...new Set(aiSigns)] });
 
-  if (c2pa) add({ id: "c2pa", severity: "info", title: "Has Content Credentials (C2PA)", detail: "A signed record of how the picture was made and edited. You can read and verify it at contentcredentials.org/verify (that uploads the file, so only for files you're happy to share)." });
+  if (c2pa) add({ id: "c2pa", severity: "info", title: msg("Has Content Credentials (C2PA)"), detail: msg("A signed record of how the picture was made and edited. You can read and verify it at contentcredentials.org/verify (that uploads the file, so only for files you're happy to share).") });
 
   // Editing software and history.
   const software = matching((e) => /^(software|creatortool|xmp:creatortool|processingsoftware|hostcomputer)$/i.test(e.key) || /softwareAgent/i.test(e.key)).map((e) => e.value);
   const editors = [...new Set(software.filter((s) => EDITORS.test(s)))];
   const history = matching((e) => /History/i.test(e.key)).map((e) => `${e.label}: ${e.value}`);
   if (editors.length || history.length) {
-    add({ id: "edited", severity: "medium", title: editors.length ? `Edited with ${editors.join(", ")}` : "Has an editing history", detail: "Editing isn't suspicious in itself (phones and cameras adjust every photo), but it shows the file isn't straight from the camera.", items: history.slice(0, 30) });
+    add({ id: "edited", severity: "medium", title: editors.length ? msg`Edited with ${editors.join(", ")}` : msg("Has an editing history"), detail: msg("Editing isn't suspicious in itself (phones and cameras adjust every photo), but it shows the file isn't straight from the camera."), items: history.slice(0, 30) });
   } else if (software.length) {
-    add({ id: "software", severity: "info", title: `Saved by ${[...new Set(software)].join(", ")}` });
+    add({ id: "software", severity: "info", title: msg`Saved by ${[...new Set(software)].join(", ")}` });
   }
 
   // Dates.
   const taken = parseDate(value("DateTimeOriginal", "CreateDate", "photoshop:DateCreated", "xmp:CreateDate"));
   const modified = parseDate(value("ModifyDate", "DateTime", "xmp:ModifyDate", "xmp:MetadataDate"));
   if (taken && modified && modified.getTime() - taken.getTime() > 60_000) {
-    add({ id: "dates", severity: "medium", title: `Changed ${duration(modified.getTime() - taken.getTime())} after it was taken`, items: [`Taken: ${value("DateTimeOriginal", "CreateDate", "photoshop:DateCreated", "xmp:CreateDate")}`, `Last changed: ${value("ModifyDate", "DateTime", "xmp:ModifyDate", "xmp:MetadataDate")}`] });
+    add({ id: "dates", severity: "medium", title: msg`Changed ${duration(modified.getTime() - taken.getTime())} after it was taken`, items: [`Taken: ${value("DateTimeOriginal", "CreateDate", "photoshop:DateCreated", "xmp:CreateDate")}`, msg`Last changed: ${value("ModifyDate", "DateTime", "xmp:ModifyDate", "xmp:MetadataDate")}`] });
   }
 
   // Camera, location, extras.
   const make = value("Make");
   const model = value("Model");
-  if (make || model) add({ id: "camera", severity: "info", title: `Taken with ${model.toLowerCase().startsWith(make.toLowerCase()) ? model : `${make} ${model}`.trim()}` });
-  else if (!aiSigns.length) add({ id: "no-camera", severity: "info", title: "No camera details", detail: "Screenshots, downloaded images and files that were cleaned or re-saved by some apps have none." });
-  if (report.location) add({ id: "location", severity: "medium", title: "Records where it was taken", detail: `GPS position ${report.location.latitude.toFixed(5)}, ${report.location.longitude.toFixed(5)}. Sanitize Metadata removes it.` });
+  if (make || model) add({ id: "camera", severity: "info", title: msg`Taken with ${model.toLowerCase().startsWith(make.toLowerCase()) ? model : `${make} ${model}`.trim()}` });
+  else if (!aiSigns.length) add({ id: "no-camera", severity: "info", title: msg("No camera details"), detail: msg("Screenshots, downloaded images and files that were cleaned or re-saved by some apps have none.") });
+  if (report.location) add({ id: "location", severity: "medium", title: msg("Records where it was taken"), detail: msg`GPS position ${report.location.latitude.toFixed(5)}, ${report.location.longitude.toFixed(5)}. Sanitize Metadata removes it.` });
   const trailer = entries.find((e) => e.key === "Trailer" || e.key === "MPF");
-  if (trailer) add({ id: "extra-images", severity: "medium", title: "Extra data stored with the picture", detail: trailer.value });
+  if (trailer) add({ id: "extra-images", severity: "medium", title: msg("Extra data stored with the picture"), detail: trailer.value });
 
   const quality = jpegQuality(bytes);
-  if (quality !== null) add({ id: "quality", severity: "info", title: `JPEG quality about ${quality}%`, detail: quality < 75 ? "Low quality: the picture has probably been compressed again, e.g. by a messaging app or social network, which also strips its details." : undefined });
+  if (quality !== null) add({ id: "quality", severity: "info", title: msg`JPEG quality about ${quality}%`, detail: quality < 75 ? msg("Low quality: the picture has probably been compressed again, e.g. by a messaging app or social network, which also strips its details.") : undefined });
 
   let thumbnail: Uint8Array | null = null;
   try {

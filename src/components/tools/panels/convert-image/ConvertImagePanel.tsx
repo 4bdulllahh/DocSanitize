@@ -14,6 +14,7 @@ import type { ToolPanelProps } from "../registry";
 import { FidelityNote } from "../shared/ConversionParts";
 import { Segmented, Slider } from "../shared/controls";
 import { OutputCard, PRIMARY, type OutputFile } from "../shared/OutputCard";
+import { useT } from "@/store/locale";
 
 const FORMATS: { id: ImageFormat; label: string }[] = [
   { id: "jpeg", label: "JPG" },
@@ -22,6 +23,7 @@ const FORMATS: { id: ImageFormat; label: string }[] = [
 
 /** Converts every open image (HEIC, AVIF, WebP, PNG, JPG) to JPG or PNG. */
 export default function ConvertImagePanel({ files }: ToolPanelProps) {
+  const t = useT();
   const [format, setFormat] = useState<ImageFormat>("jpeg");
   const [quality, setQuality] = useState(90);
   const [progress, setProgress] = useState<number | null>(null);
@@ -60,7 +62,7 @@ export default function ConvertImagePanel({ files }: ToolPanelProps) {
     if (failedCount) {
       toast({
         tone: done.length ? "warning" : "error",
-        title: `${failedCount} image${failedCount === 1 ? "" : "s"} couldn't be converted`,
+        title: t.plural(failedCount, "{n} image couldn't be converted", "{n} images couldn't be converted"),
         description: Object.values(failed)[0],
       });
     }
@@ -71,12 +73,12 @@ export default function ConvertImagePanel({ files }: ToolPanelProps) {
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Images to convert">
+      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Images to convert")}>
         <header className="border-b border-line px-5 py-4">
           <h2 className="font-semibold text-fg">
-            {files.length} image{files.length === 1 ? "" : "s"}
+            {t.plural(files.length, "{n} image", "{n} images")}
           </h2>
-          <p className="mt-0.5 text-sm text-fg-muted">Every open image is converted. Add more by dropping them anywhere.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">{t("Every open image is converted. Add more by dropping them anywhere.")}</p>
         </header>
         <ul className="divide-y divide-line">
           {files.map((f, i) => (
@@ -89,26 +91,25 @@ export default function ConvertImagePanel({ files }: ToolPanelProps) {
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <ImageDown className="size-4 text-brand-text" aria-hidden="true" />
-            Convert
+            {t("Convert")}
           </h2>
-          <Segmented label="Format" value={format} onChange={change(setFormat)} options={FORMATS} />
+          <Segmented label={t("Format")} value={format} onChange={change(setFormat)} options={FORMATS} />
           {format === "jpeg" ? (
-            <Slider label="Quality" value={quality} min={50} max={100} step={5} format={(v) => `${v}%`} onChange={change(setQuality)} />
+            <Slider label={t("Quality")} value={quality} min={50} max={100} step={5} format={(v) => `${v}%`} onChange={change(setQuality)} />
           ) : (
-            <p className="mt-3 text-xs text-fg-subtle">PNG is lossless and keeps transparency, but files are much larger.</p>
+            <p className="mt-3 text-xs text-fg-subtle">{t("PNG is lossless and keeps transparency, but files are much larger.")}</p>
           )}
           <FidelityNote>
-            Photos are turned the right way up. Location, camera and date details aren&apos;t copied to the new files; only the colour profile is
-            kept, so colours look the same.
+            {t("Photos are turned the right way up. Location, camera and date details aren't copied to the new files; only the colour profile is kept, so colours look the same.")}
           </FidelityNote>
           <button type="button" onClick={convert} disabled={busy || files.length === 0} className={clsx(PRIMARY, "mt-4 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ImageDown className="size-4" aria-hidden="true" />}
-            {busy ? `Converting ${progress + 1} of ${files.length}…` : `Convert ${files.length === 1 ? "to" : `${files.length} images to`} ${label}`}
+            {busy ? t("Converting {done} of {count}…", { done: progress + 1, count: files.length }) : files.length === 1 ? t("Convert to {format}", { format: label }) : t("Convert {count} images to {format}", { count: files.length, format: label })}
           </button>
         </section>
         {outputs && (
           <OutputCard
-            title={`${outputs.length} image${outputs.length === 1 ? "" : "s"} converted to ${label}`}
+            title={t.plural(outputs.length, "{n} image converted to {format}", "{n} images converted to {format}", { format: label })}
             outputs={outputs}
             zipName={`images-${label.toLowerCase()}.zip`}
             replaceFileId={outputs.length === 1 && files.length === 1 ? files[0].id : undefined}
@@ -120,6 +121,7 @@ export default function ConvertImagePanel({ files }: ToolPanelProps) {
 }
 
 export function ImageRow({ file, working, error }: { file: WorkspaceFile; working: boolean; error?: string }) {
+  const t = useT();
   const imgRef = useRef<HTMLImageElement>(null);
   const [unreadable, setUnreadable] = useState(false);
   useImageSource(imgRef, file.file, () => setUnreadable(true));
@@ -148,7 +150,7 @@ export function ImageRow({ file, working, error }: { file: WorkspaceFile; workin
           </p>
         )}
       </div>
-      {working && <LoaderCircle className="size-4 animate-spin text-fg-subtle" aria-label="Converting" />}
+      {working && <LoaderCircle className="size-4 animate-spin text-fg-subtle" aria-label={t("Converting")} />}
     </li>
   );
 }

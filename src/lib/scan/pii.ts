@@ -1,3 +1,4 @@
+import { msg } from "@/i18n/msg";
 /*
  * Finds personal data in text: email addresses, phone numbers, payment card numbers (Luhn
  * checked), IBANs (checksum checked), US Social Security and UK National Insurance numbers, IP
@@ -16,14 +17,14 @@ export interface PiiMatch {
 }
 
 export const PII_LABELS: Record<PiiKind, { name: string; plural: string }> = {
-  email: { name: "Email address", plural: "Email addresses" },
-  phone: { name: "Phone number", plural: "Phone numbers" },
-  card: { name: "Payment card number", plural: "Payment card numbers" },
-  iban: { name: "Bank account (IBAN)", plural: "Bank accounts (IBAN)" },
-  ssn: { name: "US Social Security number", plural: "US Social Security numbers" },
-  nino: { name: "UK National Insurance number", plural: "UK National Insurance numbers" },
+  email: { name: msg("Email address"), plural: msg("Email addresses") },
+  phone: { name: msg("Phone number"), plural: msg("Phone numbers") },
+  card: { name: msg("Payment card number"), plural: msg("Payment card numbers") },
+  iban: { name: msg("Bank account (IBAN)"), plural: msg("Bank accounts (IBAN)") },
+  ssn: { name: msg("US Social Security number"), plural: msg("US Social Security numbers") },
+  nino: { name: msg("UK National Insurance number"), plural: msg("UK National Insurance numbers") },
   ip: { name: "IP address", plural: "IP addresses" },
-  dob: { name: "Date of birth", plural: "Dates of birth" },
+  dob: { name: msg("Date of birth"), plural: msg("Dates of birth") },
 };
 
 /** Checked first; a later kind can't overlap an earlier match. */

@@ -26,6 +26,9 @@ import { Inspector } from "./Inspector";
 import { DEFAULTS, STAYS_ACTIVE, TOOL_GROUPS, type Defaults, type Tool } from "./model";
 import { Toolbar, ZOOMS } from "./Toolbar";
 import { useEditorState } from "./useEditorState";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import { Rich } from "@/i18n/Rich";
 
 export default function EditPanel({ file }: ToolPanelProps) {
   const pdf = usePdfDocument(file.file);
@@ -38,6 +41,7 @@ const SHORTCUTS = Object.fromEntries(TOOL_GROUPS.flat().flatMap((t) => (t.key ? 
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const state = useEditorState(`${file.id}:${file.revision}`);
   const [tool, setTool] = useState<Tool>("select");
   const [defaults, setDefaults] = useState<Defaults>(DEFAULTS);
@@ -110,7 +114,7 @@ function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
       state.addImage(key, { bytes, format, url: URL.createObjectURL(blob), ...size });
       placeImage(key, size);
     } catch (error) {
-      toast({ tone: "error", title: "Couldn't use that image", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't use that image"), description: errorMessage(error) });
     }
   };
   const addSignature = (asset: SignatureAsset) => {
@@ -175,7 +179,7 @@ function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
       updateFile(file.id, { status: "idle" });
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Saving failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Saving failed"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -188,7 +192,7 @@ function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
-      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Document">
+      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Document")}>
         <Toolbar
           tool={tool}
           onTool={chooseTool}
@@ -205,15 +209,15 @@ function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
           zoom={zoom}
           onZoom={(z) => ZOOMS.includes(z) && setZoom(z)}
         />
-        {doc.numPages > 1 && <PageStrip doc={doc} current={current} onSelect={goTo} counts={counts} noun="change" />}
+        {doc.numPages > 1 && <PageStrip doc={doc} current={current} onSelect={goTo} counts={counts} countLabel={(n) => t.plural(n, "{n} change", "{n} changes")} />}
         <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm">
-          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => goTo(current - 1)} aria-label="Previous page">
+          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => goTo(current - 1)} aria-label={t("Previous page")}>
             <ChevronLeft className="size-4" />
           </button>
           <span className="text-fg-muted tabular-nums">
-            Page {current + 1} of {doc.numPages}
+            {t("Page {page} of {count}", { page: current + 1, count: doc.numPages })}
           </span>
-          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => goTo(current + 1)} aria-label="Next page">
+          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => goTo(current + 1)} aria-label={t("Next page")}>
             <ChevronRight className="size-4" />
           </button>
         </div>
@@ -260,38 +264,41 @@ function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
           focusNote={selected?.kind === "note" && !selected.text}
         />
 
-        <section className="rounded-xl border border-line bg-surface p-5" aria-label="Save">
+        <section className="rounded-xl border border-line bg-surface p-5" aria-label={t("Save")}>
           <Segmented
-            label="Save as"
+            label={t("Save as")}
             value={flatten ? "flatten" : "editable"}
             onChange={(v) => {
               setFlatten(v === "flatten");
               setOutput(null);
             }}
             options={[
-              { id: "flatten", label: "Flattened" },
-              { id: "editable", label: "Editable" },
+              { id: "flatten", label: t("Flattened") },
+              { id: "editable", label: t("Editable") },
             ]}
           />
           <p className="mt-2 text-xs text-fg-subtle">
             {flatten
-              ? "Everything becomes part of the page, and looks the same in every PDF reader."
-              : "Added items stay separate annotations that other PDF apps can move, change or delete."}{" "}
-            Edited text and white-out are always part of the page; notes always stay comments.
+              ? t("Everything becomes part of the page, and looks the same in every PDF reader.")
+              : t("Added items stay separate annotations that other PDF apps can move, change or delete.")}{" "}
+            {t("Edited text and white-out are always part of the page; notes always stay comments.")}
           </p>
           <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-sm text-fg-muted">
             {objects.length === 0 ? (
-              "No changes yet"
+              t("No changes yet")
             ) : (
               <>
-                <span className="font-semibold text-fg">{objects.length}</span> change{objects.length === 1 ? "" : "s"} on {pages.length === 1 ? "page" : "pages"} {formatPageRanges(pages)}
+                <Rich
+                  text={pages.length === 1 ? t.plural(objects.length, "{count} change on page {pages}", "{count} changes on page {pages}", { pages: formatPageRanges(pages) }) : t.plural(objects.length, "{count} change on pages {pages}", "{count} changes on pages {pages}", { pages: formatPageRanges(pages) })}
+                  values={{ count: <span className="font-semibold text-fg">{objects.length}</span> }}
+                />
               </>
             )}
           </p>
-          {emptyNotes > 0 && <p className="mt-2 text-xs text-fg-subtle">Notes without text are left out.</p>}
+          {emptyNotes > 0 && <p className="mt-2 text-xs text-fg-subtle">{t("Notes without text are left out.")}</p>}
           <button type="button" onClick={save} disabled={busy || objects.length === 0} className={clsx(PRIMARY, "mt-4 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Save className="size-4" aria-hidden="true" />}
-            {busy ? "Saving…" : "Save PDF"}
+            {busy ? t("Saving…") : t("Save PDF")}
           </button>
         </section>
 
@@ -299,16 +306,16 @@ function Editor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
           <section className="rounded-xl border border-warning/40 bg-warning-soft p-4 text-sm" aria-live="polite">
             <p className="flex items-center gap-2 font-medium text-fg">
               <TriangleAlert className="size-4 text-warning" aria-hidden="true" />
-              Please check
+              {t("Please check")}
             </p>
-            <ul className="mt-2 list-disc space-y-1 pl-9 text-fg-muted">
+            <ul className="mt-2 list-disc space-y-1 ps-9 text-fg-muted">
               {output.warnings.map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>
           </section>
         )}
-        {output && <OutputCard title="Edited PDF ready" outputs={[output.file]} replaceFileId={file.id} />}
+        {output && <OutputCard title={t("Edited PDF ready")} outputs={[output.file]} replaceFileId={file.id} />}
       </div>
     </div>
   );

@@ -16,13 +16,15 @@ import { AnchorPicker, ColorField, Field, INPUT, Segmented, Slider, type AnchorI
 import { OutputCard, PRIMARY, SECONDARY } from "../shared/OutputCard";
 import { StampPreview, useStampPreview } from "../shared/StampPreview";
 import { DocGate, Layout, useApply, usePageField } from "../shared/toolkit";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 const COLORS = [
-  { value: "#6b7280", name: "Grey" },
-  { value: "#b91c1c", name: "Red" },
-  { value: "#263a81", name: "Navy" },
-  { value: "#111111", name: "Black" },
-  { value: "#047857", name: "Green" },
+  { value: "#6b7280", name: msg("Grey") },
+  { value: "#b91c1c", name: msg("Red") },
+  { value: "#263a81", name: msg("Navy") },
+  { value: "#111111", name: msg("Black") },
+  { value: "#047857", name: msg("Green") },
 ];
 
 // ---------------------------------------------------------------------------- Watermark
@@ -40,6 +42,7 @@ interface WatermarkImage {
 }
 
 function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const [kind, setKind] = useState<"text" | "image">("text");
   const [text, setText] = useState("CONFIDENTIAL");
   const [bold, setBold] = useState(true);
@@ -91,7 +94,7 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
       // PDFs embed PNG and JPEG only; WebP, HEIC and AVIF are converted to PNG first.
       converted = await asPngOrJpeg(new Uint8Array(await chosen.arrayBuffer()), chosen.type);
     } catch (error) {
-      toast({ tone: "error", title: "Couldn't read that image", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't read that image"), description: errorMessage(error) });
       return;
     }
     const { bytes, format } = converted;
@@ -110,24 +113,24 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
           <section className="rounded-xl border border-line bg-surface p-5">
             <h2 className="flex items-center gap-2 font-semibold text-fg">
               <Stamp className="size-4 text-brand-text" aria-hidden="true" />
-              Watermark
+              {t("Watermark")}
             </h2>
-            <Segmented label="Watermark" value={kind} onChange={set(setKind)} options={[{ id: "text", label: "Text" }, { id: "image", label: "Image" }]} />
+            <Segmented label={t("Watermark")} value={kind} onChange={set(setKind)} options={[{ id: "text", label: t("Text") }, { id: "image", label: t("Image") }]} />
             {kind === "text" ? (
               <>
-                <Field label="Text">
+                <Field label={t("Text")}>
                   <input value={text} onChange={(e) => set(setText)(e.target.value)} className={INPUT} maxLength={120} />
                 </Field>
-                <Slider label="Size" value={size} min={12} max={144} step={2} format={(v) => `${v} pt`} onChange={set(setSize)} />
+                <Slider label={t("Size")} value={size} min={12} max={144} step={2} format={(v) => `${v} pt`} onChange={set(setSize)} />
                 <label className="mt-3 flex cursor-pointer items-center gap-3 text-sm text-fg">
                   <input type="checkbox" checked={bold} onChange={(e) => set(setBold)(e.target.checked)} className="size-4 accent-brand" />
-                  Bold
+                  {t("Bold")}
                 </label>
-                <ColorField label="Colour" value={color} onChange={set(setColor)} presets={COLORS} />
+                <ColorField label={t("Colour")} value={color} onChange={set(setColor)} presets={COLORS} />
               </>
             ) : (
               <div className="mt-4">
-                <p className="text-sm font-medium text-fg">Image</p>
+                <p className="text-sm font-medium text-fg">{t("Image")}</p>
                 {image ? (
                   <div className="mt-1.5 flex items-center gap-3 rounded-lg border border-line p-2">
                     {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL */}
@@ -140,7 +143,7 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
                         setImage(null);
                         setOutput(null);
                       }}
-                      aria-label="Remove the image"
+                      aria-label={t("Remove the image")}
                       className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg"
                     >
                       <X className="size-4" />
@@ -149,16 +152,16 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
                 ) : (
                   <label className={clsx(SECONDARY, "mt-1.5 w-full cursor-pointer")}>
                     <ImagePlus className="size-4" aria-hidden="true" />
-                    Choose a PNG or JPEG
+                    {t("Choose a PNG or JPEG")}
                     <input type="file" accept={acceptFor(["image"])} onChange={chooseImage} className="sr-only" />
                   </label>
                 )}
-                <Slider label="Width" value={imageScale} min={10} max={100} step={5} format={(v) => `${v}% of the page`} onChange={set(setImageScale)} />
+                <Slider label={t("Width")} value={imageScale} min={10} max={100} step={5} format={(v) => t("{percent}% of the page", { percent: v })} onChange={set(setImageScale)} />
               </div>
             )}
-            <Slider label="Opacity" value={opacity} min={5} max={100} step={5} format={(v) => `${v}%`} onChange={set(setOpacity)} />
+            <Slider label={t("Opacity")} value={opacity} min={5} max={100} step={5} format={(v) => `${v}%`} onChange={set(setOpacity)} />
             <Segmented
-              label="Angle"
+              label={t("Angle")}
               value={angle}
               onChange={set(setAngle)}
               options={[
@@ -169,28 +172,28 @@ function Watermarker({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy
               ]}
             />
             <div className="flex items-end justify-between gap-4">
-              {!tile && <AnchorPicker label="Position" value={position} onChange={set(setPosition)} />}
+              {!tile && <AnchorPicker label={t("Position")} value={position} onChange={set(setPosition)} />}
               <label className={clsx("flex cursor-pointer items-center gap-3 text-sm text-fg", tile ? "mt-4" : "mb-1")}>
                 <input type="checkbox" checked={tile} onChange={(e) => set(setTile)(e.target.checked)} className="size-4 accent-brand" />
-                Repeat across the page
+                {t("Repeat across the page")}
               </label>
             </div>
             <label className="mt-4 flex cursor-pointer items-start gap-3">
               <input type="checkbox" checked={behind} onChange={(e) => set(setBehind)(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-brand" />
               <span>
-                <span className="block text-sm font-medium text-fg">Place behind the content</span>
-                <span className="block text-xs text-fg-muted">Text stays readable; hidden on pages with a solid background (e.g. scans).</span>
+                <span className="block text-sm font-medium text-fg">{t("Place behind the content")}</span>
+                <span className="block text-xs text-fg-muted">{t("Text stays readable; hidden on pages with a solid background (e.g. scans).")}</span>
               </span>
             </label>
-            <Field label="Pages" hint={`Leave empty for all ${doc.numPages} pages.`} error={range.error}>
-              <input value={range.text} onChange={(e) => set(range.setText)(e.target.value)} placeholder="All pages" className={INPUT} />
+            <Field label={t("Pages")} hint={t("Leave empty for all {count} pages.", { count: doc.numPages })} error={range.error}>
+              <input value={range.text} onChange={(e) => set(range.setText)(e.target.value)} placeholder={t("All pages")} className={INPUT} />
             </Field>
             <button type="button" onClick={() => apply(() => watermarkFile(file.file, options))} disabled={busy || !ready || Boolean(range.error)} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Stamp className="size-4" aria-hidden="true" />}
-              {busy ? "Adding watermark…" : "Add watermark"}
+              {busy ? t("Adding watermark…") : t("Add watermark")}
             </button>
           </section>
-          {output && <OutputCard title="Watermark added" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Watermark added")} outputs={[output]} replaceFileId={file.id} />}
         </>
       }
     />
@@ -203,17 +206,19 @@ export function PageNumbersPanel({ file }: ToolPanelProps) {
   return <DocGate file={file}>{(doc) => <Numberer file={file} doc={doc} />}</DocGate>;
 }
 
+// Formats are written into the PDF, so the worded ones follow the interface language.
 const FORMATS = [
   { id: "{n}", label: "1" },
   { id: "{n} / {total}", label: "1 / 9" },
-  { id: "Page {n}", label: "Page 1" },
-  { id: "Page {n} of {total}", label: "Page 1 of 9" },
+  { id: msg("Page {n}"), label: msg("Page 1") },
+  { id: msg("Page {n} of {total}"), label: msg("Page 1 of 9") },
 ];
 const MARGINS = { small: 18, medium: 30, large: 48 } as const;
 const EDGE_ANCHORS: AnchorId[] = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"];
 
 function Numberer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
-  const [format, setFormat] = useState("Page {n} of {total}");
+  const t = useT();
+  const [format, setFormat] = useState(() => t("Page {n} of {total}"));
   const [position, setPosition] = useState<AnchorId>("bottom-center");
   const [margin, setMargin] = useState<keyof typeof MARGINS>("medium");
   const [size, setSize] = useState(10);
@@ -223,7 +228,7 @@ function Numberer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
   const { busy, output, setOutput, apply } = useApply(file, "numbered");
 
   const options: PageNumberOptions = { format, position, margin: MARGINS[margin], size, color, start: Number.isFinite(start) ? start : 1, pages: range.pages };
-  const formatError = format.includes("{n}") ? undefined : "Include {n} where the number goes.";
+  const formatError = format.includes("{n}") ? undefined : t("Include {n} where the number goes.");
   // Labels are worked out for the whole document, so the preview shows the real numbers.
   const labels = formatError ? null : pageLabels(options, doc.numPages);
   const previewPages = Math.min(2, doc.numPages);
@@ -245,43 +250,43 @@ function Numberer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
           <section className="rounded-xl border border-line bg-surface p-5">
             <h2 className="flex items-center gap-2 font-semibold text-fg">
               <ListOrdered className="size-4 text-brand-text" aria-hidden="true" />
-              Page numbers
+              {t("Page numbers")}
             </h2>
-            <Segmented label="Style" value={FORMATS.some((f) => f.id === format) ? format : ""} onChange={set(setFormat)} options={FORMATS} columns={2} />
-            <Field label="Format" hint="{n} is the page number, {total} the last number." error={formatError}>
+            <Segmented label={t("Style")} value={FORMATS.some((f) => t(f.id) === format) ? format : ""} onChange={set(setFormat)} options={FORMATS.map((f) => ({ id: t(f.id), label: f.label }))} columns={2} />
+            <Field label={t("Format")} hint={t("{n} is the page number, {total} the last number.")} error={formatError}>
               <input value={format} onChange={(e) => set(setFormat)(e.target.value)} className={INPUT} maxLength={60} />
             </Field>
-            <AnchorPicker label="Position" value={position} onChange={set(setPosition)} allowed={EDGE_ANCHORS} />
+            <AnchorPicker label={t("Position")} value={position} onChange={set(setPosition)} allowed={EDGE_ANCHORS} />
             <Segmented
-              label="Distance from the edge"
+              label={t("Distance from the edge")}
               value={margin}
               onChange={set(setMargin)}
               options={[
-                { id: "small", label: "Small" },
-                { id: "medium", label: "Medium" },
-                { id: "large", label: "Large" },
+                { id: "small", label: t("Small") },
+                { id: "medium", label: t("Medium") },
+                { id: "large", label: t("Large") },
               ]}
             />
-            <Slider label="Size" value={size} min={7} max={24} format={(v) => `${v} pt`} onChange={set(setSize)} />
-            <ColorField label="Colour" value={color} onChange={set(setColor)} presets={COLORS} />
+            <Slider label={t("Size")} value={size} min={7} max={24} format={(v) => `${v} pt`} onChange={set(setSize)} />
+            <ColorField label={t("Colour")} value={color} onChange={set(setColor)} presets={COLORS} />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="First number">
+              <Field label={t("First number")}>
                 <input type="number" min={0} value={Number.isFinite(start) ? start : ""} onChange={(e) => set(setStart)(e.target.valueAsNumber)} className={INPUT} />
               </Field>
-              <Field label="Pages" error={range.error}>
-                <input value={range.text} onChange={(e) => set(range.setText)(e.target.value)} placeholder="All" className={INPUT} />
+              <Field label={t("Pages")} error={range.error}>
+                <input value={range.text} onChange={(e) => set(range.setText)(e.target.value)} placeholder={t("All")} className={INPUT} />
               </Field>
             </div>
             <label className="mt-3 flex cursor-pointer items-center gap-3 text-sm text-fg">
               <input type="checkbox" checked={skipFirst} onChange={(e) => set(range.setText)(e.target.checked ? "2-" : "")} className="size-4 accent-brand" />
-              Skip the first page (cover)
+              {t("Skip the first page (cover)")}
             </label>
             <button type="button" onClick={() => apply(() => numberPagesOfFile(file.file, options))} disabled={busy || Boolean(formatError || range.error)} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ListOrdered className="size-4" aria-hidden="true" />}
-              {busy ? "Numbering…" : "Add page numbers"}
+              {busy ? t("Numbering…") : t("Add page numbers")}
             </button>
           </section>
-          {output && <OutputCard title="Page numbers added" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Page numbers added")} outputs={[output]} replaceFileId={file.id} />}
         </>
       }
     />

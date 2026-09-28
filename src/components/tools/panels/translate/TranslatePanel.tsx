@@ -24,9 +24,12 @@ import { FidelityNote, ProgressBar, WarningList } from "../shared/ConversionPart
 import { Field, INPUT } from "../shared/controls";
 import { OutputCard, PRIMARY, SECONDARY, type OutputFile } from "../shared/OutputCard";
 import { DocGate, Layout, PageGrid, ToolCard, usePageField } from "../shared/toolkit";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import type { Translator } from "@/i18n/translate";
+import { Rich } from "@/i18n/Rich";
 
-const nameOf = (code: string) => TRANSLATE_LANGUAGES.find((l) => l.code === code)?.name ?? code;
-const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
+const nameOf = (code: string, t: Translator) => t.language(code, TRANSLATE_LANGUAGES.find((l) => l.code === code)?.name ?? code);
 /** Pages are rendered at this scale to sample text and background colours. */
 const COLOR_SCALE = 1.5;
 
@@ -92,6 +95,7 @@ async function renderForColors(doc: PDFDocumentProxy, index: number) {
 }
 
 function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const [supported] = useState(translatorSupported);
   const detected = useDetectedLanguage(doc);
   const [sourceChoice, setSource] = useState<string | null>(null);
@@ -114,18 +118,18 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
     const controller = new AbortController();
     abort.current = controller;
     setResult(null);
-    setProgress({ label: "Preparing the translator…", fraction: null });
+    setProgress({ label: msg("Preparing the translator…"), fraction: null });
     updateFile(file.id, { status: "processing", error: undefined });
     try {
       // First, while the click still counts: the browser may need to download a language pack.
-      const translator = await createTranslator(source, target, (loaded) => setProgress({ label: "Downloading the language pack (once)…", fraction: loaded }), controller.signal);
+      const translator = await createTranslator(source, target, (loaded) => setProgress({ label: t("Downloading the language pack (once)…"), fraction: loaded }), controller.signal);
       const blocks: TranslatedBlock[] = [];
       const pageTexts: { page: number; text: string }[] = [];
       const pairs: Result["pairs"] = [];
       let found = 0;
       try {
         for (const [n, index] of pages.entries()) {
-          setProgress({ label: `Translating page ${n + 1} of ${pages.length}…`, fraction: n / pages.length });
+          setProgress({ label: t("Translating page {page} of {count}…", { page: n + 1, count: pages.length }), fraction: n / pages.length });
           const { page, canvas, width } = await renderForColors(doc, index);
           try {
             const groups = groupLines(await readPhrases(page));
@@ -145,7 +149,7 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
                 const colors = sampleColors(canvas, width, box);
                 blocks.push({ box, baseline, size, font, bold, italic, page: index, translation, color: colors.text, background: colors.background, sources: lines.flatMap((l) => l.sources) });
               }
-              setProgress({ label: `Translating page ${n + 1} of ${pages.length}…`, fraction: (n + (k + 1) / groups.length) / pages.length });
+              setProgress({ label: t("Translating page {page} of {count}…", { page: n + 1, count: pages.length }), fraction: (n + (k + 1) / groups.length) / pages.length });
             }
             pageTexts.push({ page: index, text: texts.join("\n\n") });
           } finally {
@@ -162,9 +166,9 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
       let pdf: OutputFile | null = null;
       let warnings: string[] = [];
       if (pdfTarget) {
-        setProgress({ label: "Writing the translated PDF…", fraction: null });
+        setProgress({ label: t("Writing the translated PDF…"), fraction: null });
         const written = await translateFile(file.file, blocks);
-        pdf = { name: withSuffix(file.name, target), blob: written.blob, detail: `${plural(blocks.length, "passage")} translated` };
+        pdf = { name: withSuffix(file.name, target), blob: written.blob, detail: t.plural(blocks.length, "{n} passage translated", "{n} passages translated") };
         warnings = written.warnings;
       }
       setResult({ pdf, warnings, text: joinPageTexts(pageTexts), pairs, blocks: blocks.length });
@@ -172,7 +176,7 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
     } catch (error) {
       const cancelled = error instanceof DOMException && error.name === "AbortError";
       updateFile(file.id, { status: cancelled ? "idle" : "error", error: cancelled ? undefined : errorMessage(error) });
-      if (!cancelled) toast({ tone: "error", title: "Translation failed", description: errorMessage(error) });
+      if (!cancelled) toast({ tone: "error", title: msg("Translation failed"), description: errorMessage(error) });
     } finally {
       abort.current = null;
       setProgress(null);
@@ -191,7 +195,7 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
       <TranslationPreview pairs={result.pairs} />
     </div>
   ) : (
-    <PageGrid doc={doc} label="Pages" tile={(i) => ({ selected: false, dimmed: !pages.includes(i) })} />
+    <PageGrid doc={doc} label={t("Pages")} tile={(i) => ({ selected: false, dimmed: !pages.includes(i) })} />
   );
 
   if (!supported) {
@@ -199,14 +203,13 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
       <Layout
         main={main}
         actions={
-          <ToolCard icon={Languages} title="Translate">
+          <ToolCard icon={Languages} title={t("Translate")}>
             <div className="mt-4 flex gap-2.5 rounded-lg bg-warning-soft p-3 text-sm text-fg-muted">
               <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
               <div>
-                <p className="font-medium text-fg">This browser has no built-in translator</p>
+                <p className="font-medium text-fg">{t("This browser has no built-in translator")}</p>
                 <p className="mt-1">
-                  Translate PDF uses the translator built into Chrome and Edge on computers, which works on your device. Open DocSanitize in one of them to translate this file.
-                  DocSanitize never sends your document to an online translation service.
+                  {t("Translate PDF uses the translator built into Chrome and Edge on computers, which works on your device. Open DocSanitize in one of them to translate this file. DocSanitize never sends your document to an online translation service.")}
                 </p>
               </div>
             </div>
@@ -221,17 +224,16 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
       main={main}
       actions={
         <>
-          <ToolCard icon={Languages} title="Translate">
+          <ToolCard icon={Languages} title={t("Translate")}>
             <FidelityNote>
-              Your browser translates on your device; the text never leaves it. Each paragraph is replaced in place, in the same spot and colour, set smaller
-              where the translation is longer. Images and scanned text aren&apos;t translated.
+              {t("Your browser translates on your device; the text never leaves it. Each paragraph is replaced in place, in the same spot and colour, set smaller where the translation is longer. Images and scanned text aren't translated.")}
             </FidelityNote>
-            <Field label="From" hint={detected === null ? "Detecting the language…" : detected.code && !sourceChoice ? "Detected from the text." : undefined}>
+            <Field label={t("From")} hint={detected === null ? t("Detecting the language…") : detected.code && !sourceChoice ? t("Detected from the text.") : undefined}>
               <select value={source} disabled={busy} onChange={(e) => change(setSource)(e.target.value)} className={INPUT}>
-                {!source && <option value="">Choose the document&apos;s language…</option>}
+                {!source && <option value="">{t("Choose the document's language…")}</option>}
                 {TRANSLATE_LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
-                    {l.name}
+                    {t.language(l.code, l.name)}
                   </option>
                 ))}
               </select>
@@ -240,28 +242,28 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
               <select value={target} disabled={busy} onChange={(e) => change(setTarget)(e.target.value)} className={INPUT}>
                 {TRANSLATE_LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
-                    {l.name}
+                    {t.language(l.code, l.name)}
                   </option>
                 ))}
               </select>
             </Field>
-            {sameLanguage && <p className="mt-2 text-xs text-danger-text">The document is already in {nameOf(target)}. Pick another language.</p>}
+            {sameLanguage && <p className="mt-2 text-xs text-danger-text">{t("The document is already in {language}. Pick another language.", { language: nameOf(target, t) })}</p>}
             {!sameLanguage && source && availability === "unavailable" && (
               <p className="mt-2 text-xs text-danger-text">
-                Your browser can&apos;t translate {nameOf(source)} to {nameOf(target)}.
+                {t("Your browser can't translate {from} to {to}.", { from: nameOf(source, t), to: nameOf(target, t) })}
               </p>
             )}
             {!sameLanguage && source && (availability === "downloadable" || availability === "downloading") && (
-              <p className="mt-2 text-xs text-fg-subtle">Your browser will download this language pack once, then translate offline.</p>
+              <p className="mt-2 text-xs text-fg-subtle">{t("Your browser will download this language pack once, then translate offline.")}</p>
             )}
             {!pdfTarget && (
               <p className="mt-2 text-xs text-fg-muted">
-                {nameOf(target)} needs fonts DocSanitize doesn&apos;t include yet, so you&apos;ll get the translated text as a .txt file instead of a PDF.
+                {t("{language} needs fonts DocSanitize doesn't include yet, so you'll get the translated text as a .txt file instead of a PDF.", { language: nameOf(target, t) })}
               </p>
             )}
             {doc.numPages > 1 && (
-              <Field label="Pages" hint={`Leave empty for all ${doc.numPages} pages, or type ranges such as 1-3, 5.`} error={range.error}>
-                <input value={range.text} disabled={busy} onChange={(e) => change(range.setText)(e.target.value)} placeholder="All pages" className={INPUT} />
+              <Field label={t("Pages")} hint={t("Leave empty for all {count} pages, or type ranges such as 1-3, 5.", { count: doc.numPages })} error={range.error}>
+                <input value={range.text} disabled={busy} onChange={(e) => change(range.setText)(e.target.value)} placeholder={t("All pages")} className={INPUT} />
               </Field>
             )}
             {busy ? (
@@ -269,39 +271,39 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
                 <ProgressBar label={progress.label} fraction={progress.fraction} />
                 <button type="button" onClick={() => abort.current?.abort()} className={`${SECONDARY} mt-4 w-full`}>
                   <X className="size-4" aria-hidden="true" />
-                  Cancel
+                  {t("Cancel")}
                 </button>
               </>
             ) : (
               <button type="button" onClick={run} disabled={!source || sameLanguage || availability === "unavailable" || !!range.error} className={`${PRIMARY} mt-5 w-full`}>
                 <Languages className="size-4" aria-hidden="true" />
-                Translate to {nameOf(target)}
+                {t("Translate to {language}", { language: nameOf(target, t) })}
               </button>
             )}
           </ToolCard>
           {result && (
             <>
-              {result.pdf && <OutputCard title="Translated PDF ready" outputs={[result.pdf]} />}
+              {result.pdf && <OutputCard title={t("Translated PDF ready")} outputs={[result.pdf]} />}
               {result.pdf && result.warnings.length > 0 && <WarningList warnings={result.warnings} />}
-              <ToolCard icon={Download} title={result.pdf ? "Text only" : "Translation ready"}>
-                <p className="mt-2 text-sm text-fg-muted">The translated text as a plain .txt file, or copied to paste anywhere.</p>
+              <ToolCard icon={Download} title={result.pdf ? t("Text only") : t("Translation ready")}>
+                <p className="mt-2 text-sm text-fg-muted">{t("The translated text as a plain .txt file, or copied to paste anywhere.")}</p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button type="button" className={result.pdf ? SECONDARY : PRIMARY} onClick={() => downloadBlob(new Blob([result.text], { type: "text/plain;charset=utf-8" }), replaceExtension(withSuffix(file.name, target), ".txt"))}>
                     <Download className="size-4" aria-hidden="true" />
-                    .txt
+                    {t(".txt")}
                   </button>
                   <button
                     type="button"
                     className={SECONDARY}
                     onClick={() =>
                       navigator.clipboard.writeText(result.text).then(
-                        () => toast({ tone: "success", title: "Translation copied" }),
-                        () => toast({ tone: "error", title: "Couldn't copy", description: "Your browser didn't allow it. Download the .txt instead." }),
+                        () => toast({ tone: "success", title: msg("Translation copied") }),
+                        () => toast({ tone: "error", title: msg("Couldn't copy"), description: msg("Your browser didn't allow it. Download the .txt instead.") }),
                       )
                     }
                   >
                     <Copy className="size-4" aria-hidden="true" />
-                    Copy
+                    {t("Copy")}
                   </button>
                 </div>
               </ToolCard>
@@ -309,11 +311,16 @@ function Translate({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
           )}
           {!result && (
             <p className="px-1 text-xs text-fg-subtle">
-              Scanned document? Make its text readable with{" "}
-              <Link href="/tools/ocr" className="font-medium text-brand-text underline underline-offset-2">
-                OCR PDF
-              </Link>{" "}
-              first.
+              <Rich
+                text={t("Scanned document? Make its text readable with {link} first.")}
+                values={{
+                  link: (
+                    <Link href="/tools/ocr" className="font-medium text-brand-text underline underline-offset-2">
+                      {t("OCR PDF")}
+                    </Link>
+                  ),
+                }}
+              />
             </p>
           )}
         </>
@@ -326,13 +333,14 @@ const PREVIEW_PAGES = 4;
 
 /** The translated pages, large enough to read. */
 function TranslatedPages({ blob }: { blob: Blob }) {
+  const t = useT();
   const pdf = usePdfDocument(blob);
   const pages = pdf.status === "ready" ? pdf.doc.numPages : 0;
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Result preview">
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Result preview")}>
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">
-        <span>Translated PDF</span>
-        <span className="normal-case tracking-normal">{pages > PREVIEW_PAGES ? `First ${PREVIEW_PAGES} of ${pages} pages` : plural(pages, "page")}</span>
+        <span>{t("Translated PDF")}</span>
+        <span className="normal-case tracking-normal">{pages > PREVIEW_PAGES ? t("First {shown} of {count} pages", { shown: PREVIEW_PAGES, count: pages }) : t.plural(pages, "{n} page", "{n} pages")}</span>
       </div>
       <ol className="grid grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] gap-4 bg-surface-muted p-4">
         {pdf.status === "ready" &&
@@ -348,9 +356,10 @@ function TranslatedPages({ blob }: { blob: Blob }) {
 }
 
 function TranslationPreview({ pairs }: { pairs: Result["pairs"] }) {
+  const t = useT();
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Translation preview">
-      <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">Translation · first passages</div>
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Translation preview")}>
+      <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">{t("Translation · first passages")}</div>
       <ol className="max-h-[36rem] divide-y divide-line overflow-y-auto">
         {pairs.map((p, i) => (
           <li key={i} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[1fr_auto_1fr]">

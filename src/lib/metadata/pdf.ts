@@ -20,6 +20,7 @@ import { entry } from "./classify";
 import { auditJpeg, isJpeg, stripJpeg } from "./jpeg";
 import type { MetadataEntry, MetadataReport, StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
+import { msg } from "@/i18n/msg";
 
 const N = {
   Metadata: PDFName.of("Metadata"),
@@ -47,15 +48,15 @@ const N = {
 
 // Info dictionary keys whose generic classification would be misleading.
 const INFO_KEYS: Record<string, { label: string; sensitivity?: MetadataEntry["sensitivity"] }> = {
-  Title: { label: "Title" },
-  Author: { label: "Author", sensitivity: "high" },
-  Subject: { label: "Subject" },
-  Keywords: { label: "Keywords" },
-  Creator: { label: "Creator application", sensitivity: "medium" },
-  Producer: { label: "PDF producer", sensitivity: "medium" },
-  CreationDate: { label: "Created" },
-  ModDate: { label: "Modified" },
-  Trapped: { label: "Trapped", sensitivity: "low" },
+  Title: { label: msg("Title") },
+  Author: { label: msg("Author"), sensitivity: "high" },
+  Subject: { label: msg("Subject") },
+  Keywords: { label: msg("Keywords") },
+  Creator: { label: msg("Creator application"), sensitivity: "medium" },
+  Producer: { label: msg("PDF producer"), sensitivity: "medium" },
+  CreationDate: { label: msg("Created") },
+  ModDate: { label: msg("Modified") },
+  Trapped: { label: msg("Trapped"), sensitivity: "low" },
 };
 
 /** "D:20240115093000+01'00'" -> Date */
@@ -78,7 +79,7 @@ export function toValue(obj: PDFObject | undefined): unknown {
   if (obj instanceof PDFNumber) return obj.asNumber();
   if (obj instanceof PDFBool) return obj.asBoolean();
   if (obj instanceof PDFArray) return obj.asArray().map(toValue);
-  if (obj instanceof PDFDict || obj instanceof PDFStream) return "(structured data)";
+  if (obj instanceof PDFDict || obj instanceof PDFStream) return msg("(structured data)");
   return obj?.toString();
 }
 
@@ -127,11 +128,11 @@ export function countRevisions(bytes: Uint8Array): number {
 function objectKind(dict: PDFDict): string {
   const type = dict.lookup(N.Type);
   const subtype = dict.lookup(N.Subtype);
-  if (type === PDFName.of("Catalog")) return "Document";
-  if (type === PDFName.of("Page")) return "Page";
-  if (subtype === N.Image) return "Image";
-  if (subtype === PDFName.of("Form")) return "Form object";
-  return "Object";
+  if (type === PDFName.of("Catalog")) return msg("Document");
+  if (type === PDFName.of("Page")) return msg("Page");
+  if (subtype === N.Image) return msg("Image");
+  if (subtype === PDFName.of("Form")) return msg("Form object");
+  return msg("Object");
 }
 
 /** Raw JPEG bytes of an image XObject that is stored as a plain DCT stream, or null. */
@@ -153,7 +154,7 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
     for (const [key, value] of info.entries()) {
       const name = key.decodeText();
       const known = INFO_KEYS[name];
-      push(entry("Document info", name, toValue(value), known ?? {}));
+      push(entry(msg("Document info"), name, toValue(value), known ?? {}));
     }
   }
 
@@ -163,7 +164,7 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
   if (idArray instanceof PDFArray && idArray.size() > 0) {
     const first = idArray.get(0);
     const hex = first instanceof PDFHexString ? first.asString() : first instanceof PDFString ? first.asString() : "";
-    push(entry("Document info", "ID", hex, { label: "Document ID", sensitivity: "medium" }));
+    push(entry(msg("Document info"), "ID", hex, { label: msg("Document ID"), sensitivity: "medium" }));
   }
 
   // 3. XMP packets and private application data attached to any object
@@ -174,7 +175,7 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
     const dict = obj instanceof PDFDict ? obj : obj instanceof PDFStream ? obj.dict : null;
     if (!dict) continue;
     const xml = dict.has(N.Metadata) ? readStream(dict.lookup(N.Metadata)) : null;
-    if (xml) entries.push(...xmpEntries(xml, objectKind(dict) === "Document" ? "XMP metadata" : `XMP (${objectKind(dict).toLowerCase()})`));
+    if (xml) entries.push(...xmpEntries(xml, objectKind(dict) === "Document" ? msg("XMP metadata") : msg`XMP (${objectKind(dict)})`));
     if (dict.has(N.PieceInfo)) pieceInfo++;
 
     const jpeg = jpegImage(obj);
@@ -182,7 +183,7 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
       imageIndex++;
       try {
         const report = await auditJpeg(jpeg);
-        entries.push(...report.entries.map((e) => ({ ...e, group: `Embedded photo ${imageIndex}` })));
+        entries.push(...report.entries.map((e) => ({ ...e, group: msg`Embedded photo ${imageIndex}` })));
         location ??= report.location;
       } catch {
         // Not a parseable JPEG header — nothing to report.
@@ -190,7 +191,7 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
     }
   }
   if (pieceInfo > 0) {
-    push(entry("Hidden content", "PieceInfo", `${pieceInfo} object${pieceInfo === 1 ? "" : "s"} — editing apps (e.g. Illustrator) can store the original editable file here`, { label: "Private application data", sensitivity: "high" }));
+    push(entry(msg("Hidden content"), "PieceInfo", (pieceInfo === 1 ? msg`${pieceInfo} object — editing apps (e.g. Illustrator) can store the original editable file here` : msg`${pieceInfo} objects — editing apps (e.g. Illustrator) can store the original editable file here`), { label: msg("Private application data"), sensitivity: "high" }));
   }
 
   // 4. Comments / annotations
@@ -209,25 +210,25 @@ export async function auditPdf(bytes: Uint8Array): Promise<MetadataReport> {
       if (annot.lookup(N.Subtype) === N.FileAttachment) attachmentAnnots++;
     }
   }
-  if (authors.size > 0) push(entry("Comments", "AnnotationAuthors", [...authors], { label: "Comment authors", sensitivity: "high" }));
-  if (timestamps > 0) push(entry("Comments", "AnnotationDates", `${timestamps} comment${timestamps === 1 ? "" : "s"} with timestamps`, { label: "Comment timestamps", sensitivity: "medium" }));
+  if (authors.size > 0) push(entry(msg("Comments"), "AnnotationAuthors", [...authors], { label: msg("Comment authors"), sensitivity: "high" }));
+  if (timestamps > 0) push(entry(msg("Comments"), "AnnotationDates", (timestamps === 1 ? msg`${timestamps} comment with timestamps` : msg`${timestamps} comments with timestamps`), { label: msg("Comment timestamps"), sensitivity: "medium" }));
 
   // 5. Attachments and scripts
   const names = catalog.lookup(N.Names);
   const files = names instanceof PDFDict ? nameTreeKeys(context, names.get(N.EmbeddedFiles)) : [];
-  if (files.length > 0) push(entry("Hidden content", "EmbeddedFiles", files, { label: "Attached files", sensitivity: "high" }));
-  if (attachmentAnnots > 0) push(entry("Hidden content", "FileAttachmentAnnots", `${attachmentAnnots} file${attachmentAnnots === 1 ? "" : "s"} attached to comments`, { label: "Comment attachments", sensitivity: "high" }));
+  if (files.length > 0) push(entry(msg("Hidden content"), "EmbeddedFiles", files, { label: msg("Attached files"), sensitivity: "high" }));
+  if (attachmentAnnots > 0) push(entry(msg("Hidden content"), "FileAttachmentAnnots", (attachmentAnnots === 1 ? msg`${attachmentAnnots} file attached to comments` : msg`${attachmentAnnots} files attached to comments`), { label: msg("Comment attachments"), sensitivity: "high" }));
 
   const scripts = names instanceof PDFDict ? nameTreeKeys(context, names.get(N.JavaScript)) : [];
   const autoRun = isJavaScriptAction(catalog.lookup(N.OpenAction)) || catalog.has(N.AA);
   if (scripts.length > 0 || autoRun) {
-    push(entry("Hidden content", "JavaScript", scripts.length > 0 ? `${scripts.length} script${scripts.length === 1 ? "" : "s"}${autoRun ? ", runs on open" : ""}` : "Runs when the document opens", { label: "Document JavaScript", sensitivity: "medium" }));
+    push(entry(msg("Hidden content"), "JavaScript", scripts.length > 0 ? (autoRun ? (scripts.length === 1 ? msg`${scripts.length} script, runs on open` : msg`${scripts.length} scripts, runs on open`) : scripts.length === 1 ? msg`${scripts.length} script` : msg`${scripts.length} scripts`) : msg("Runs when the document opens"), { label: msg("Document JavaScript"), sensitivity: "medium" }));
   }
 
   // 6. Earlier revisions left behind by incremental saves
   const revisions = countRevisions(bytes);
   if (revisions > 1) {
-    push(entry("Hidden content", "Revisions", `${revisions - 1} earlier version${revisions === 2 ? "" : "s"} saved inside the file — deleted or changed content may be recoverable`, { label: "Previous revisions", sensitivity: "high" }));
+    push(entry(msg("Hidden content"), "Revisions", (revisions === 2 ? msg`${revisions - 1} earlier version saved inside the file — deleted or changed content may be recoverable` : msg`${revisions - 1} earlier versions saved inside the file — deleted or changed content may be recoverable`), { label: msg("Previous revisions"), sensitivity: "high" }));
   }
 
   return { format: "pdf", entries, kept: [], location };

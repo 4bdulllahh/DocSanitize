@@ -3,6 +3,7 @@ import { entry } from "./classify";
 import { readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
+import { msg } from "@/i18n/msg";
 
 const SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
@@ -72,7 +73,7 @@ export async function auditPng(bytes: Uint8Array): Promise<MetadataReport> {
       if (text.keyword === "XML:com.adobe.xmp") {
         entries.push(...xmpEntries(text.text));
       } else {
-        const e = entry("PNG text", text.keyword, text.text);
+        const e = entry(msg("PNG text"), text.keyword, text.text);
         if (e) entries.push(e);
       }
     } else if (type === "eXIf") {
@@ -82,18 +83,18 @@ export async function auditPng(bytes: Uint8Array): Promise<MetadataReport> {
     } else if (type === "tIME") {
       const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
       const date = new Date(Date.UTC(view.getUint16(0), data[2] - 1, data[3], data[4], data[5], data[6]));
-      const e = entry("PNG", "tIME", date, { label: "Last modified" });
+      const e = entry(msg("PNG"), "tIME", date, { label: msg("Last modified") });
       if (e) entries.push(e);
     } else if (type === "iCCP") {
       const sep = nullIndex(data);
       const name = sep > 0 ? latin1.decode(data.subarray(0, sep)) : "unnamed";
-      entries.push({ group: "Color profile", key: "iCCP", label: "ICC color profile", value: name, sensitivity: "low" });
+      entries.push({ group: msg("Color profile"), key: "iCCP", label: msg("ICC color profile"), value: name, sensitivity: "low" });
     } else if (!RENDERING_CHUNKS.has(type)) {
       entries.push({
-        group: "Other chunks",
+        group: msg("Other chunks"),
         key: type,
-        label: `${type} chunk`,
-        value: `${data.length.toLocaleString()} bytes of application data`,
+        label: msg`${type} chunk`,
+        value: msg`${data.length.toLocaleString()} bytes of application data`,
         sensitivity: "medium",
       });
     }

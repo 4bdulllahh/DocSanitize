@@ -6,9 +6,12 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { LucideIcon } from "lucide-react";
 import { PageTile } from "@/components/pdf/PageTile";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
+import { msg } from "@/i18n/msg";
+import { Rich } from "@/i18n/Rich";
 import { errorMessage } from "@/lib/errors";
 import { parsePageRanges } from "@/lib/pdf/ranges";
 import { withSuffix } from "@/lib/zip";
+import { useT } from "@/store/locale";
 import { toast } from "@/store/toast";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import type { OutputFile } from "./OutputCard";
@@ -61,7 +64,7 @@ export function useApply(file: WorkspaceFile, suffix: string) {
       return true;
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Couldn't update the PDF", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't update the PDF"), description: errorMessage(error) });
       return false;
     } finally {
       setBusy(false);
@@ -84,7 +87,7 @@ export function PageGrid({
   header,
   tile,
   onTileClick,
-  label = "Pages",
+  label,
 }: {
   doc: PDFDocumentProxy;
   header?: ReactNode;
@@ -92,23 +95,24 @@ export function PageGrid({
   onTileClick?: (index: number, event: MouseEvent) => void;
   label?: string;
 }) {
+  const t = useT();
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label={label}>
+    <section className="rounded-xl border border-line bg-surface" aria-label={label ?? t("Pages")}>
       {header && <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">{header}</header>}
       <ol className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3 p-4">
         {Array.from({ length: doc.numPages }, (_, i) => {
-          const t = tile(i);
+          const look = tile(i);
           return (
             <li key={i}>
               <PageTile
                 doc={doc}
                 index={i}
-                selected={t.selected}
-                dimmed={t.dimmed}
-                rotation={t.rotation}
-                pressed={onTileClick ? t.selected : undefined}
-                label={t.label ?? `Page ${i + 1}`}
-                badge={t.badge}
+                selected={look.selected}
+                dimmed={look.dimmed}
+                rotation={look.rotation}
+                pressed={onTileClick ? look.selected : undefined}
+                label={look.label ?? t("Page {page}", { page: i + 1 })}
+                badge={look.badge}
                 onClick={(e) => onTileClick?.(i, e)}
               />
             </li>
@@ -120,18 +124,24 @@ export function PageGrid({
 }
 
 /** "3 of 12 pages selected · Select all · Clear" for a grid header. */
-export function SelectionSummary({ count, total, noun = "selected", onAll, onClear }: { count: number; total: number; noun?: string; onAll: () => void; onClear: () => void }) {
+export function SelectionSummary({ count, total, action = "select", onAll, onClear }: { count: number; total: number; action?: "select" | "delete" | "remove"; onAll: () => void; onClear: () => void }) {
+  const t = useT();
+  const text = {
+    select: t.plural(total, "{count} of {n} page selected", "{count} of {n} pages selected"),
+    delete: t.plural(total, "{count} of {n} page to delete", "{count} of {n} pages to delete"),
+    remove: t.plural(total, "{count} of {n} page to remove", "{count} of {n} pages to remove"),
+  }[action];
   return (
     <>
       <p className="text-sm text-fg-muted">
-        <span className="font-semibold text-fg">{count}</span> of {total} page{total === 1 ? "" : "s"} {noun}
+        <Rich text={text} values={{ count: <span className="font-semibold text-fg">{t.number(count)}</span> }} />
       </p>
       <div className="flex gap-3 text-sm">
         <button type="button" className="text-brand-text hover:underline disabled:opacity-40" disabled={count === total} onClick={onAll}>
-          Select all
+          {t("Select all")}
         </button>
         <button type="button" className={clsx("text-brand-text hover:underline disabled:opacity-40")} disabled={count === 0} onClick={onClear}>
-          Clear
+          {t("Clear")}
         </button>
       </div>
     </>

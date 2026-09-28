@@ -1,5 +1,6 @@
 import { ProcessingError } from "../errors";
 import type { MediaInfo, VideoTrack } from "./probe";
+import { msg } from "@/i18n/msg";
 
 /*
  * ffmpeg command lines for the media tools. Every job writes one file, /out/output<ext>, and
@@ -66,10 +67,10 @@ export type AudioTarget = "mp3" | "m4a" | "wav" | "flac" | "ogg" | "opus";
 export type Quality = "high" | "balanced" | "small";
 
 export const VIDEO_TARGETS: Record<VideoTarget, { container: Container; video: "h264" | "vp8"; audio: "aac" | "opus"; note: string }> = {
-  mp4: { container: CONTAINERS.mp4, video: "h264", audio: "aac", note: "H.264 + AAC: plays everywhere." },
-  webm: { container: CONTAINERS.webm, video: "vp8", audio: "opus", note: "VP8 + Opus: for the web; larger than MP4 at the same quality." },
-  mov: { container: CONTAINERS.mov, video: "h264", audio: "aac", note: "H.264 + AAC in a QuickTime file." },
-  mkv: { container: CONTAINERS.mkv, video: "h264", audio: "aac", note: "H.264 + AAC in Matroska." },
+  mp4: { container: CONTAINERS.mp4, video: "h264", audio: "aac", note: msg("H.264 + AAC: plays everywhere.") },
+  webm: { container: CONTAINERS.webm, video: "vp8", audio: "opus", note: msg("VP8 + Opus: for the web; larger than MP4 at the same quality.") },
+  mov: { container: CONTAINERS.mov, video: "h264", audio: "aac", note: msg("H.264 + AAC in a QuickTime file.") },
+  mkv: { container: CONTAINERS.mkv, video: "h264", audio: "aac", note: msg("H.264 + AAC in Matroska.") },
 };
 
 export const AUDIO_TARGETS: Record<AudioTarget, { container: Container; codec: string[]; lossless: boolean; bitrates: number[]; bitrate: number }> = {

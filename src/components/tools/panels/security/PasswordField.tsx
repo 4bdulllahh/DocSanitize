@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import clsx from "clsx";
 import { Eye, EyeOff } from "lucide-react";
 import type { PasswordStrength } from "@/lib/password";
+import { useT } from "@/store/locale";
 
 interface Props {
   label: string;
@@ -22,6 +23,7 @@ interface Props {
 const METER = ["bg-danger", "bg-danger", "bg-warning", "bg-success", "bg-success"];
 
 export function PasswordField({ label, value, onChange, visible, onVisibleChange, error, hint, autoFocus, autoComplete = "off", strength }: Props) {
+  const t = useT();
   const id = useId();
   const [ownVisible, setOwnVisible] = useState(false);
   const shown = visible ?? ownVisible;
@@ -45,16 +47,16 @@ export function PasswordField({ label, value, onChange, visible, onVisibleChange
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={clsx(
-            "w-full rounded-lg border bg-canvas py-2 pr-10 pl-3 font-mono text-sm text-fg outline-none",
+            "w-full rounded-lg border bg-canvas py-2 pe-10 ps-3 font-mono text-sm text-fg outline-none",
             error ? "border-danger" : "border-line focus:border-brand-border",
           )}
         />
         <button
           type="button"
           onClick={() => setShown(!shown)}
-          aria-label={shown ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+          aria-label={shown ? t("Hide {label}", { label: label.toLowerCase() }) : t("Show {label}", { label: label.toLowerCase() })}
           aria-pressed={shown}
-          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-fg-subtle hover:text-fg"
+          className="absolute inset-y-0 end-0 flex w-10 items-center justify-center rounded-e-lg text-fg-subtle hover:text-fg"
         >
           {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>

@@ -3,6 +3,7 @@ import { compact, entry } from "./classify";
 import { orientationOnlyExif, readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
+import { msg } from "@/i18n/msg";
 
 const EXIF_ID = "Exif\0\0";
 const XMP_ID = "http://ns.adobe.com/xap/1.0/\0";
@@ -103,50 +104,50 @@ export async function auditJpeg(bytes: Uint8Array): Promise<MetadataReport> {
     } else if (s.marker === APP2 && startsWith(data, ICC_ID)) {
       hasIcc = true;
     } else if (s.marker === APP2 && startsWith(data, "MPF\0")) {
-      entries.push({ group: "Hidden content", key: "MPF", label: "Multi-picture data", value: "Index of extra images stored after the main photo (depth maps, HDR gain maps, bursts)", sensitivity: "medium" });
+      entries.push({ group: msg("Hidden content"), key: "MPF", label: msg("Multi-picture data"), value: msg("Index of extra images stored after the main photo (depth maps, HDR gain maps, bursts)"), sensitivity: "medium" });
     } else if (s.marker === APP0 && startsWith(data, "JFXX\0")) {
-      entries.push({ group: "Embedded thumbnail", key: "JFXX", label: "JFIF thumbnail", value: `${data.length.toLocaleString()} bytes`, sensitivity: "high" });
+      entries.push({ group: msg("Embedded thumbnail"), key: "JFXX", label: msg("JFIF thumbnail"), value: msg`${data.length.toLocaleString()} bytes`, sensitivity: "high" });
     } else if (s.marker === COM) {
-      const e = entry("Comments", "Comment", latin1.decode(data), { sensitivity: "medium" });
+      const e = entry(msg("Comments"), "Comment", latin1.decode(data), { sensitivity: "medium" });
       if (e) entries.push(e);
     } else if (s.marker >= APP0 && s.marker <= 0xef && s.marker !== APP14 && !(s.marker === APP0 && startsWith(data, "JFIF\0"))) {
       // Any other application segment (Photoshop/IPTC is decoded by exifr below; others are opaque).
       const id = identifier(data);
       if (s.marker === 0xed && id.startsWith("Photoshop")) continue;
       entries.push({
-        group: "Other segments",
+        group: msg("Other segments"),
         key: `APP${s.marker - APP0}`,
         label: `APP${s.marker - APP0} segment${id ? ` (${id})` : ""}`,
-        value: `${data.length.toLocaleString()} bytes of vendor data`,
+        value: msg`${data.length.toLocaleString()} bytes of vendor data`,
         sensitivity: "medium",
       });
     }
   }
 
-  if (extendedXmp.length) entries.push(...xmpEntries(utf8.decode(concat(extendedXmp)), "XMP (extended)"));
+  if (extendedXmp.length) entries.push(...xmpEntries(utf8.decode(concat(extendedXmp)), msg("XMP (extended)")));
 
   const exif = hasExif || segments.some((s) => s.marker === 0xed) ? await readExif(bytes) : { entries: [] };
   // Orientation is reported under `kept` instead: it survives stripping on purpose.
   entries.unshift(...exif.entries.filter((e) => e.key !== "Orientation"));
 
   if (hasIcc) {
-    entries.push({ group: "Color profile", key: "ICC_PROFILE", label: "ICC color profile", value: "Embedded color profile (may name the device or editing software)", sensitivity: "low" });
+    entries.push({ group: msg("Color profile"), key: "ICC_PROFILE", label: msg("ICC color profile"), value: msg("Embedded color profile (may name the device or editing software)"), sensitivity: "low" });
   }
 
   const trailing = bytes.length - eoiEnd;
   if (trailing > 16) {
     entries.push({
-      group: "Hidden content",
+      group: msg("Hidden content"),
       key: "Trailer",
-      label: "Data after end of image",
-      value: `${trailing.toLocaleString()} bytes appended after the photo — often a motion-photo video or extra images`,
+      label: msg("Data after end of image"),
+      value: msg`${trailing.toLocaleString()} bytes appended after the photo — often a motion-photo video or extra images`,
       sensitivity: "high",
     });
   }
 
   const kept = compact([
     exif.orientation && exif.orientation !== 1
-      ? { label: "Orientation", reason: "Keeps the photo displaying the right way up" }
+      ? { label: msg("Orientation"), reason: msg("it keeps the photo displaying the right way up") }
       : null,
   ]);
 

@@ -4,11 +4,13 @@ import { useState } from "react";
 import clsx from "clsx";
 import { ArrowRight, Download, Eraser, Layers, LoaderCircle, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { FilePreview } from "@/components/workspace/FilePreview";
+import { msg } from "@/i18n/msg";
 import { downloadBlob } from "@/lib/download";
 import { formatBytes } from "@/lib/files";
 import { stripFile } from "@/lib/metadata/client";
 import { DEFAULT_STRIP_OPTIONS, type StripOptions } from "@/lib/metadata/types";
 import { zipFiles } from "@/lib/zip";
+import { useT } from "@/store/locale";
 import { toast } from "@/store/toast";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
@@ -32,7 +34,7 @@ async function sanitize(target: WorkspaceFile, options: StripOptions) {
     const keptTechnical = options.keepTechnical && target.kind === "image";
     updateFile(target.id, { status: "done", output: { blob, name: cleanName(target.name), keptTechnical } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Couldn't sanitize this file.";
+    const message = error instanceof Error ? error.message : msg("Couldn't sanitize this file.");
     updateFile(target.id, { status: "error", error: message });
     throw error;
   }
@@ -47,7 +49,7 @@ export default function SanitizePanel({ file, files }: ToolPanelProps) {
     try {
       await sanitize(file, options);
     } catch (error) {
-      toast({ tone: "error", title: "Sanitizing failed", description: error instanceof Error ? error.message : undefined });
+      toast({ tone: "error", title: msg("Sanitizing failed"), description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -78,6 +80,7 @@ function StripCard({
   onOptionsChange: (options: StripOptions) => void;
   onStrip: () => void;
 }) {
+  const t = useT();
   const busy = file.status === "processing";
   const report = audit.status === "ready" ? audit.report : null;
   const technical = options.keepTechnical && file.kind === "image";
@@ -88,46 +91,37 @@ function StripCard({
     <section className="rounded-xl border border-line bg-surface p-5" aria-labelledby="strip-heading">
       <h2 id="strip-heading" className="flex items-center gap-2 font-semibold text-fg">
         <Eraser className="size-4 text-brand-text" aria-hidden="true" />
-        Strip metadata
+        {t("Strip metadata")}
       </h2>
       <p className="mt-1 text-sm text-fg-muted">
-        {file.kind === "pdf"
-          ? "Rewrites the PDF from scratch without its hidden data. Pages and text are untouched."
-          : "Removes metadata without re-encoding, so image quality is unchanged."}
+        {file.kind === "pdf" ? t("Rewrites the PDF from scratch without its hidden data. Pages and text are untouched.") : t("Removes metadata without re-encoding, so image quality is unchanged.")}
       </p>
 
       <fieldset className="mt-4 space-y-2.5" disabled={busy}>
-        <legend className="sr-only">Options</legend>
+        <legend className="sr-only">{t("Options")}</legend>
         {file.kind === "pdf" ? (
           <>
-            <Option checked={options.removeAttachments} onChange={set("removeAttachments")} label="Remove attached files" />
-            <Option checked={options.removeJavaScript} onChange={set("removeJavaScript")} label="Remove JavaScript" />
-            <Option checked={options.anonymizeAnnotations} onChange={set("anonymizeAnnotations")} label="Remove comment authors & timestamps" />
+            <Option checked={options.removeAttachments} onChange={set("removeAttachments")} label={t("Remove attached files")} />
+            <Option checked={options.removeJavaScript} onChange={set("removeJavaScript")} label={t("Remove JavaScript")} />
+            <Option checked={options.anonymizeAnnotations} onChange={set("anonymizeAnnotations")} label={t("Remove comment authors & timestamps")} />
           </>
         ) : (
           <>
             <Segmented
-              label="What to remove"
+              label={t("What to remove")}
               value={options.keepTechnical ? "revealing" : "all"}
               onChange={(v) => onOptionsChange({ ...options, keepTechnical: v === "revealing" })}
               options={[
-                { id: "all", label: "Everything" },
-                { id: "revealing", label: "Keep technical" },
+                { id: "all", label: t("Everything") },
+                { id: "revealing", label: t("Keep technical") },
               ]}
             />
             <p className="text-xs text-fg-subtle">
               {options.keepTechnical
-                ? "Removes everything sensitive or revealing. Keeps camera settings (exposure, aperture, ISO, focal length), resolution and the colour profile."
-                : "Removes every tag, including camera settings."}
+                ? t("Removes everything sensitive or revealing. Keeps camera settings (exposure, aperture, ISO, focal length), resolution and the colour profile.")
+                : t("Removes every tag, including camera settings.")}
             </p>
-            {!options.keepTechnical && (
-              <Option
-                checked={options.keepColorProfile}
-                onChange={set("keepColorProfile")}
-                label="Keep color profile"
-                hint="Preserves exact colors on wide-gamut photos"
-              />
-            )}
+            {!options.keepTechnical && <Option checked={options.keepColorProfile} onChange={set("keepColorProfile")} label={t("Keep color profile")} hint={t("Preserves exact colors on wide-gamut photos")} />}
           </>
         )}
       </fieldset>
@@ -139,9 +133,9 @@ function StripCard({
         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-fg transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : file.output ? <RefreshCw className="size-4" aria-hidden="true" /> : <Eraser className="size-4" aria-hidden="true" />}
-        {busy ? "Stripping…" : alreadyClean ? "Nothing to strip" : file.output ? "Strip again" : technical ? "Strip revealing metadata" : "Strip all metadata"}
+        {busy ? t("Stripping…") : alreadyClean ? t("Nothing to strip") : file.output ? t("Strip again") : technical ? t("Strip revealing metadata") : t("Strip all metadata")}
       </button>
-      {file.status === "error" && file.error && <p className="mt-2 text-sm text-danger-text">{file.error}</p>}
+      {file.status === "error" && file.error && <p className="mt-2 text-sm text-danger-text">{t.dynamic(file.error)}</p>}
     </section>
   );
 }
@@ -160,6 +154,7 @@ function Option({ checked, onChange, label, hint }: { checked: boolean; onChange
 
 function ResultCard({ file, verification }: { file: WorkspaceFile; verification: AuditState | null }) {
   const replaceFileContent = useWorkspaceStore((s) => s.replaceFileContent);
+  const t = useT();
   const output = file.output!;
   const report = verification?.status === "ready" ? verification.report : null;
   const kept = report && output.keptTechnical ? report.entries.filter((e) => e.sensitivity === "low") : [];
@@ -167,26 +162,20 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
   const clean = report !== null && leftover.length === 0;
 
   return (
-    <section
-      className={clsx(
-        "rounded-xl border bg-surface p-5",
-        clean ? "border-success/50" : report ? "border-warning/50" : "border-line",
-      )}
-      aria-live="polite"
-    >
+    <section className={clsx("rounded-xl border bg-surface p-5", clean ? "border-success/50" : report ? "border-warning/50" : "border-line")} aria-live="polite">
       {!report ? (
         <p className="flex items-center gap-2 text-sm text-fg-muted">
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-          Verifying the cleaned file…
+          {t("Verifying the cleaned file…")}
         </p>
       ) : clean ? (
         <div className="flex items-start gap-3">
           <ShieldCheck className="size-6 shrink-0 text-success" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-success-text">{kept.length ? "No sensitive or revealing metadata" : "0 metadata tags found"}</p>
+            <p className="font-semibold text-success-text">{kept.length ? t("No sensitive or revealing metadata") : t("0 metadata tags found")}</p>
             <p className="mt-0.5 text-sm text-fg-muted">
-              {kept.length > 0 && `${kept.length} technical tag${kept.length === 1 ? "" : "s"} kept on purpose. `}
-              Verified by re-reading the cleaned file from scratch.
+              {kept.length > 0 && `${t.plural(kept.length, "{n} technical tag kept on purpose.", "{n} technical tags kept on purpose.")} `}
+              {t("Verified by re-reading the cleaned file from scratch.")}
             </p>
           </div>
         </div>
@@ -194,16 +183,14 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
         <div className="flex items-start gap-3">
           <TriangleAlert className="size-6 shrink-0 text-warning" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-warning-text">
-              {leftover.length} tag{leftover.length === 1 ? "" : "s"} still present
-            </p>
-            <p className="mt-0.5 text-sm text-fg-muted">{leftover.map((e) => e.label).join(", ")}</p>
+            <p className="font-semibold text-warning-text">{t.plural(leftover.length, "{n} tag still present", "{n} tags still present")}</p>
+            <p className="mt-0.5 text-sm text-fg-muted">{t.list(leftover.map((e) => t.dynamic(e.label)))}</p>
           </div>
         </div>
       )}
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
-        {formatBytes(file.size)} <ArrowRight className="size-3" aria-hidden="true" /> {formatBytes(output.blob.size)}
+        {formatBytes(file.size)} <ArrowRight className="size-3 rtl:-scale-x-100" aria-hidden="true" /> {formatBytes(output.blob.size)}
       </p>
 
       <div className="mt-4 flex flex-col gap-2">
@@ -213,15 +200,15 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-fg hover:bg-brand-hover"
         >
           <Download className="size-4" aria-hidden="true" />
-          Download clean file
+          {t("Download clean file")}
         </button>
         <button
           type="button"
           onClick={() => replaceFileContent(file.id, output.blob, file.name)}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg"
-          title="Replace this tab's file with the cleaned version, e.g. before merging or converting it"
+          title={t("Replace this tab's file with the cleaned version, e.g. before merging or converting it")}
         >
-          Use cleaned version in workspace
+          {t("Use cleaned version in workspace")}
         </button>
       </div>
     </section>
@@ -230,6 +217,7 @@ function ResultCard({ file, verification }: { file: WorkspaceFile; verification:
 
 function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripOptions }) {
   const [running, setRunning] = useState(false);
+  const t = useT();
   const pending = files.filter((f) => !f.output);
   const done = files.filter((f) => f.output);
 
@@ -247,8 +235,8 @@ function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripO
     const succeeded = pending.length - failed;
     toast({
       tone: failed ? "warning" : "success",
-      title: `${succeeded} file${succeeded === 1 ? "" : "s"} sanitized`,
-      description: failed ? `${failed} couldn't be processed — open their tabs for details.` : undefined,
+      title: t.plural(succeeded, "{n} file sanitized", "{n} files sanitized"),
+      description: failed ? t("{count} couldn't be processed — open their tabs for details.", { count: failed }) : undefined,
     });
   };
 
@@ -260,11 +248,9 @@ function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripO
     <section className="rounded-xl border border-line bg-surface p-5">
       <h2 className="flex items-center gap-2 font-semibold text-fg">
         <Layers className="size-4 text-brand-text" aria-hidden="true" />
-        All open files
+        {t("All open files")}
       </h2>
-      <p className="mt-1 text-sm text-fg-muted">
-        {done.length} of {files.length} sanitized.
-      </p>
+      <p className="mt-1 text-sm text-fg-muted">{t("{done} of {total} sanitized.", { done: done.length, total: files.length })}</p>
       <div className="mt-4 flex flex-col gap-2">
         {pending.length > 0 && (
           <button
@@ -274,7 +260,9 @@ function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripO
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-border px-4 py-2 text-sm font-medium text-brand-text hover:bg-brand-soft disabled:opacity-50"
           >
             {running && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-            Sanitize {pending.length === files.length ? "all" : "remaining"} {pending.length} file{pending.length === 1 ? "" : "s"}
+            {pending.length === files.length
+              ? t.plural(pending.length, "Sanitize all {n} file", "Sanitize all {n} files")
+              : t.plural(pending.length, "Sanitize remaining {n} file", "Sanitize remaining {n} files")}
           </button>
         )}
         {done.length > 1 && (
@@ -284,7 +272,7 @@ function BatchCard({ files, options }: { files: WorkspaceFile[]; options: StripO
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg"
           >
             <Download className="size-4" aria-hidden="true" />
-            Download {done.length} clean files (ZIP)
+            {t("Download {count} clean files (ZIP)", { count: done.length })}
           </button>
         )}
       </div>

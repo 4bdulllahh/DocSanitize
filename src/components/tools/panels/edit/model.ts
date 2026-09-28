@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { EditObject, FontFamily, TextStyle } from "@/lib/pdf/edit/types";
+import { msg } from "@/i18n/msg";
 
 export type Tool =
   | "select"
@@ -54,36 +55,36 @@ export interface ToolInfo {
 }
 
 export const TOOL_GROUPS: ToolInfo[][] = [
-  [{ id: "select", label: "Select", icon: MousePointer2, key: "v", hint: "Click something you added to select it. Drag to move it, drag the handle to resize it, and press Delete to remove it. Double-click text to change it." }],
+  [{ id: "select", label: msg("Select"), icon: MousePointer2, key: "v", hint: msg("Click something you added to select it. Drag to move it, drag the handle to resize it, and press Delete to remove it. Double-click text to change it.") }],
   [
-    { id: "text", label: "Add text", icon: Type, key: "t", hint: "Click where the text should start, then type." },
-    { id: "edit-text", label: "Edit text", icon: TextCursorInput, key: "e", hint: "Click a line of the document's own text to change it. The original words are removed from the file, not just covered." },
-    { id: "whiteout", label: "White-out", icon: Eraser, key: "w", hint: "Drag over anything to cover it. It hides content but doesn't remove it from the file; use Redact for that." },
+    { id: "text", label: msg("Add text"), icon: Type, key: "t", hint: msg("Click where the text should start, then type.") },
+    { id: "edit-text", label: msg("Edit text"), icon: TextCursorInput, key: "e", hint: msg("Click a line of the document's own text to change it. The original words are removed from the file, not just covered.") },
+    { id: "whiteout", label: msg("White-out"), icon: Eraser, key: "w", hint: msg("Drag over anything to cover it. It hides content but doesn't remove it from the file; use Redact for that.") },
   ],
   [
-    { id: "highlight", label: "Highlight", icon: Highlighter, key: "h", hint: "Drag across text to highlight it. On pages without text, drag over the area instead." },
-    { id: "underline", label: "Underline", icon: Underline, key: "u", hint: "Drag across text to underline it." },
-    { id: "strikeout", label: "Strikethrough", icon: Strikethrough, key: "k", hint: "Drag across text to strike it through." },
+    { id: "highlight", label: msg("Highlight"), icon: Highlighter, key: "h", hint: msg("Drag across text to highlight it. On pages without text, drag over the area instead.") },
+    { id: "underline", label: msg("Underline"), icon: Underline, key: "u", hint: msg("Drag across text to underline it.") },
+    { id: "strikeout", label: msg("Strikethrough"), icon: Strikethrough, key: "k", hint: msg("Drag across text to strike it through.") },
   ],
   [
-    { id: "pen", label: "Pen", icon: PenLine, key: "p", hint: "Draw freehand with a mouse, pen or finger." },
-    { id: "highlighter", label: "Marker", icon: Brush, key: "m", hint: "Draw freehand with a see-through marker." },
+    { id: "pen", label: msg("Pen"), icon: PenLine, key: "p", hint: msg("Draw freehand with a mouse, pen or finger.") },
+    { id: "highlighter", label: msg("Marker"), icon: Brush, key: "m", hint: msg("Draw freehand with a see-through marker.") },
   ],
   [
-    { id: "rect", label: "Rectangle", icon: Square, key: "r", hint: "Drag to draw a rectangle. Hold Shift for a square." },
-    { id: "ellipse", label: "Ellipse", icon: Circle, key: "o", hint: "Drag to draw an ellipse. Hold Shift for a circle." },
-    { id: "line", label: "Line", icon: Minus, key: "l", hint: "Drag to draw a line. Hold Shift to keep it straight." },
-    { id: "arrow", label: "Arrow", icon: MoveUpRight, key: "a", hint: "Drag to draw an arrow. Hold Shift to keep it straight." },
+    { id: "rect", label: msg("Rectangle"), icon: Square, key: "r", hint: msg("Drag to draw a rectangle. Hold Shift for a square.") },
+    { id: "ellipse", label: msg("Ellipse"), icon: Circle, key: "o", hint: msg("Drag to draw an ellipse. Hold Shift for a circle.") },
+    { id: "line", label: msg("Line"), icon: Minus, key: "l", hint: msg("Drag to draw a line. Hold Shift to keep it straight.") },
+    { id: "arrow", label: msg("Arrow"), icon: MoveUpRight, key: "a", hint: msg("Drag to draw an arrow. Hold Shift to keep it straight.") },
   ],
   [
-    { id: "check", label: "Check mark", icon: Check, key: "c", hint: "Click to put a check mark, e.g. in a form's box." },
-    { id: "cross", label: "Cross", icon: X, key: "x", hint: "Click to put a cross." },
-    { id: "dot", label: "Dot", icon: CircleDot, key: "d", hint: "Click to put a dot." },
+    { id: "check", label: msg("Check mark"), icon: Check, key: "c", hint: msg("Click to put a check mark, e.g. in a form's box.") },
+    { id: "cross", label: msg("Cross"), icon: X, key: "x", hint: msg("Click to put a cross.") },
+    { id: "dot", label: msg("Dot"), icon: CircleDot, key: "d", hint: msg("Click to put a dot.") },
   ],
   [
-    { id: "image", label: "Image", icon: ImagePlus, key: "i", hint: "Choose a picture; it's placed on this page, then you can move and resize it." },
-    { id: "sign", label: "Signature", icon: Signature, key: "s", hint: "Create a signature, then place it on the page." },
-    { id: "note", label: "Note", icon: StickyNote, key: "n", hint: "Click to add a sticky note. Its text opens when someone clicks it in a PDF reader." },
+    { id: "image", label: msg("Image"), icon: ImagePlus, key: "i", hint: msg("Choose a picture; it's placed on this page, then you can move and resize it.") },
+    { id: "sign", label: msg("Signature"), icon: Signature, key: "s", hint: msg("Create a signature, then place it on the page.") },
+    { id: "note", label: msg("Note"), icon: StickyNote, key: "n", hint: msg("Click to add a sticky note. Its text opens when someone clicks it in a PDF reader.") },
   ],
 ];
 
@@ -93,22 +94,22 @@ export const TOOLS_BY_ID = Object.fromEntries(TOOL_GROUPS.flat().map((t) => [t.i
 export const STAYS_ACTIVE = new Set<Tool>(["pen", "highlighter", "highlight", "underline", "strikeout", "check", "cross", "dot", "edit-text", "whiteout"]);
 
 export const COLORS = [
-  { value: "#111827", name: "Black" },
-  { value: "#1d3a8a", name: "Blue" },
-  { value: "#dc2626", name: "Red" },
-  { value: "#16a34a", name: "Green" },
-  { value: "#f97316", name: "Orange" },
-  { value: "#7c3aed", name: "Purple" },
-  { value: "#6b7280", name: "Grey" },
-  { value: "#ffffff", name: "White" },
+  { value: "#111827", name: msg("Black") },
+  { value: "#1d3a8a", name: msg("Blue") },
+  { value: "#dc2626", name: msg("Red") },
+  { value: "#16a34a", name: msg("Green") },
+  { value: "#f97316", name: msg("Orange") },
+  { value: "#7c3aed", name: msg("Purple") },
+  { value: "#6b7280", name: msg("Grey") },
+  { value: "#ffffff", name: msg("White") },
 ];
 
 export const MARKER_COLORS = [
-  { value: "#fde047", name: "Yellow" },
-  { value: "#86efac", name: "Green" },
-  { value: "#7dd3fc", name: "Blue" },
-  { value: "#f9a8d4", name: "Pink" },
-  { value: "#fdba74", name: "Orange" },
+  { value: "#fde047", name: msg("Yellow") },
+  { value: "#86efac", name: msg("Green") },
+  { value: "#7dd3fc", name: msg("Blue") },
+  { value: "#f9a8d4", name: msg("Pink") },
+  { value: "#fdba74", name: msg("Orange") },
 ];
 
 /** Settings new objects are made with; changed from the inspector. */

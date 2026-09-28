@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import clsx from "clsx";
 import { Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { TOOL_GROUPS, type Tool } from "./model";
+import { useT } from "@/store/locale";
 
 export const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 
@@ -28,11 +29,12 @@ export function Toolbar({
   zoom: number;
   onZoom: (zoom: number) => void;
 }) {
+  const t = useT();
   const zoomIndex = ZOOMS.indexOf(zoom);
   return (
     <div
       role="toolbar"
-      aria-label="Editing tools"
+      aria-label={t("Editing tools")}
       className="sticky top-16 z-10 flex items-center gap-1 overflow-x-auto rounded-t-xl border-b border-line bg-surface px-2 py-1.5 sm:flex-wrap sm:overflow-visible"
     >
       {TOOL_GROUPS.map((group, g) => (
@@ -44,9 +46,9 @@ export function Toolbar({
               type="button"
               onClick={() => onTool(id)}
               aria-pressed={tool === id}
-              aria-label={label}
+              aria-label={t(label)}
               aria-keyshortcuts={key?.toUpperCase()}
-              title={key ? `${label} (${key.toUpperCase()})` : label}
+              title={key ? `${t(label)} (${key.toUpperCase()})` : t(label)}
               className={clsx(BUTTON, tool === id && "bg-brand-soft text-brand-text hover:bg-brand-soft hover:text-brand-text")}
             >
               <Icon className="size-4.5" aria-hidden="true" />
@@ -55,20 +57,20 @@ export function Toolbar({
         </Fragment>
       ))}
       <span className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden="true" />
-      <button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" aria-keyshortcuts="Control+Z" title="Undo (Ctrl+Z)" className={BUTTON}>
+      <button type="button" onClick={onUndo} disabled={!canUndo} aria-label={t("Undo")} aria-keyshortcuts="Control+Z" title={t("Undo (Ctrl+Z)")} className={BUTTON}>
         <Undo2 className="size-4.5" aria-hidden="true" />
       </button>
-      <button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" aria-keyshortcuts="Control+Shift+Z" title="Redo (Ctrl+Shift+Z)" className={BUTTON}>
+      <button type="button" onClick={onRedo} disabled={!canRedo} aria-label={t("Redo")} aria-keyshortcuts="Control+Shift+Z" title={t("Redo (Ctrl+Shift+Z)")} className={BUTTON}>
         <Redo2 className="size-4.5" aria-hidden="true" />
       </button>
       <span className="flex-1" />
-      <button type="button" onClick={() => onZoom(ZOOMS[zoomIndex - 1])} disabled={zoomIndex <= 0} aria-label="Zoom out" className={BUTTON}>
+      <button type="button" onClick={() => onZoom(ZOOMS[zoomIndex - 1])} disabled={zoomIndex <= 0} aria-label={t("Zoom out")} className={BUTTON}>
         <ZoomOut className="size-4.5" aria-hidden="true" />
       </button>
-      <button type="button" onClick={() => onZoom(1)} className="shrink-0 rounded-md px-1.5 py-1 text-xs font-medium text-fg-muted tabular-nums hover:bg-surface-muted hover:text-fg" aria-label={`Zoom ${Math.round(zoom * 100)}%; reset to fit the width`}>
+      <button type="button" onClick={() => onZoom(1)} className="shrink-0 rounded-md px-1.5 py-1 text-xs font-medium text-fg-muted tabular-nums hover:bg-surface-muted hover:text-fg" aria-label={t("Zoom {percent}%; reset to fit the width", { percent: Math.round(zoom * 100) })}>
         {Math.round(zoom * 100)}%
       </button>
-      <button type="button" onClick={() => onZoom(ZOOMS[zoomIndex + 1])} disabled={zoomIndex >= ZOOMS.length - 1} aria-label="Zoom in" className={BUTTON}>
+      <button type="button" onClick={() => onZoom(ZOOMS[zoomIndex + 1])} disabled={zoomIndex >= ZOOMS.length - 1} aria-label={t("Zoom in")} className={BUTTON}>
         <ZoomIn className="size-4.5" aria-hidden="true" />
       </button>
     </div>

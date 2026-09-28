@@ -1,3 +1,4 @@
+import { msg } from "@/i18n/msg";
 /*
  * Reads ffprobe's JSON (-show_format -show_streams -show_chapters) into what the media tools need:
  * the main video and audio track, and every descriptive detail (location, device, dates, names…)
@@ -52,12 +53,12 @@ export interface AudioTrack {
 export type DetailGroup = "location" | "device" | "dates" | "text" | "software" | "other";
 
 export const DETAIL_GROUPS: Record<DetailGroup, string> = {
-  location: "Location",
-  device: "Device",
-  dates: "Dates",
-  text: "Titles, names & comments",
-  software: "Software",
-  other: "Other details",
+  location: msg("Location"),
+  device: msg("Device"),
+  dates: msg("Dates"),
+  text: msg("Titles, names & comments"),
+  software: msg("Software"),
+  other: msg("Other details"),
 };
 
 export interface MediaDetail {
@@ -136,17 +137,17 @@ const GROUP_RULES: [DetailGroup, RegExp][] = [
 ];
 
 const LABELS: Record<string, string> = {
-  "location.iso6709": "Location",
-  "location.accuracy.horizontal": "Location accuracy",
-  "location.name": "Place name",
-  location: "Location",
-  "content.identifier": "Content ID",
-  creationdate: "Created",
-  creation_time: "Created",
-  "_statistics_writing_app": "Written by",
-  "_statistics_writing_date_utc": "Written on",
-  "android.version": "Android version",
-  "android.capture.fps": "Capture frame rate",
+  "location.iso6709": msg("Location"),
+  "location.accuracy.horizontal": msg("Location accuracy"),
+  "location.name": msg("Place name"),
+  location: msg("Location"),
+  "content.identifier": msg("Content ID"),
+  creationdate: msg("Created"),
+  creation_time: msg("Created"),
+  "_statistics_writing_app": msg("Written by"),
+  "_statistics_writing_date_utc": msg("Written on"),
+  "android.version": msg("Android version"),
+  "android.capture.fps": msg("Capture frame rate"),
 };
 
 /** The key without vendor prefixes or language suffixes: "com.apple.quicktime.make" → "make". */
@@ -199,7 +200,7 @@ export function parseProbe(json: ProbeJson): MediaInfo {
     details.push(...detailsFrom(stream.tags, kind));
     // Phones add tracks of timed metadata (per-frame location, camera state) beside the picture.
     if (stream.codec_type === "data") {
-      details.push({ group: "other", label: "Timed metadata track", value: stream.tags?.handler_name?.trim() || stream.codec_tag_string || "Data", where: "data track" });
+      details.push({ group: "other", label: msg("Timed metadata track"), value: stream.tags?.handler_name?.trim() || stream.codec_tag_string || "Data", where: "data track" });
     }
   }
   json.chapters?.forEach((chapter, i) => details.push(...detailsFrom(chapter.tags, `chapter ${i + 1}`)));
@@ -247,5 +248,5 @@ export function codecLabel(codec: string): string {
 }
 
 export function channelsLabel(channels: number): string {
-  return channels === 1 ? "mono" : channels === 2 ? "stereo" : `${channels} channels`;
+  return channels === 1 ? msg("mono") : channels === 2 ? msg("stereo") : msg`${channels} channels`;
 }

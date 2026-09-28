@@ -24,6 +24,9 @@ import { ProgressBar } from "../shared/ConversionParts";
 import { OutputCard, PRIMARY, SECONDARY } from "../shared/OutputCard";
 import { ToolCard } from "../shared/toolkit";
 import { StepEditor } from "./StepEditor";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import type { Translator } from "@/i18n/translate";
 
 /** The tool whose icon each step shows. */
 const STEP_TOOL: Record<StepType, string> = {
@@ -49,10 +52,10 @@ const STEP_TOOL: Record<StepType, string> = {
 };
 const STEP_ICONS = Object.fromEntries(Object.entries(STEP_TOOL).map(([type, tool]) => [type, getTool(tool)!.icon])) as Record<StepType, LucideIcon>;
 const StepIcon = ({ type, className }: { type: StepType; className: string }) => createElement(STEP_ICONS[type], { className, "aria-hidden": true });
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "long" });
 
 export default function BatchPanel({ files }: ToolPanelProps) {
+  const t = useT();
   const entries = useBatchStore((s) => s.entries);
   const certificate = useCertificateStore((s) => s.current);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
@@ -86,7 +89,7 @@ export default function BatchPanel({ files }: ToolPanelProps) {
       );
       setResult({ entries, value });
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) toast({ tone: "error", title: "The batch stopped", description: errorMessage(error) });
+      if (!(error instanceof DOMException && error.name === "AbortError")) toast({ tone: "error", title: msg("The batch stopped"), description: errorMessage(error) });
     } finally {
       abort.current = null;
       setProgress(null);
@@ -99,8 +102,8 @@ export default function BatchPanel({ files }: ToolPanelProps) {
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <StepList entries={entries} problems={problems} files={included} busy={busy} />
       <div className="space-y-4 lg:sticky lg:top-20">
-        <ToolCard icon={Play} title="Run">
-          <ul className="mt-3 max-h-72 divide-y divide-line overflow-y-auto rounded-lg border border-line" aria-label="Open files">
+        <ToolCard icon={Play} title={t("Run")}>
+          <ul className="mt-3 max-h-72 divide-y divide-line overflow-y-auto rounded-lg border border-line" aria-label={t("Open files")}>
             {files.map((f) => (
               <FileRow
                 key={f.id}
@@ -121,26 +124,26 @@ export default function BatchPanel({ files }: ToolPanelProps) {
           </ul>
           {busy ? (
             <>
-              <ProgressBar label={progressLabel(progress, entries)} fraction={progress.fraction} />
+              <ProgressBar label={progressLabel(progress, entries, t)} fraction={progress.fraction} />
               <button type="button" onClick={() => abort.current?.abort()} className={clsx(SECONDARY, "mt-3 w-full")}>
                 <X className="size-4" aria-hidden="true" />
-                Cancel
+                {t("Cancel")}
               </button>
             </>
           ) : (
             <>
               <button type="button" onClick={run} disabled={!!problems.length || !workable.length || !steps.length} className={clsx(PRIMARY, "mt-4 w-full")}>
                 <Play className="size-4" aria-hidden="true" />
-                {steps.length && workable.length ? `Run on ${plural(workable.length, "file")}` : "Run"}
+                {steps.length && workable.length ? t.plural(workable.length, "Run on {n} file", "Run on {n} files") : t("Run")}
               </button>
               <p className="mt-2 text-xs text-fg-subtle">
                 {!steps.length
-                  ? "Add a step, or start from a ready-made list."
+                  ? t("Add a step, or start from a ready-made list.")
                   : problems.length
-                    ? "Fix the steps marked in red first."
+                    ? t("Fix the steps marked in red first.")
                     : !workable.length
-                      ? "None of the chosen files can go through these steps."
-                      : "One file at a time, on this device: nothing is uploaded."}
+                      ? t("None of the chosen files can go through these steps.")
+                      : t("One file at a time, on this device: nothing is uploaded.")}
               </p>
             </>
           )}
@@ -152,29 +155,30 @@ export default function BatchPanel({ files }: ToolPanelProps) {
   );
 }
 
-function progressLabel(progress: BatchProgress, entries: BatchEntry[]): string {
+function progressLabel(progress: BatchProgress, entries: BatchEntry[], t: Translator): string {
   const step = entries[progress.step]?.step;
-  if (!step || !progress.total) return "Finishing…";
+  if (!step || !progress.total) return t("Finishing…");
   const info = STEP_INFO[step.type];
-  const which = info.together ? progress.name : `${progress.name} (${progress.done + 1} of ${progress.total})`;
-  return `Step ${progress.step + 1} of ${entries.length}, ${info.name}: ${which}`;
+  const which = info.together ? progress.name : t("{name} ({done} of {count})", { name: progress.name, done: progress.done + 1, count: progress.total });
+  return t("Step {step} of {steps}, {tool}: {which}", { step: progress.step + 1, steps: entries.length, tool: t(info.name), which });
 }
 
 function FileRow({ file, plan, steps, disabled, onToggle }: { file: WorkspaceFile; plan: FilePlan | null; steps: BatchEntry[]; disabled: boolean; onToggle: (on: boolean) => void }) {
+  const t = useT();
   let detail: string;
-  if (!plan) detail = "Left out";
-  else if (!steps.length) detail = KIND_LABELS[file.kind];
-  else if (!plan.steps.length) detail = "Nothing to do";
+  if (!plan) detail = t("Left out");
+  else if (!steps.length) detail = t(KIND_LABELS[file.kind]);
+  else if (!plan.steps.length) detail = t("Nothing to do");
   else {
-    detail = plural(plan.steps.length, "step");
     const merge = plan.mergedAt === null ? null : steps[plan.mergedAt].step;
-    if (merge?.type === "merge") detail += `, combined into ${merge.name}`;
-    else if (plan.kind !== file.kind) detail += `, becomes ${KIND_LABELS[plan.kind]}`;
+    if (merge?.type === "merge") detail = t.plural(plan.steps.length, "{n} step, combined into {name}", "{n} steps, combined into {name}", { name: merge.name });
+    else if (plan.kind !== file.kind) detail = t.plural(plan.steps.length, "{n} step, becomes {kind}", "{n} steps, becomes {kind}", { kind: t(KIND_LABELS[plan.kind]) });
+    else detail = t.plural(plan.steps.length, "{n} step", "{n} steps");
   }
   return (
     <li>
       <label className="flex cursor-pointer items-center gap-3 px-3 py-2">
-        <input type="checkbox" checked={!!plan} disabled={disabled} onChange={(e) => onToggle(e.target.checked)} className="size-4 shrink-0 accent-brand" aria-label={`Include ${file.name}`} />
+        <input type="checkbox" checked={!!plan} disabled={disabled} onChange={(e) => onToggle(e.target.checked)} className="size-4 shrink-0 accent-brand" aria-label={t("Include {name}", { name: file.name })} />
         <KindIcon kind={file.kind} className="size-4 shrink-0 text-fg-subtle" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-fg">{file.name}</span>
@@ -188,6 +192,7 @@ function FileRow({ file, plan, steps, disabled, onToggle }: { file: WorkspaceFil
 // ---------------------------------------------------------------- Steps
 
 function StepList({ entries, problems, files, busy }: { entries: BatchEntry[]; problems: { index: number; message: string }[]; files: WorkspaceFile[]; busy: boolean }) {
+  const t = useT();
   const { replaceAll } = useBatchStore.getState();
   const openInput = useId();
   const [adding, setAdding] = useState(false);
@@ -199,9 +204,9 @@ function StepList({ entries, problems, files, busy }: { entries: BatchEntry[]; p
   const openList = async (file: File) => {
     try {
       replaceAll(parseRecipe(await file.text()));
-      toast({ tone: "success", title: "Steps opened", description: file.name });
+      toast({ tone: "success", title: msg("Steps opened"), description: file.name });
     } catch (error) {
-      toast({ tone: "error", title: "Couldn't open the steps", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't open the steps"), description: errorMessage(error) });
     }
   };
 
@@ -211,21 +216,21 @@ function StepList({ entries, problems, files, busy }: { entries: BatchEntry[]; p
         <div>
           <h2 id="steps-heading" className="flex items-center gap-2 font-semibold text-fg">
             <ListChecks className="size-4 text-brand-text" aria-hidden="true" />
-            Steps
+            {t("Steps")}
           </h2>
-          <p className="mt-0.5 text-sm text-fg-muted">Done in this order, to every file they can open.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">{t("Done in this order, to every file they can open.")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <label htmlFor={openInput} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg">
             <FileUp className="size-4" aria-hidden="true" />
-            Open steps
+            {t("Open steps")}
           </label>
           <input
             id={openInput}
             type="file"
             accept=".json,application/json"
             className="sr-only"
-            aria-label="Saved steps file"
+            aria-label={t("Saved steps file")}
             onChange={(e) => {
               const f = e.target.files?.[0];
               e.target.value = "";
@@ -239,12 +244,12 @@ function StepList({ entries, problems, files, busy }: { entries: BatchEntry[]; p
             className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg disabled:opacity-40"
           >
             <FileDown className="size-4" aria-hidden="true" />
-            Save steps
+            {t("Save steps")}
           </button>
           {entries.length > 0 && (
             <button type="button" disabled={busy} onClick={() => replaceAll([])} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg disabled:opacity-40">
               <Trash2 className="size-4" aria-hidden="true" />
-              Clear
+              {t("Clear")}
             </button>
           )}
         </div>
@@ -260,7 +265,7 @@ function StepList({ entries, problems, files, busy }: { entries: BatchEntry[]; p
                 entry={entry}
                 index={index}
                 count={entries.length}
-                problems={problems.filter((p) => p.index === index).map((p) => p.message)}
+                problems={problems.filter((p) => p.index === index).map((p) => t.dynamic(p.message))}
                 reach={plans.filter((p) => p.steps.includes(index)).length}
                 disabled={busy}
               />
@@ -274,29 +279,31 @@ function StepList({ entries, problems, files, busy }: { entries: BatchEntry[]; p
 }
 
 function Presets() {
+  const t = useT();
   const { replaceAll } = useBatchStore.getState();
   return (
     <div className="mb-4">
-      <p className="text-sm font-medium text-fg">Start from a ready-made list</p>
+      <p className="text-sm font-medium text-fg">{t("Start from a ready-made list")}</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {BATCH_PRESETS.map((preset) => (
           <button
             key={preset.id}
             type="button"
             onClick={() => replaceAll(preset.steps({ ocrLanguage: defaultOcrLanguage(typeof navigator === "undefined" ? undefined : navigator.language) }))}
-            className="rounded-lg border border-line p-3 text-left hover:border-brand-border hover:bg-brand-soft/40"
+            className="rounded-lg border border-line p-3 text-start hover:border-brand-border hover:bg-brand-soft/40"
           >
-            <span className="block text-sm font-semibold text-fg">{preset.name}</span>
-            <span className="mt-0.5 block text-xs text-fg-muted">{preset.description}</span>
+            <span className="block text-sm font-semibold text-fg">{t(preset.name)}</span>
+            <span className="mt-0.5 block text-xs text-fg-muted">{t(preset.description)}</span>
           </button>
         ))}
       </div>
-      <p className="mt-4 text-sm text-fg-muted">Or build your own:</p>
+      <p className="mt-4 text-sm text-fg-muted">{t("Or build your own:")}</p>
     </div>
   );
 }
 
 function StepCard({ entry, index, count, problems, reach, disabled }: { entry: BatchEntry; index: number; count: number; problems: string[]; reach: number; disabled: boolean }) {
+  const t = useT();
   const { update, remove, move, setOpen } = useBatchStore.getState();
   const open = useBatchStore((s) => s.openId === entry.id);
   const bodyId = useId();
@@ -304,26 +311,26 @@ function StepCard({ entry, index, count, problems, reach, disabled }: { entry: B
   const info = STEP_INFO[step.type];
   const iconButton = "rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-30";
   return (
-    <li className={clsx("rounded-lg border", problems.length ? "border-danger/60" : "border-line")} aria-label={`Step ${index + 1}: ${info.name}`}>
-      <div className="flex items-center gap-2 p-2 pl-3">
+    <li className={clsx("rounded-lg border", problems.length ? "border-danger/60" : "border-line")} aria-label={t("Step {n}: {name}", { n: index + 1, name: t(info.name) })}>
+      <div className="flex items-center gap-2 p-2 ps-3">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-semibold text-fg-muted tabular-nums">{index + 1}</span>
-        <button type="button" onClick={() => setOpen(open ? null : entry.id)} aria-expanded={open} aria-controls={bodyId} className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left">
+        <button type="button" onClick={() => setOpen(open ? null : entry.id)} aria-expanded={open} aria-controls={bodyId} className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-start">
           <StepIcon type={step.type} className="size-4 shrink-0 text-brand-text" />
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-fg">{info.name}</span>
+            <span className="block text-sm font-semibold text-fg">{t(info.name)}</span>
             <span className="block truncate text-xs text-fg-muted">
-              {describeStep(step)} · {reach ? plural(reach, "file") : "no open file"}
+              {describeStep(step, t)} · {reach ? t.plural(reach, "{n} file", "{n} files") : t("no open file")}
             </span>
           </span>
           <ChevronDown className={clsx("size-4 shrink-0 text-fg-subtle transition-transform", open && "rotate-180")} aria-hidden="true" />
         </button>
-        <button type="button" className={iconButton} disabled={disabled || index === 0} onClick={() => move(entry.id, -1)} aria-label={`Move ${info.name} up`}>
+        <button type="button" className={iconButton} disabled={disabled || index === 0} onClick={() => move(entry.id, -1)} aria-label={t("Move {name} up", { name: t(info.name) })}>
           <ArrowUp className="size-4" />
         </button>
-        <button type="button" className={iconButton} disabled={disabled || index === count - 1} onClick={() => move(entry.id, 1)} aria-label={`Move ${info.name} down`}>
+        <button type="button" className={iconButton} disabled={disabled || index === count - 1} onClick={() => move(entry.id, 1)} aria-label={t("Move {name} down", { name: t(info.name) })}>
           <ArrowDown className="size-4" />
         </button>
-        <button type="button" className={iconButton} disabled={disabled} onClick={() => remove(entry.id)} aria-label={`Remove ${info.name}`}>
+        <button type="button" className={iconButton} disabled={disabled} onClick={() => remove(entry.id)} aria-label={t("Remove {name}", { name: t(info.name) })}>
           <X className="size-4" />
         </button>
       </div>
@@ -336,7 +343,7 @@ function StepCard({ entry, index, count, problems, reach, disabled }: { entry: B
       {open && (
         <div id={bodyId} className="border-t border-line px-4 pb-4">
           <fieldset disabled={disabled}>
-            <legend className="sr-only">{info.name} settings</legend>
+            <legend className="sr-only">{t("{name} settings", { name: t(info.name) })}</legend>
             <StepEditor step={step} onChange={(s) => update(entry.id, s)} />
           </fieldset>
         </div>
@@ -346,6 +353,7 @@ function StepCard({ entry, index, count, problems, reach, disabled }: { entry: B
 }
 
 function AddStep({ open, onOpen, entries, disabled }: { open: boolean; onOpen: (open: boolean) => void; entries: BatchEntry[]; disabled: boolean }) {
+  const t = useT();
   const { add } = useBatchStore.getState();
   const menuId = useId();
   const used = new Set(entries.map((e) => e.step.type));
@@ -353,13 +361,13 @@ function AddStep({ open, onOpen, entries, disabled }: { open: boolean; onOpen: (
     <div className="mt-3">
       <button type="button" disabled={disabled} onClick={() => onOpen(!open)} aria-expanded={open} aria-controls={menuId} className={clsx(SECONDARY, "w-full border-dashed")}>
         <Plus className="size-4" aria-hidden="true" />
-        Add a step
+        {t("Add a step")}
       </button>
       {open && (
         <div id={menuId} className="mt-3 space-y-4 rounded-lg border border-line p-4">
           {STEP_GROUPS.map((group) => (
             <div key={group.id}>
-              <p className="text-xs font-medium tracking-wider text-fg-subtle uppercase">{group.name}</p>
+              <p className="text-xs font-medium tracking-wider text-fg-subtle uppercase">{t(group.name)}</p>
               <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
                 {(Object.keys(STEP_INFO) as StepType[])
                   .filter((type) => STEP_INFO[type].group === group.id)
@@ -375,12 +383,12 @@ function AddStep({ open, onOpen, entries, disabled }: { open: boolean; onOpen: (
                           add(defaultStep(type));
                           onOpen(false);
                         }}
-                        className="flex items-start gap-2.5 rounded-lg p-2 text-left hover:bg-surface-muted disabled:opacity-40"
+                        className="flex items-start gap-2.5 rounded-lg p-2 text-start hover:bg-surface-muted disabled:opacity-40"
                       >
                         <StepIcon type={type} className="mt-0.5 size-4 shrink-0 text-brand-text" />
                         <span>
-                          <span className="block text-sm font-medium text-fg">{info.name}</span>
-                          <span className="block text-xs text-fg-muted">{taken ? "Already in the list" : info.description}</span>
+                          <span className="block text-sm font-medium text-fg">{t(info.name)}</span>
+                          <span className="block text-xs text-fg-muted">{taken ? t("Already in the list") : t(info.description)}</span>
                         </span>
                       </button>
                     );
@@ -397,13 +405,14 @@ function AddStep({ open, onOpen, entries, disabled }: { open: boolean; onOpen: (
 // ---------------------------------------------------------------- Results
 
 function Results({ result }: { result: BatchResult }) {
+  const t = useT();
   const { outputs, failures, untouched } = result;
   return (
     <>
       {outputs.length > 0 && (
         <OutputCard
-          title={outputs.length === 1 ? "1 file ready" : `${outputs.length} files ready`}
-          outputs={outputs.map((o) => ({ name: o.name, blob: o.blob, detail: KIND_LABELS[o.kind] }))}
+          title={t.plural(outputs.length, "{n} file ready", "{n} files ready")}
+          outputs={outputs.map((o) => ({ name: o.name, blob: o.blob, detail: t(KIND_LABELS[o.kind]) }))}
           zipName="batch.zip"
         />
       )}
@@ -411,7 +420,7 @@ function Results({ result }: { result: BatchResult }) {
         <section className="rounded-xl border border-danger/50 bg-danger-soft p-5" role="alert">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <TriangleAlert className="size-5 text-danger" aria-hidden="true" />
-            {failures.length === 1 ? "1 file couldn't be finished" : `${failures.length} files couldn't be finished`}
+            {t.plural(failures.length, "{n} file couldn't be finished", "{n} files couldn't be finished")}
           </h2>
           <ul className="mt-2 space-y-2 text-sm">
             {failures.map((f, i) => (
@@ -419,7 +428,7 @@ function Results({ result }: { result: BatchResult }) {
                 <span className="font-medium wrap-anywhere text-fg">{f.name}</span>
                 <span className="text-fg-muted">
                   {" "}
-                  at {f.step}: {f.message}
+                  {t("at {step}: {message}", { step: t(f.step), message: t.dynamic(f.message) })}
                 </span>
               </li>
             ))}
@@ -428,11 +437,11 @@ function Results({ result }: { result: BatchResult }) {
       )}
       {untouched.length > 0 && (
         <p className="text-xs text-fg-subtle">
-          Nothing to do for {untouched.join(", ")}: no step works on {untouched.length === 1 ? "it" : "them"}, so {untouched.length === 1 ? "it's" : "they're"} not in the results.
+          {t.plural(untouched.length, "Nothing to do for {names}: no step works on it, so it's not in the results.", "Nothing to do for {names}: no step works on them, so they're not in the results.", { names: untouched.join(", ") })}
         </p>
       )}
-      {!outputs.length && !failures.length && <p className="text-sm text-fg-muted">No file went through any step.</p>}
-      {outputs.length > 0 && <p className="text-xs text-fg-subtle">Total {formatBytes(outputs.reduce((n, o) => n + o.blob.size, 0))}.</p>}
+      {!outputs.length && !failures.length && <p className="text-sm text-fg-muted">{t("No file went through any step.")}</p>}
+      {outputs.length > 0 && <p className="text-xs text-fg-subtle">{t("Total {size}.", { size: formatBytes(outputs.reduce((n, o) => n + o.blob.size, 0)) })}</p>}
     </>
   );
 }

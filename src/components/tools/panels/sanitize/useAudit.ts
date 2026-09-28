@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { msg } from "@/i18n/msg";
 import { auditFile } from "@/lib/metadata/client";
 import { ProcessingError, type ProcessingErrorCode } from "@/lib/errors";
 import type { MetadataReport } from "@/lib/metadata/types";
@@ -27,7 +28,7 @@ export function useAudit(blob: Blob | undefined): AuditState | null {
           blob,
           state: {
             status: "error",
-            message: error instanceof Error ? error.message : "This file couldn't be read.",
+            message: error instanceof Error ? error.message : msg("This file couldn't be read."),
             code: error instanceof ProcessingError ? error.code : undefined,
           },
         });

@@ -7,6 +7,7 @@ import { TOOL_PANELS } from "@/components/tools/panels/registry";
 import { downloadBlob } from "@/lib/download";
 import { formatBytes, KIND_LABELS } from "@/lib/files";
 import { toolsAccepting, type Tool } from "@/lib/tools";
+import { useT } from "@/store/locale";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import { FilePreview } from "./FilePreview";
 import { PANEL_ID, tabId } from "./FileTabs";
@@ -35,10 +36,9 @@ export function FilePanel({ tool, file }: { tool: Tool; file: WorkspaceFile }) {
   );
 }
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
-
 function FileSummary({ file }: { file: WorkspaceFile }) {
   const removeFile = useWorkspaceStore((s) => s.removeFile);
+  const t = useT();
 
   return (
     <div className="flex flex-wrap items-center gap-4 rounded-xl border border-line bg-surface p-4">
@@ -48,7 +48,11 @@ function FileSummary({ file }: { file: WorkspaceFile }) {
       <div className="min-w-48 flex-1">
         <h2 className="font-semibold wrap-anywhere text-fg">{file.name}</h2>
         <p className="mt-0.5 text-sm text-fg-muted">
-          {KIND_LABELS[file.kind]} · {formatBytes(file.size)} · Modified {dateFormat.format(file.file.lastModified)}
+          {t("{kind} · {size} · Modified {date}", {
+            kind: t(KIND_LABELS[file.kind]),
+            size: formatBytes(file.size),
+            date: t.date(file.file.lastModified, { dateStyle: "medium", timeStyle: "short" }),
+          })}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -58,7 +62,7 @@ function FileSummary({ file }: { file: WorkspaceFile }) {
           className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg"
         >
           <Download className="size-4" aria-hidden="true" />
-          Download
+          {t("Download")}
         </button>
         <button
           type="button"
@@ -66,7 +70,7 @@ function FileSummary({ file }: { file: WorkspaceFile }) {
           className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-line-strong hover:text-fg"
         >
           <X className="size-4" aria-hidden="true" />
-          Close
+          {t("Close")}
         </button>
       </div>
     </div>
@@ -75,16 +79,17 @@ function FileSummary({ file }: { file: WorkspaceFile }) {
 
 function ComingSoonCard({ tool }: { tool: Tool }) {
   const Icon = tool.icon;
+  const t = useT();
   return (
     <div className="flex flex-col rounded-xl border border-line bg-surface p-5">
       <div className="flex items-center gap-2 text-sm font-semibold text-fg">
         <Icon className="size-4 text-brand-text" aria-hidden="true" />
-        {tool.name}
+        {t(tool.name)}
       </div>
       <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-2 rounded-lg bg-surface-muted p-6 text-center">
         <Hourglass className="size-6 text-fg-subtle" aria-hidden="true" />
-        <p className="text-sm font-medium text-fg">Coming soon</p>
-        <p className="text-sm text-fg-muted">Your file is open and ready. This tool&apos;s controls will appear here.</p>
+        <p className="text-sm font-medium text-fg">{t("Coming soon")}</p>
+        <p className="text-sm text-fg-muted">{t("Your file is open and ready. This tool's controls will appear here.")}</p>
       </div>
     </div>
   );
@@ -92,17 +97,14 @@ function ComingSoonCard({ tool }: { tool: Tool }) {
 
 function IncompatibleNotice({ tool, file }: { tool: Tool; file: WorkspaceFile }) {
   const alternatives = toolsAccepting(file.kind);
+  const t = useT();
   return (
     <div className="rounded-xl border border-warning/40 bg-warning-soft p-5">
       <div className="flex items-start gap-3">
         <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden="true" />
         <div>
-          <p className="font-medium text-fg">
-            {tool.name} can&apos;t open {KIND_LABELS[file.kind]} files.
-          </p>
-          <p className="mt-1 text-sm text-fg-muted">
-            This file is still open in your workspace. Switch to another tab, or open it with a tool that supports it.
-          </p>
+          <p className="font-medium text-fg">{t("{tool} can't open {kind} files.", { tool: t(tool.name), kind: t(KIND_LABELS[file.kind]) })}</p>
+          <p className="mt-1 text-sm text-fg-muted">{t("This file is still open in your workspace. Switch to another tab, or open it with a tool that supports it.")}</p>
           {alternatives.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {alternatives.map((alt) => (
@@ -111,7 +113,7 @@ function IncompatibleNotice({ tool, file }: { tool: Tool; file: WorkspaceFile })
                   href={`/tools/${alt.id}`}
                   className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-brand-text hover:border-brand-border"
                 >
-                  {alt.name}
+                  {t(alt.name)}
                 </Link>
               ))}
             </div>

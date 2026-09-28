@@ -15,6 +15,8 @@ import { FidelityNote } from "../shared/ConversionParts";
 import { OutputCard, PRIMARY } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
 import { DocGate, Layout, ToolCard, useApply, useLoaded } from "../shared/toolkit";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 export default function FillPanel({ file }: ToolPanelProps) {
   const loaded = useLoaded(file, readFileForm);
@@ -24,7 +26,7 @@ export default function FillPanel({ file }: ToolPanelProps) {
         !loaded ? (
           <PdfLoading />
         ) : !loaded.value ? (
-          <PdfLoadError message={loaded.error ?? "This PDF couldn't be read."} code={loaded.code} />
+          <PdfLoadError message={loaded.error ?? msg("This PDF couldn't be read.")} code={loaded.code} />
         ) : loaded.value.fields.length === 0 ? (
           <NoFields />
         ) : (
@@ -36,13 +38,14 @@ export default function FillPanel({ file }: ToolPanelProps) {
 }
 
 function NoFields() {
+  const t = useT();
   return (
     <section className="mx-auto max-w-lg rounded-xl border border-line bg-surface p-8 text-center">
       <ClipboardPen className="mx-auto size-10 text-fg-subtle" strokeWidth={1.5} aria-hidden="true" />
-      <h2 className="mt-3 font-semibold text-fg">This PDF has no fillable fields</h2>
-      <p className="mt-1 text-sm text-fg-muted">You can still fill it in: type on it, tick boxes and sign with Edit PDF.</p>
+      <h2 className="mt-3 font-semibold text-fg">{t("This PDF has no fillable fields")}</h2>
+      <p className="mt-1 text-sm text-fg-muted">{t("You can still fill it in: type on it, tick boxes and sign with Edit PDF.")}</p>
       <Link href="/tools/edit-pdf" className={clsx(PRIMARY, "mt-5")}>
-        Open Edit PDF
+        {t("Open Edit PDF")}
       </Link>
     </section>
   );
@@ -57,6 +60,7 @@ export function fieldLabel(name: string): string {
 const FIELD_STYLE = "border border-brand-border/60 bg-brand-soft/70 text-[#111] outline-none focus:border-brand focus:bg-white";
 
 function Filler({ file, doc, form }: { file: WorkspaceFile; doc: PDFDocumentProxy; form: FormInfo }) {
+  const t = useT();
   const { busy, output, setOutput, apply } = useApply(file, "filled");
   const [values, setValues] = useState<FieldValues>(() => Object.fromEntries(form.fields.map((f) => [f.name, f.value])));
   const [current, setCurrent] = useState(() => form.fields.flatMap((f) => f.widgets.map((w) => w.page)).sort((a, b) => a - b)[0] ?? 0);
@@ -73,23 +77,23 @@ function Filler({ file, doc, form }: { file: WorkspaceFile; doc: PDFDocumentProx
   return (
     <Layout
       main={
-        <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Form">
-          {doc.numPages > 1 && <PageStrip doc={doc} current={current} onSelect={setCurrent} counts={counts} noun="field" />}
+        <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Form")}>
+          {doc.numPages > 1 && <PageStrip doc={doc} current={current} onSelect={setCurrent} counts={counts} countLabel={(n) => t.plural(n, "{n} field", "{n} fields")} />}
           <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm">
-            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label="Previous page">
+            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label={t("Previous page")}>
               <ChevronLeft className="size-4" />
             </button>
             <span className="text-fg-muted tabular-nums">
-              Page {current + 1} of {doc.numPages}
+              {t("Page {page} of {count}", { page: current + 1, count: doc.numPages })}
             </span>
-            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => setCurrent(current + 1)} aria-label="Next page">
+            <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => setCurrent(current + 1)} aria-label={t("Next page")}>
               <ChevronRight className="size-4" />
             </button>
           </div>
           <div className="bg-surface-muted p-3 sm:p-5">
             <PageStage doc={doc} index={current}>
               {(stage) => (
-                <div className="absolute inset-0" role="group" aria-label={`Fields on page ${current + 1}`}>
+                <div className="absolute inset-0" role="group" aria-label={t("Fields on page {page}", { page: current + 1 })}>
                   {fillable.flatMap((field) =>
                     field.widgets
                       .filter((w) => w.page === current)
@@ -107,13 +111,13 @@ function Filler({ file, doc, form }: { file: WorkspaceFile; doc: PDFDocumentProx
       }
       actions={
         <>
-          <ToolCard icon={ClipboardPen} title="Fill in the form">
+          <ToolCard icon={ClipboardPen} title={t("Fill in the form")}>
             <p className="mt-1 text-sm text-fg-muted">
-              {fillable.length} field{fillable.length === 1 ? "" : "s"}. Fill them on the page or in the list.
-              {missing.length > 0 && <span className="text-warning-text"> {missing.length} required still empty.</span>}
+              {t.plural(fillable.length, "{n} field. Fill it on the page or in the list.", "{n} fields. Fill them on the page or in the list.")}
+              {missing.length > 0 && <span className="text-warning-text"> {t.plural(missing.length, "{n} required field still empty.", "{n} required fields still empty.")}</span>}
             </p>
-            {form.xfa && <FidelityNote>This is an XFA form. Its standard fields are filled, and the XFA part (which some readers show instead) is removed so everyone sees the same values.</FidelityNote>}
-            <ol className="mt-4 max-h-[22rem] space-y-3 overflow-y-auto pr-1" aria-label="All fields">
+            {form.xfa && <FidelityNote>{t("This is an XFA form. Its standard fields are filled, and the XFA part (which some readers show instead) is removed so everyone sees the same values.")}</FidelityNote>}
+            <ol className="mt-4 max-h-[22rem] space-y-3 overflow-y-auto pe-1" aria-label={t("All fields")}>
               {fillable.map((field) => (
                 <li key={field.name} onFocus={() => field.widgets[0] && setCurrent(field.widgets[0].page)}>
                   <ListControl field={field} value={values[field.name]} onChange={(v) => set(field.name, v)} />
@@ -123,16 +127,16 @@ function Filler({ file, doc, form }: { file: WorkspaceFile; doc: PDFDocumentProx
             <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-fg">
               <input type="checkbox" checked={flatten} onChange={(e) => (setFlatten(e.target.checked), setOutput(null))} className="mt-0.5 size-4 accent-brand" />
               <span>
-                Flatten the form
-                <span className="block text-xs text-fg-subtle">Makes the answers part of the page so they can&apos;t be changed.</span>
+                {t("Flatten the form")}
+                <span className="block text-xs text-fg-subtle">{t("Makes the answers part of the page so they can't be changed.")}</span>
               </span>
             </label>
             <button type="button" onClick={() => apply(() => fillFileForm(file.file, values, { flatten }))} disabled={busy} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Save className="size-4" aria-hidden="true" />}
-              {busy ? "Saving…" : "Save filled PDF"}
+              {busy ? t("Saving…") : t("Save filled PDF")}
             </button>
           </ToolCard>
-          {output && <OutputCard title="Form filled" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Form filled")} outputs={[output]} replaceFileId={file.id} />}
         </>
       }
     />
@@ -141,6 +145,7 @@ function Filler({ file, doc, form }: { file: WorkspaceFile; doc: PDFDocumentProx
 
 /** A field's control drawn over its spot on the page. */
 function WidgetControl({ field, option, value, onChange, style, scale, boxHeight }: { field: FormField; option?: string; value: FieldValues[string]; onChange: (v: FieldValues[string]) => void; style: CSSProperties; scale: number; boxHeight: number }) {
+  const t = useT();
   const label = fieldLabel(field.name);
   const fontSize = Math.max(7, Math.min(boxHeight * 0.62, 13)) * scale;
   const disabled = field.readOnly;
@@ -194,9 +199,9 @@ function WidgetControl({ field, option, value, onChange, style, scale, boxHeight
       );
     case "signature":
       return (
-        <Link href="/tools/edit-pdf" title="Sign with Edit PDF or E-Sign" className="flex items-center justify-center gap-1 border border-dashed border-brand-border bg-brand-soft/50 text-brand-text" style={{ ...style, fontSize: Math.min(fontSize, 12 * scale) }}>
+        <Link href="/tools/edit-pdf" title={t("Sign with Edit PDF or E-Sign")} className="flex items-center justify-center gap-1 border border-dashed border-brand-border bg-brand-soft/50 text-brand-text" style={{ ...style, fontSize: Math.min(fontSize, 12 * scale) }}>
           <Signature className="size-3.5" aria-hidden="true" />
-          Sign
+          {t("Sign")}
         </Link>
       );
     default:
@@ -206,6 +211,7 @@ function WidgetControl({ field, option, value, onChange, style, scale, boxHeight
 
 /** The same field as a labelled control in the side list. */
 function ListControl({ field, value, onChange }: { field: FormField; value: FieldValues[string]; onChange: (v: FieldValues[string]) => void }) {
+  const t = useT();
   const label = `${fieldLabel(field.name)}${field.required ? " *" : ""}`;
   const input = "mt-1 w-full rounded-lg border border-line bg-canvas px-3 py-1.5 text-sm text-fg outline-none focus:border-brand-border disabled:opacity-60";
   switch (field.kind) {
@@ -263,7 +269,7 @@ function ListControl({ field, value, onChange }: { field: FormField; value: Fiel
         </label>
       );
     case "signature":
-      return <p className="text-sm text-fg-muted">{label}: a signature field. Sign with Edit PDF or E-Sign.</p>;
+      return <p className="text-sm text-fg-muted">{t("{label}: a signature field. Sign with Edit PDF or E-Sign.", { label })}</p>;
     default:
       return null;
   }

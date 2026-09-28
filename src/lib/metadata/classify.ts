@@ -1,4 +1,5 @@
 import type { MetadataEntry, Sensitivity } from "./types";
+import { msg } from "@/i18n/msg";
 
 // Matched case-insensitively against the entry key (and label) with non-letters removed.
 const HIGH = [
@@ -62,7 +63,7 @@ export function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) return isNaN(value.getTime()) ? "" : value.toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
   if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
-    return `${value.byteLength.toLocaleString()} bytes of binary data`;
+    return msg`${value.byteLength.toLocaleString()} bytes of binary data`;
   }
   if (Array.isArray(value)) {
     // Long numeric arrays are binary blobs in disguise.

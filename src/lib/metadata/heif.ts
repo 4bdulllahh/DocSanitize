@@ -2,6 +2,7 @@ import { ascii, concat, startsWith, utf8 } from "./bytes";
 import { readExif, technicalOnlyExif } from "./exif";
 import { MetadataError, type MetadataEntry, type MetadataReport, type StripOptions } from "./types";
 import { xmpEntries } from "./xmp";
+import { msg } from "@/i18n/msg";
 
 /*
  * HEIF container: HEIC (iPhone photos), HEIF and AVIF. The file is a tree of ISO-BMFF boxes; the
@@ -269,7 +270,7 @@ export async function auditHeif(bytes: Uint8Array): Promise<MetadataReport> {
     if (item.type === "Exif") {
       const tiff = exifTiff(itemData(bytes, item));
       if (!tiff) {
-        entries.push({ group: "EXIF", key: "Exif", label: "Unreadable EXIF block", value: `${itemData(bytes, item).length.toLocaleString()} bytes`, sensitivity: "medium" });
+        entries.push({ group: msg("EXIF"), key: "Exif", label: msg("Unreadable EXIF block"), value: msg`${itemData(bytes, item).length.toLocaleString()} bytes`, sensitivity: "medium" });
         continue;
       }
       const exif = await readExif(tiff);
@@ -280,27 +281,27 @@ export async function auditHeif(bytes: Uint8Array): Promise<MetadataReport> {
       const text = utf8.decode(data.subarray(0, 4096));
       if (item.contentType?.includes("rdf+xml") || text.includes("<x:xmpmeta") || text.includes("<rdf:RDF")) {
         const xmp = xmpEntries(utf8.decode(data));
-        entries.push(...(xmp.length ? xmp : [{ group: "XMP", key: "XMP", label: "XMP packet", value: `${data.length.toLocaleString()} bytes`, sensitivity: "medium" as const }]));
+        entries.push(...(xmp.length ? xmp : [{ group: msg("XMP"), key: "XMP", label: msg("XMP packet"), value: msg`${data.length.toLocaleString()} bytes`, sensitivity: "medium" as const }]));
       } else {
-        entries.push({ group: "Other metadata", key: item.contentType || "mime", label: `Embedded ${item.contentType || "data"}`, value: `${data.length.toLocaleString()} bytes`, sensitivity: "medium" });
+        entries.push({ group: msg("Other metadata"), key: item.contentType || "mime", label: msg`Embedded ${item.contentType || "data"}`, value: msg`${data.length.toLocaleString()} bytes`, sensitivity: "medium" });
       }
     } else if (item.type === "uri ") {
-      entries.push({ group: "Other metadata", key: "uri", label: "Embedded vendor data", value: `${itemData(bytes, item).length.toLocaleString()} bytes`, sensitivity: "medium" });
+      entries.push({ group: msg("Other metadata"), key: "uri", label: msg("Embedded vendor data"), value: msg`${itemData(bytes, item).length.toLocaleString()} bytes`, sensitivity: "medium" });
     }
   }
 
   const thumbnails = thumbnailIds(refs).size;
   if (thumbnails) {
     entries.push({
-      group: "Embedded thumbnail",
+      group: msg("Embedded thumbnail"),
       key: "thmb",
-      label: "Thumbnail preview",
-      value: `${thumbnails === 1 ? "A small preview image" : `${thumbnails} small preview images`} — can show the original before cropping or edits`,
+      label: msg("Thumbnail preview"),
+      value: msg`${thumbnails === 1 ? "A small preview image" : `${thumbnails} small preview images`} — can show the original before cropping or edits`,
       sensitivity: "high",
     });
   }
 
-  const kept = hasIcc ? [{ label: "Colour profile", reason: "It's part of the image's colour information, needed to show its colours correctly" }] : [];
+  const kept = hasIcc ? [{ label: msg("Colour profile"), reason: msg("it's part of the image's colour information, needed to show its colours correctly") }] : [];
   return { format: "heif", entries, kept, location };
 }
 

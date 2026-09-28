@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "@/i18n/translate";
 import type { FileKind } from "../../files";
 import { BATCH_PRESETS } from "../presets";
 import { parseRecipe, recipeToJson } from "../recipe";
@@ -70,7 +71,8 @@ describe("checking the steps", () => {
   });
 
   it("describes every step", () => {
-    for (const type of ALL_TYPES) expect(describeStep(defaultStep(type)).length, type).toBeGreaterThan(0);
+    const t = createTranslator("en");
+    for (const type of ALL_TYPES) expect(describeStep(defaultStep(type), t).length, type).toBeGreaterThan(0);
   });
 
   it("offers presets that pass the checks", () => {

@@ -2,10 +2,12 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { useT } from "@/store/locale";
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
-  const label = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
+  const t = useT();
+  const label = theme === "dark" ? t("Switch to light theme") : t("Switch to dark theme");
 
   return (
     <button

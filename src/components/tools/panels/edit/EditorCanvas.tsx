@@ -11,9 +11,12 @@ import { bounds, moveObject } from "@/lib/pdf/edit/geometry";
 import { selectText } from "@/lib/pdf/edit/text-select";
 import { baselineOffset, LINE_HEIGHT, type Box, type EditObject, type MarkupObject, type ReplaceObject } from "@/lib/pdf/edit/types";
 import { CSS_FONTS, measureText, STAYS_ACTIVE, type Defaults, type TextLike, type Tool } from "./model";
+import { KIND_NAMES } from "./Inspector";
+import type { Translator } from "@/i18n/translate";
 import { HitArea, ObjectShape } from "./ObjectLayer";
 import type { EditorState } from "./useEditorState";
 import { sampleColors, usePageText, type PagePhrase } from "./usePageText";
+import { useT } from "@/store/locale";
 
 type Point = { x: number; y: number };
 
@@ -72,6 +75,7 @@ function rectFrom(a: Point, b: Point, square: boolean): Box {
 const inside = (p: Point, b: Box, pad = 0) => p.x >= b.x - pad && p.x <= b.x + b.width + pad && p.y >= b.y - pad && p.y <= b.y + b.height + pad;
 
 export function EditorCanvas({ doc, index, page, zoom, tool, defaults, state, selectedId, onSelect, editingId, onEdit, onCreated }: Props) {
+  const t = useT();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const available = useElementWidth(scrollerRef);
@@ -324,7 +328,7 @@ export function EditorCanvas({ doc, index, page, zoom, tool, defaults, state, se
 
   return (
     <div ref={scrollerRef} className="overflow-x-auto rounded-b-xl bg-surface-muted p-4">
-      <div ref={stageRef} className="relative mx-auto bg-white shadow-elev-1" style={{ width, height }}>
+      <div ref={stageRef} className="relative mx-auto bg-white shadow-elev-1" style={{ width, height }} dir="ltr">
         <PageThumbnail key={index} doc={doc} pageNumber={index + 1} width={width} height={height} />
         <div
           className={clsx("absolute inset-0 select-none", (tool !== "select" || selected) && "touch-none")}
@@ -340,11 +344,11 @@ export function EditorCanvas({ doc, index, page, zoom, tool, defaults, state, se
             if (tool === "select" && object && (object.kind === "text" || object.kind === "replace" || object.kind === "note")) onEdit(object.id);
           }}
           role="application"
-          aria-label={`Page ${index + 1} of the document being edited`}
+          aria-label={t("Page {page} of the document being edited", { page: index + 1 })}
         >
           <svg className="absolute inset-0 size-full overflow-visible" viewBox={`0 0 ${page.width} ${page.height}`} preserveAspectRatio="none">
             {objects.map((o) => (
-              <g key={o.id} data-id={o.id} className={tool === "select" ? "cursor-move" : "pointer-events-none"} role="img" aria-label={describe(o)}>
+              <g key={o.id} data-id={o.id} className={tool === "select" ? "cursor-move" : "pointer-events-none"} role="img" aria-label={describe(o, t)}>
                 <ObjectShape object={o} images={state.images} hideText={o.id === editing?.id} />
                 {tool === "select" && <HitArea object={o} scale={scale} />}
                 {tool === "select" && o.kind !== "line" && o.kind !== "arrow" && o.kind !== "ink" && <BoundsHit object={o} />}
@@ -390,17 +394,14 @@ export function EditorCanvas({ doc, index, page, zoom, tool, defaults, state, se
   );
 }
 
-function describe(o: EditObject): string {
+function describe(o: EditObject, t: Translator): string {
   switch (o.kind) {
     case "text":
     case "replace":
-      return `${o.kind === "text" ? "Text" : "Edited text"}: ${o.text || "empty"}`;
     case "note":
-      return `Note: ${o.text || "empty"}`;
-    case "rect":
-      return "Rectangle";
+      return t("{kind}: {text}", { kind: t(KIND_NAMES[o.kind]), text: o.text || t("empty") });
     default:
-      return o.kind.charAt(0).toUpperCase() + o.kind.slice(1);
+      return t(KIND_NAMES[o.kind]);
   }
 }
 
@@ -438,6 +439,7 @@ function DraftShape({ draft, tool, defaults, scale }: { draft: Draft; tool: Tool
 }
 
 function SelectionFrame({ object, box, scale, onDelete }: { object: EditObject; box: Box; scale: number; onDelete: () => void }) {
+  const t = useT();
   const px = (b: Box) => ({ left: b.x * scale - 3, top: b.y * scale - 3, width: b.width * scale + 6, height: b.height * scale + 6 });
   const handle = "absolute size-3.5 rounded-sm border-2 border-surface bg-brand";
   const isLine = object.kind === "line" || object.kind === "arrow";
@@ -462,7 +464,7 @@ function SelectionFrame({ object, box, scale, onDelete }: { object: EditObject; 
         type="button"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onDelete}
-        aria-label="Delete the selected item"
+        aria-label={t("Delete the selected item")}
         className="absolute flex size-6 items-center justify-center rounded-full bg-danger text-white shadow-elev-2"
         style={{ left: (box.x + box.width) * scale - 6, top: box.y * scale - 18 }}
       >
@@ -473,6 +475,7 @@ function SelectionFrame({ object, box, scale, onDelete }: { object: EditObject; 
 }
 
 function TextEditor({ object, scale, onChange, onDone }: { object: TextLike; scale: number; onChange: (text: string) => void; onDone: () => void }) {
+  const t = useT();
   const ref = useRef<HTMLTextAreaElement>(null);
   // Focus without scrolling the page; select an existing line's text so typing replaces it.
   useEffect(() => {
@@ -496,7 +499,7 @@ function TextEditor({ object, scale, onChange, onDone }: { object: TextLike; sca
         if (e.key === "Escape") e.currentTarget.blur();
       }}
       onPointerDown={(e) => e.stopPropagation()}
-      aria-label={object.kind === "replace" ? "Edit this line of text" : "Text"}
+      aria-label={object.kind === "replace" ? t("Edit this line of text") : t("Text")}
       spellCheck
       wrap="off"
       className="absolute resize-none overflow-hidden border-0 bg-transparent p-0 outline-1 outline-offset-2 outline-brand outline-dashed"

@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
 import { ProcessingError } from "../errors";
 import { plural, type Finding } from "./findings";
 import { attr, elements, hasDescendant, parseXml, serializeXml, stripAttributes, textOf, transform, type XmlElement, type XmlNode } from "./xml-tree";
+import { msg } from "@/i18n/msg";
 
 /*
  * What's hidden in a Word, Excel or PowerPoint file (Office Open XML: a ZIP of XML parts) and a
@@ -106,19 +107,19 @@ function removeRelationships(pkg: Package, drop: Relationship[]) {
 
 const CORE_LABELS: Record<string, string> = {
   "dc:creator": "Author",
-  "cp:lastModifiedBy": "Last saved by",
+  "cp:lastModifiedBy": msg("Last saved by"),
   "dcterms:created": "Created",
   "dcterms:modified": "Modified",
-  "cp:lastPrinted": "Last printed",
+  "cp:lastPrinted": msg("Last printed"),
   "dc:title": "Title",
   "dc:subject": "Subject",
   "cp:keywords": "Keywords",
   "dc:description": "Comments",
   "cp:category": "Category",
   "cp:contentStatus": "Status",
-  "cp:revision": "Revision number",
+  "cp:revision": msg("Revision number"),
 };
-const APP_LABELS: Record<string, string> = { Company: "Company", Manager: "Manager", TotalTime: "Editing time (minutes)", Template: "Template", HyperlinkBase: "Hyperlink base" };
+const APP_LABELS: Record<string, string> = { Company: "Company", Manager: "Manager", TotalTime: msg("Editing time (minutes)"), Template: "Template", HyperlinkBase: msg("Hyperlink base") };
 
 const MAX_ITEMS = 40;
 const snippet = (text: string, max = 100) => {
@@ -159,7 +160,7 @@ export function inspectOffice(bytes: Uint8Array): OfficeInspection {
   }
   const custom = [...elements(xmlOf(pkg, "docProps/custom.xml") ?? [])].filter((el) => el.name === "property").map((el) => `${attr(el, "name")}: ${textOf(el).trim()}`);
   if (properties.length || custom.length) {
-    add({ id: "properties", severity: "medium", title: "Document properties", detail: custom.length ? `Including ${plural(custom.length, "custom property", "custom properties")}, which companies use for client names, case numbers and the like.` : "Shown in File > Info, and to anyone who checks the file's properties.", items: [...properties, ...custom] });
+    add({ id: "properties", severity: "medium", title: msg("Document properties"), detail: custom.length ? msg`Including ${plural(custom.length, "custom property", "custom properties")}, which companies use for client names, case numbers and the like.` : msg("Shown in File > Info, and to anyone who checks the file's properties."), items: [...properties, ...custom] });
   }
 
   // Comments.
@@ -180,7 +181,7 @@ export function inspectOffice(bytes: Uint8Array): OfficeInspection {
     const name = attr(el, "name") ?? attr(el, "displayName");
     if (name && ["p:cmAuthor", "p188:author", "person"].includes(el.name)) people.add(name);
   }
-  if (commentParts.length) add({ id: "comments", severity: "high", title: `${plural(comments.length || commentParts.length, "comment")}`, detail: "Review comments travel with the file even when they're hidden from view.", items: comments.slice(0, MAX_ITEMS) });
+  if (commentParts.length) add({ id: "comments", severity: "high", title: `${plural(comments.length || commentParts.length, "comment")}`, detail: msg("Review comments travel with the file even when they're hidden from view."), items: comments.slice(0, MAX_ITEMS) });
 
   // Word: tracked changes, hidden text, document variables, template path.
   if (kind === "word") {
@@ -208,12 +209,12 @@ export function inspectOffice(bytes: Uint8Array): OfficeInspection {
         }
       }
     }
-    if (inserted || deleted) add({ id: "tracked", severity: "high", title: `${plural(inserted + deleted, "tracked change")} not yet accepted`, detail: "Deleted text is still in the file and shows again with Track Changes on. Accepting the changes removes it.", items: deletedText.slice(0, MAX_ITEMS) });
-    if (hidden) add({ id: "hidden-text", severity: "high", title: `${plural(hidden, "piece")} of hidden text`, detail: "Text formatted as hidden doesn't print or show, but it's in the file and appears with formatting marks on.", items: hiddenText.slice(0, MAX_ITEMS) });
+    if (inserted || deleted) add({ id: "tracked", severity: "high", title: msg`${plural(inserted + deleted, "tracked change")} not yet accepted`, detail: msg("Deleted text is still in the file and shows again with Track Changes on. Accepting the changes removes it."), items: deletedText.slice(0, MAX_ITEMS) });
+    if (hidden) add({ id: "hidden-text", severity: "high", title: msg`${plural(hidden, "piece")} of hidden text`, detail: msg("Text formatted as hidden doesn't print or show, but it's in the file and appears with formatting marks on."), items: hiddenText.slice(0, MAX_ITEMS) });
     const settings = xmlOf(pkg, "word/settings.xml") ?? [];
     const vars = [...elements(settings)].filter((el) => el.name === "w:docVar").map((el) => `${attr(el, "w:name")}: ${snippet(attr(el, "w:val") ?? "")}`);
-    if (vars.length) add({ id: "docvars", severity: "medium", title: `${plural(vars.length, "document variable")}`, detail: "Values stored by templates and add-ins, invisible in the document.", items: vars });
-    if ([...elements(settings)].some((el) => el.name === "w:rsids")) add({ id: "rsids", severity: "info", title: "Editing-session IDs", detail: "Word tags each edit with a session number. They can show which documents were edited together, or on the same computer." });
+    if (vars.length) add({ id: "docvars", severity: "medium", title: `${plural(vars.length, "document variable")}`, detail: msg("Values stored by templates and add-ins, invisible in the document."), items: vars });
+    if ([...elements(settings)].some((el) => el.name === "w:rsids")) add({ id: "rsids", severity: "info", title: msg("Editing-session IDs"), detail: msg("Word tags each edit with a session number. They can show which documents were edited together, or on the same computer.") });
   }
 
   // Excel: hidden sheets, rows and columns; pivot data; connections.
@@ -223,7 +224,7 @@ export function inspectOffice(bytes: Uint8Array): OfficeInspection {
     const hiddenSheets = sheets.filter((s) => attr(s, "state") === "hidden" || attr(s, "state") === "veryHidden");
     if (hiddenSheets.length) {
       const very = hiddenSheets.some((s) => attr(s, "state") === "veryHidden");
-      add({ id: "hidden-sheets", severity: "high", title: `${plural(hiddenSheets.length, "hidden sheet")}`, detail: very ? "Some are “very hidden”: they don't appear in Excel's Unhide list at all." : "Anyone can unhide them in Excel.", items: hiddenSheets.map((s) => `${attr(s, "name")}${attr(s, "state") === "veryHidden" ? " (very hidden)" : ""}`) });
+      add({ id: "hidden-sheets", severity: "high", title: `${plural(hiddenSheets.length, "hidden sheet")}`, detail: very ? msg("Some are “very hidden”: they don't appear in Excel's Unhide list at all.") : msg("Anyone can unhide them in Excel."), items: hiddenSheets.map((s) => `${attr(s, "name")}${attr(s, "state") === "veryHidden" ? msg(" (very hidden)") : ""}`) });
     }
     let rows = 0;
     let columns = 0;
@@ -233,11 +234,11 @@ export function inspectOffice(bytes: Uint8Array): OfficeInspection {
         if (el.name === "col" && attr(el, "hidden") === "1") columns += Number(attr(el, "max") ?? 0) - Number(attr(el, "min") ?? 0) + 1;
       }
     }
-    if (rows || columns) add({ id: "hidden-cells", severity: "high", title: `Hidden ${[rows && plural(rows, "row"), columns && plural(columns, "column")].filter(Boolean).join(" and ")}`, detail: "Their contents are in the file and anyone can unhide them." });
+    if (rows || columns) add({ id: "hidden-cells", severity: "high", title: rows && columns ? msg`Hidden ${plural(rows, "row")} and ${plural(columns, "column")}` : rows ? msg`Hidden ${plural(rows, "row")}` : msg`Hidden ${plural(columns, "column")}`, detail: msg("Their contents are in the file and anyone can unhide them.") });
     const pivots = partsIn(pkg, /^xl\/pivotCache\/pivotCacheRecords\d*\.xml$/);
-    if (pivots.length) add({ id: "pivot", severity: "medium", title: `${plural(pivots.length, "pivot table cache")}`, detail: "Pivot tables keep their own copy of the source data, which stays in the file even if the source sheet is deleted." });
+    if (pivots.length) add({ id: "pivot", severity: "medium", title: `${plural(pivots.length, "pivot table cache")}`, detail: msg("Pivot tables keep their own copy of the source data, which stays in the file even if the source sheet is deleted.") });
     const connections = [...elements(xmlOf(pkg, "xl/connections.xml") ?? [])].filter((el) => el.name === "connection").map((el) => attr(el, "name") ?? "Connection");
-    if (connections.length) add({ id: "connections", severity: "medium", title: `${plural(connections.length, "data connection")}`, detail: "Links to databases or other files; connection details can name servers and accounts.", items: connections });
+    if (connections.length) add({ id: "connections", severity: "medium", title: `${plural(connections.length, "data connection")}`, detail: msg("Links to databases or other files; connection details can name servers and accounts."), items: connections });
   }
 
   // PowerPoint: speaker notes and hidden slides.
@@ -245,43 +246,43 @@ export function inspectOffice(bytes: Uint8Array): OfficeInspection {
     const notes = partsIn(pkg, /^ppt\/notesSlides\/notesSlide\d+\.xml$/)
       .map((part) => snippet([...elements(xmlOf(pkg, part)!)].filter((el) => el.name === "a:t").map(textOf).join(" ")))
       .filter((t) => t && !/^\d+$/.test(t));
-    if (notes.length) add({ id: "notes", severity: "medium", title: `Speaker notes on ${plural(notes.length, "slide")}`, detail: "Notes are shared with the file even though they don't show during the presentation.", items: notes.slice(0, MAX_ITEMS) });
+    if (notes.length) add({ id: "notes", severity: "medium", title: msg`Speaker notes on ${plural(notes.length, "slide")}`, detail: msg("Notes are shared with the file even though they don't show during the presentation."), items: notes.slice(0, MAX_ITEMS) });
     const hiddenSlides = partsIn(pkg, /^ppt\/slides\/slide\d+\.xml$/).filter((part) => {
       const root = [...elements(xmlOf(pkg, part)!)].find((el) => el.name === "p:sld");
       return root && attr(root, "show") === "0";
     });
-    if (hiddenSlides.length) add({ id: "hidden-slides", severity: "high", title: `${plural(hiddenSlides.length, "hidden slide")}`, detail: "Skipped in the slide show, but in the file for anyone to see.", items: hiddenSlides.map((p) => `Slide ${p.match(/(\d+)\.xml$/)?.[1]}`) });
+    if (hiddenSlides.length) add({ id: "hidden-slides", severity: "high", title: `${plural(hiddenSlides.length, "hidden slide")}`, detail: msg("Skipped in the slide show, but in the file for anyone to see."), items: hiddenSlides.map((p) => msg`Slide ${p.match(/(\d+)\.xml$/)?.[1]}`) });
   }
 
   // Everything: macros, embedded files, external links, thumbnails, printer settings.
   const macros = partsIn(pkg, /vbaProject\.bin$/);
-  if (macros.length) add({ id: "macros", severity: "high", title: "Macros (VBA code)", detail: "Code that can run when the file is opened. Only enable macros from people you trust." });
+  if (macros.length) add({ id: "macros", severity: "high", title: "Macros (VBA code)", detail: msg("Code that can run when the file is opened. Only enable macros from people you trust.") });
   const embedded = partsIn(pkg, /\/embeddings\//);
-  if (embedded.length) add({ id: "embedded", severity: "medium", title: `${plural(embedded.length, "embedded file")}`, detail: "Other documents or objects inside this one (e.g. a spreadsheet behind a chart). They keep their own contents and metadata.", items: embedded.map((p) => p.split("/").pop()!) });
+  if (embedded.length) add({ id: "embedded", severity: "medium", title: `${plural(embedded.length, "embedded file")}`, detail: msg("Other documents or objects inside this one (e.g. a spreadsheet behind a chart). They keep their own contents and metadata."), items: embedded.map((p) => p.split("/").pop()!) });
   const external = rels.filter((r) => r.external && r.type !== "hyperlink");
   const localPath = (t: string) => /^(file:|[a-z]:\\|\\\\)/i.test(t) || /\\Users\\|\/Users\/|\/home\//i.test(t);
   if (external.length) {
     add({
       id: "external",
       severity: external.some((r) => localPath(r.target)) ? "high" : "medium",
-      title: `${plural(external.length, "link")} to outside files`,
-      detail: external.some((r) => localPath(r.target)) ? "Some are paths on a computer or network, which can reveal user names, folder names and servers." : "Templates, images or data the file loads from elsewhere.",
+      title: msg`${plural(external.length, "link")} to outside files`,
+      detail: external.some((r) => localPath(r.target)) ? msg("Some are paths on a computer or network, which can reveal user names, folder names and servers.") : msg("Templates, images or data the file loads from elsewhere."),
       items: external.map((r) => `${r.type}: ${r.target}`),
     });
   }
   const links = rels.filter((r) => r.external && r.type === "hyperlink");
   if (links.length) add({ id: "hyperlinks", severity: "info", title: `${plural(links.length, "hyperlink")}`, items: [...new Set(links.map((r) => r.target))].slice(0, MAX_ITEMS) });
   const thumbnails = partsIn(pkg, /^docProps\/thumbnail\./);
-  if (thumbnails.length) add({ id: "thumbnail", severity: "medium", title: "A saved preview picture", detail: "A small image of the first page or sheet, saved when the file was. It can show content that has since changed." });
+  if (thumbnails.length) add({ id: "thumbnail", severity: "medium", title: msg("A saved preview picture"), detail: msg("A small image of the first page or sheet, saved when the file was. It can show content that has since changed.") });
   const printers = partsIn(pkg, /\/printerSettings\//);
-  if (printers.length) add({ id: "printer", severity: "info", title: "Printer settings", detail: "Settings for the printer last used, which can include its name." });
+  if (printers.length) add({ id: "printer", severity: "info", title: msg("Printer settings"), detail: msg("Settings for the printer last used, which can include its name.") });
   const customXml = partsIn(pkg, /^customXml\/item\d+\.xml$/);
-  if (customXml.length) add({ id: "custom-xml", severity: "info", title: `${plural(customXml.length, "custom data part")}`, detail: "Data stored by document management systems (such as SharePoint) or add-ins." });
+  if (customXml.length) add({ id: "custom-xml", severity: "info", title: `${plural(customXml.length, "custom data part")}`, detail: msg("Data stored by document management systems (such as SharePoint) or add-ins.") });
 
   const app = [...elements(xmlOf(pkg, "docProps/app.xml") ?? [])].find((el) => el.name === "Application");
-  if (app && textOf(app).trim()) add({ id: "app", severity: "info", title: `Made with ${textOf(app).trim()}` });
+  if (app && textOf(app).trim()) add({ id: "app", severity: "info", title: msg`Made with ${textOf(app).trim()}` });
 
-  if (people.size) findings.unshift({ id: "people", severity: "high", title: `Names of ${plural(people.size, "person", "people")} in the file`, detail: "Authors, editors and commenters, taken from the properties, comments and tracked changes.", items: [...people] });
+  if (people.size) findings.unshift({ id: "people", severity: "high", title: msg`Names of ${plural(people.size, "person", "people")} in the file`, detail: msg("Authors, editors and commenters, taken from the properties, comments and tracked changes."), items: [...people] });
 
   return {
     kind,

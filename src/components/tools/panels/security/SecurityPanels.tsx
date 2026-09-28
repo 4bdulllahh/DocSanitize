@@ -18,6 +18,8 @@ import { FidelityNote, PdfResultPreview } from "../shared/ConversionParts";
 import { OutputCard, PRIMARY, SECONDARY, type OutputFile } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
 import { PasswordField } from "./PasswordField";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 function Layout({ preview, actions }: { preview: ReactNode; actions: ReactNode }) {
   return (
@@ -29,9 +31,10 @@ function Layout({ preview, actions }: { preview: ReactNode; actions: ReactNode }
 }
 
 function FirstPage({ doc }: { doc: PDFDocumentProxy }) {
+  const t = useT();
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Preview">
-      <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">Preview · page 1 of {doc.numPages}</div>
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Preview")}>
+      <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">{t("Preview · page 1 of {count}", { count: doc.numPages })}</div>
       <div className="flex justify-center bg-surface-muted p-4">
         <PageThumbnail doc={doc} pageNumber={1} width={300} height={380} />
       </div>
@@ -49,6 +52,7 @@ export function ProtectPanel({ file }: ToolPanelProps) {
 }
 
 function Protector({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [visible, setVisible] = useState(false);
@@ -95,7 +99,7 @@ function Protector({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
       updateFile(file.id, { status: "idle" });
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Couldn't protect the PDF", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't protect the PDF"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -125,51 +129,50 @@ function Protector({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
           <form onSubmit={protect} className="rounded-xl border border-line bg-surface p-5">
             <h2 className="flex items-center gap-2 font-semibold text-fg">
               <Lock className="size-4 text-brand-text" aria-hidden="true" />
-              Protect with a password
+              {t("Protect with a password")}
             </h2>
             <FidelityNote>
-              AES-256 encryption, done on your device. Anyone opening the file needs the password, and if it&apos;s lost the file can&apos;t be recovered,
-              by us or anyone else.
+              {t("AES-256 encryption, done on your device. Anyone opening the file needs the password, and if it's lost the file can't be recovered, by us or anyone else.")}
             </FidelityNote>
-            <PasswordField label="Password" value={password} onChange={edit(setPassword)} visible={visible} onVisibleChange={setVisible} autoComplete="new-password" strength={strength} />
+            <PasswordField label={t("Password")} value={password} onChange={edit(setPassword)} visible={visible} onVisibleChange={setVisible} autoComplete="new-password" strength={strength} />
             <PasswordField
-              label="Confirm password"
+              label={t("Confirm password")}
               value={confirm}
               onChange={edit(setConfirm)}
               visible={visible}
               onVisibleChange={setVisible}
               autoComplete="new-password"
-              error={mismatch ? "The passwords don't match." : undefined}
+              error={mismatch ? t("The passwords don't match.") : undefined}
             />
             <button type="button" onClick={generate} className={clsx(SECONDARY, "mt-3 w-full")}>
               <Sparkles className="size-4" aria-hidden="true" />
-              Generate a strong password
+              {t("Generate a strong password")}
             </button>
 
             <fieldset className="mt-5 space-y-2">
-              <legend className="mb-1.5 text-sm font-medium text-fg">Permissions</legend>
-              {permission("printing", "Allow printing")}
-              {permission("copying", "Allow copying text and images")}
-              {permission("modifying", "Allow editing, comments and forms")}
-              <p className="text-xs text-fg-subtle">Readers such as Acrobat and Preview honour these; they aren&apos;t a hard guarantee.</p>
+              <legend className="mb-1.5 text-sm font-medium text-fg">{t("Permissions")}</legend>
+              {permission("printing", t("Allow printing"))}
+              {permission("copying", t("Allow copying text and images"))}
+              {permission("modifying", t("Allow editing, comments and forms"))}
+              <p className="text-xs text-fg-subtle">{t("Readers such as Acrobat and Preview honour these; they aren't a hard guarantee.")}</p>
             </fieldset>
             {restricted && (
               <PasswordField
-                label="Permissions password (optional)"
+                label={t("Permissions password (optional)")}
                 value={ownerPassword}
                 onChange={edit(setOwnerPassword)}
                 autoComplete="new-password"
-                error={ownerSame ? "Use a different password from the one that opens the file." : undefined}
-                hint="Lets you lift the restrictions later. Left empty, a random one is used."
+                error={ownerSame ? t("Use a different password from the one that opens the file.") : undefined}
+                hint={t("Lets you lift the restrictions later. Left empty, a random one is used.")}
               />
             )}
 
             <button type="submit" disabled={busy || !ready} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Lock className="size-4" aria-hidden="true" />}
-              {busy ? "Encrypting…" : "Protect PDF"}
+              {busy ? t("Encrypting…") : t("Protect PDF")}
             </button>
           </form>
-          {output && <OutputCard title="Protected" outputs={[output]} />}
+          {output && <OutputCard title={t("Protected")} outputs={[output]} />}
         </>
       }
     />
@@ -195,15 +198,16 @@ function useEncryptionInfo(file: File): Inspection {
 }
 
 export function UnlockPanel({ file }: ToolPanelProps) {
+  const t = useT();
   const inspection = useEncryptionInfo(file.file);
-  if (inspection.status === "loading") return <PdfLoading label="Checking the PDF" />;
+  if (inspection.status === "loading") return <PdfLoading label={t("Checking the PDF")} />;
   if (inspection.status === "error") return <PdfLoadError message={inspection.message} />;
   if (!inspection.info.encrypted) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-line bg-surface px-6 py-14 text-center">
         <ShieldCheck className="size-8 text-success" aria-hidden="true" />
-        <p className="font-semibold text-fg">This PDF isn&apos;t password-protected</p>
-        <p className="max-w-sm text-sm text-fg-muted">It opens without a password and has no restrictions, so there&apos;s nothing to unlock.</p>
+        <p className="font-semibold text-fg">{t("This PDF isn't password-protected")}</p>
+        <p className="max-w-sm text-sm text-fg-muted">{t("It opens without a password and has no restrictions, so there's nothing to unlock.")}</p>
       </div>
     );
   }
@@ -211,6 +215,7 @@ export function UnlockPanel({ file }: ToolPanelProps) {
 }
 
 function Unlocker({ file, info }: { file: WorkspaceFile; info: EncryptionInfo }) {
+  const t = useT();
   const [password, setPassword] = useState("");
   const [wrong, setWrong] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -230,13 +235,13 @@ function Unlocker({ file, info }: { file: WorkspaceFile; info: EncryptionInfo })
       updateFile(file.id, { status: "idle" });
       // A wrong password is feedback on the form, not a failure.
       if (error instanceof ProcessingError && error.code === "encrypted") setWrong(error.message);
-      else toast({ tone: "error", title: "Couldn't unlock the PDF", description: errorMessage(error) });
+      else toast({ tone: "error", title: msg("Couldn't unlock the PDF"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
   };
 
-  const restrictions = info.restrictions.length ? info.restrictions.join(", ") : null;
+  const restrictions = info.restrictions.length ? t.list(info.restrictions.map(t.dynamic)) : null;
   return (
     <Layout
       preview={
@@ -245,11 +250,14 @@ function Unlocker({ file, info }: { file: WorkspaceFile; info: EncryptionInfo })
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl border border-line bg-surface px-6 py-14 text-center">
             <Lock className="size-8 text-warning" aria-hidden="true" />
-            <p className="font-semibold text-fg">{info.needsPassword ? "Password needed to open" : "Restricted PDF"}</p>
+            <p className="font-semibold text-fg">{info.needsPassword ? t("Password needed to open") : t("Restricted PDF")}</p>
             <p className="max-w-sm text-sm text-fg-muted">
-              Encrypted with {info.algorithm}.{" "}
-              {info.needsPassword ? "Enter its password to remove the protection." : "It opens without a password"}
-              {!info.needsPassword && (restrictions ? `, but blocks ${restrictions}.` : ".")}
+              {t("Encrypted with {algorithm}.", { algorithm: info.algorithm })}{" "}
+              {info.needsPassword
+                ? t("Enter its password to remove the protection.")
+                : restrictions
+                  ? t("It opens without a password, but blocks {restrictions}.", { restrictions })
+                  : t("It opens without a password.")}
             </p>
           </div>
         )
@@ -259,16 +267,16 @@ function Unlocker({ file, info }: { file: WorkspaceFile; info: EncryptionInfo })
           <form onSubmit={unlock} className="rounded-xl border border-line bg-surface p-5">
             <h2 className="flex items-center gap-2 font-semibold text-fg">
               <LockOpen className="size-4 text-brand-text" aria-hidden="true" />
-              {info.needsPassword ? "Unlock PDF" : "Remove restrictions"}
+              {info.needsPassword ? t("Unlock PDF") : t("Remove restrictions")}
             </h2>
             <FidelityNote>
               {info.needsPassword
-                ? "The password is checked on your device and never leaves it. The unlocked copy opens without a password and has no restrictions."
-                : "No password is needed. The copy you get has no encryption and no restrictions on printing, copying or editing."}
+                ? t("The password is checked on your device and never leaves it. The unlocked copy opens without a password and has no restrictions.")
+                : t("No password is needed. The copy you get has no encryption and no restrictions on printing, copying or editing.")}
             </FidelityNote>
             {info.needsPassword && (
               <PasswordField
-                label="Password"
+                label={t("Password")}
                 value={password}
                 onChange={(v) => {
                   setPassword(v);
@@ -277,15 +285,15 @@ function Unlocker({ file, info }: { file: WorkspaceFile; info: EncryptionInfo })
                 autoFocus
                 autoComplete="current-password"
                 error={wrong ?? undefined}
-                hint="The open password or the permissions (owner) password."
+                hint={t("The open password or the permissions (owner) password.")}
               />
             )}
             <button type="submit" disabled={busy || (info.needsPassword && !password)} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <KeyRound className="size-4" aria-hidden="true" />}
-              {busy ? "Unlocking…" : info.needsPassword ? "Unlock PDF" : "Remove restrictions"}
+              {busy ? t("Unlocking…") : info.needsPassword ? t("Unlock PDF") : t("Remove restrictions")}
             </button>
           </form>
-          {output && <OutputCard title="Unlocked" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Unlocked")} outputs={[output]} replaceFileId={file.id} />}
         </>
       }
     />

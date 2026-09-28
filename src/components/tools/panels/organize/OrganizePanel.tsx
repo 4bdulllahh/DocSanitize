@@ -28,6 +28,9 @@ import type { ToolPanelProps } from "../registry";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
 import { PRIMARY, SECONDARY } from "../shared/OutputCard";
 import { usePageHistory, type PageItem } from "./usePageHistory";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import { Rich } from "@/i18n/Rich";
 
 export default function OrganizePanel({ file }: ToolPanelProps) {
   const pdf = usePdfDocument(file.file);
@@ -40,6 +43,7 @@ const TILE_W = 136;
 const TILE_H = 176;
 
 function Organizer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const { pages, commit, undo, redo, reset, canUndo, canRedo } = usePageHistory(doc.numPages);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [anchor, setAnchor] = useState<string | null>(null);
@@ -121,61 +125,61 @@ function Organizer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
         updateFile(file.id, { status: "idle" });
       } else {
         replaceFileContent(file.id, blob);
-        toast({ tone: "success", title: "Changes applied", description: `${file.name} now has ${kept.length} page${kept.length === 1 ? "" : "s"}.` });
+        toast({ tone: "success", title: msg("Changes applied"), description: t.plural(kept.length, "{name} now has {n} page.", "{name} now has {n} pages.", { name: file.name }) });
       }
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Couldn't apply changes", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't apply changes"), description: errorMessage(error) });
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Pages">
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Pages")}>
       <div className="sticky top-16 z-20 flex flex-wrap items-center gap-2 rounded-t-xl border-b border-line bg-surface/95 px-4 py-3 backdrop-blur">
-        <p className="mr-2 text-sm text-fg-muted" aria-live="polite">
+        <p className="me-2 text-sm text-fg-muted" aria-live="polite">
           {selected.size > 0 ? (
             <>
-              <span className="font-semibold text-fg">{selected.size}</span> selected ·{" "}
+              <Rich text={t("{count} selected", {})} values={{ count: <span className="font-semibold text-fg">{selected.size}</span> }} /> ·{" "}
               <button type="button" className="text-brand-text hover:underline" onClick={() => setSelected(new Set())}>
-                Clear
+                {t("Clear")}
               </button>
             </>
           ) : (
             <>
-              <span className="font-semibold text-fg">{kept.length}</span> of {pages.length} pages ·{" "}
+              <Rich text={t.plural(pages.length, "{count} of {n} page", "{count} of {n} pages")} values={{ count: <span className="font-semibold text-fg">{kept.length}</span> }} /> ·{" "}
               <button type="button" className="text-brand-text hover:underline" onClick={() => setSelected(new Set(pages.map((p) => p.id)))}>
-                Select all
+                {t("Select all")}
               </button>
             </>
           )}
         </p>
-        <ToolbarButton label="Rotate left" icon={RotateCcw} disabled={!targets} onClick={() => targets && rotate(targets, -90)} />
-        <ToolbarButton label="Rotate right" icon={RotateCw} disabled={!targets} onClick={() => targets && rotate(targets, 90)} />
-        <ToolbarButton label="Delete" icon={Trash2} disabled={!targets} onClick={() => targets && setDeleted(targets, true)} />
-        <ToolbarButton label="Restore" icon={Undo} disabled={!targets} onClick={() => targets && setDeleted(targets, false)} />
+        <ToolbarButton label={t("Rotate left")} icon={RotateCcw} disabled={!targets} onClick={() => targets && rotate(targets, -90)} />
+        <ToolbarButton label={t("Rotate right")} icon={RotateCw} disabled={!targets} onClick={() => targets && rotate(targets, 90)} />
+        <ToolbarButton label={t("Delete")} icon={Trash2} disabled={!targets} onClick={() => targets && setDeleted(targets, true)} />
+        <ToolbarButton label={t("Restore")} icon={Undo} disabled={!targets} onClick={() => targets && setDeleted(targets, false)} />
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
-        <ToolbarButton label="Undo (Ctrl+Z)" icon={Undo2} disabled={!canUndo} onClick={undo} />
-        <ToolbarButton label="Redo (Ctrl+Y)" icon={Redo2} disabled={!canRedo} onClick={redo} />
+        <ToolbarButton label={t("Undo (Ctrl+Z)")} icon={Undo2} disabled={!canUndo} onClick={undo} />
+        <ToolbarButton label={t("Redo (Ctrl+Y)")} icon={Redo2} disabled={!canRedo} onClick={redo} />
         <button type="button" onClick={reset} disabled={!changed} className="rounded-lg px-2.5 py-1.5 text-sm text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40">
-          Reset
+          {t("Reset")}
         </button>
 
-        <div className="ml-auto flex gap-2">
+        <div className="ms-auto flex gap-2">
           <button type="button" onClick={() => apply("download")} disabled={!changed || busy !== null || kept.length === 0} className={SECONDARY}>
             {busy === "download" ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Download className="size-4" aria-hidden="true" />}
-            Download edited PDF
+            {t("Download edited PDF")}
           </button>
           <button type="button" onClick={() => apply("tab")} disabled={!changed || busy !== null || kept.length === 0} className={PRIMARY}>
             {busy === "tab" ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Save className="size-4" aria-hidden="true" />}
-            Apply changes
+            {t("Apply changes")}
           </button>
         </div>
       </div>
 
       {kept.length === 0 && (
-        <p className="border-b border-line bg-warning-soft px-4 py-2 text-sm text-warning-text">Every page is marked for deletion — keep at least one.</p>
+        <p className="border-b border-line bg-warning-soft px-4 py-2 text-sm text-warning-text">{t("Every page is marked for deletion — keep at least one.")}</p>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -197,7 +201,7 @@ function Organizer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }
         </SortableContext>
       </DndContext>
       <p className="border-t border-line px-4 py-2.5 text-xs text-fg-subtle">
-        Drag pages to reorder (long-press on touch screens, or focus a page and use Space + arrow keys). Ctrl/Shift-click to select several.
+        {t("Drag pages to reorder (long-press on touch screens, or focus a page and use Space + arrow keys). Ctrl/Shift-click to select several.")}
       </p>
     </section>
   );
@@ -235,6 +239,7 @@ function PageTile({
   onRotate: (by: number) => void;
   onToggleDelete: () => void;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: page.id });
   const moved = page.index + 1 !== position;
 
@@ -258,7 +263,7 @@ function PageTile({
           {...listeners}
           onClick={onSelect}
           aria-pressed={selected}
-          aria-label={`Page ${page.index + 1}${page.deleted ? " (deleted)" : ""}, position ${position}`}
+          aria-label={page.deleted ? t("Page {page} (deleted), position {position}", { page: page.index + 1, position }) : t("Page {page}, position {position}", { page: page.index + 1, position })}
           className="relative mx-auto block cursor-grab rounded-md active:cursor-grabbing"
         >
           <PageThumbnail
@@ -271,21 +276,21 @@ function PageTile({
           />
           {page.deleted && (
             <span className="absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded bg-danger px-2 py-0.5 text-xs font-semibold text-white">
-              Deleted
+              {t("Deleted")}
             </span>
           )}
         </button>
         <p className="mt-1.5 text-center text-xs text-fg-muted tabular-nums">
           <span className="font-semibold text-fg">{position}</span>
-          {moved && <span className="text-fg-subtle"> · was {page.index + 1}</span>}
+          {moved && <span className="text-fg-subtle"> · {t("was {page}", { page: page.index + 1 })}</span>}
         </p>
       </div>
 
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-        <TileAction label={`Rotate page ${page.index + 1} left`} icon={RotateCcw} onClick={() => onRotate(-90)} />
-        <TileAction label={`Rotate page ${page.index + 1} right`} icon={RotateCw} onClick={() => onRotate(90)} />
+      <div className="absolute top-3 end-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+        <TileAction label={t("Rotate page {page} left", { page: page.index + 1 })} icon={RotateCcw} onClick={() => onRotate(-90)} />
+        <TileAction label={t("Rotate page {page} right", { page: page.index + 1 })} icon={RotateCw} onClick={() => onRotate(90)} />
         <TileAction
-          label={page.deleted ? `Restore page ${page.index + 1}` : `Delete page ${page.index + 1}`}
+          label={page.deleted ? t("Restore page {page}", { page: page.index + 1 }) : t("Delete page {page}", { page: page.index + 1 })}
           icon={page.deleted ? Undo : Trash2}
           onClick={onToggleDelete}
           danger={!page.deleted}

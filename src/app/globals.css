@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Until a language other than English has loaded (LOCALE_INIT_SCRIPT), so English doesn't flash first. */
+html[data-locale-pending] body {
+  visibility: hidden;
+}
+
+/* Arabic text in Noto Sans Arabic first: Geist's fallback (Arial) would otherwise draw it. */
+:root {
+  --app-font: var(--font-geist-sans);
+}
+:root[lang="ar"] {
+  --app-font: var(--font-arabic), var(--font-geist-sans);
+}
+
 /* `dark:` utilities follow the data-theme attribute (set before first paint by THEME_INIT_SCRIPT). */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -80,7 +93,7 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--app-font);
   --font-mono: var(--font-geist-mono);
 
   --color-canvas: var(--canvas);

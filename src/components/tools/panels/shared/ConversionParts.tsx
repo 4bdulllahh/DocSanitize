@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Info, TriangleAlert } from "lucide-react";
 import { PageThumbnail } from "@/components/pdf/PageThumbnail";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
+import { useT } from "@/store/locale";
 
 /** Upfront note that a conversion is approximate, listing what does and doesn't carry over. */
 export function FidelityNote({ children }: { children: ReactNode }) {
@@ -16,16 +17,17 @@ export function FidelityNote({ children }: { children: ReactNode }) {
 }
 
 export function WarningList({ warnings }: { warnings: string[] }) {
+  const t = useT();
   if (warnings.length === 0) return null;
   return (
     <section className="rounded-xl border border-warning/40 bg-warning-soft p-4" aria-live="polite">
       <p className="flex items-center gap-2 text-sm font-medium text-fg">
         <TriangleAlert className="size-4 text-warning" aria-hidden="true" />
-        Some content couldn&apos;t be converted exactly
+        {t("Some content couldn't be converted exactly")}
       </p>
-      <ul className="mt-2 list-disc space-y-1 pl-9 text-sm text-fg-muted">
+      <ul className="mt-2 list-disc space-y-1 ps-9 text-sm text-fg-muted">
         {warnings.map((w) => (
-          <li key={w}>{w}</li>
+          <li key={w}>{t.dynamic(w)}</li>
         ))}
       </ul>
     </section>
@@ -37,14 +39,13 @@ const PREVIEW_PAGES = 6;
 /** The first pages of a PDF the tool produced, so the result can be checked before downloading. */
 export function PdfResultPreview({ blob, pages: knownPages }: { blob: Blob; pages?: number }) {
   const pdf = usePdfDocument(blob);
+  const t = useT();
   const pages = knownPages ?? (pdf.status === "ready" ? pdf.doc.numPages : 0);
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Result preview">
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Result preview")}>
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">
-        <span>Result preview</span>
-        <span className="normal-case tracking-normal">
-          {pages} page{pages === 1 ? "" : "s"}
-        </span>
+        <span>{t("Result preview")}</span>
+        <span className="normal-case tracking-normal">{t.plural(pages, "{n} page", "{n} pages")}</span>
       </div>
       <ol className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-4 bg-surface-muted p-4">
         {pdf.status === "ready" &&
@@ -55,7 +56,7 @@ export function PdfResultPreview({ blob, pages: knownPages }: { blob: Blob; page
             </li>
           ))}
       </ol>
-      {pages > PREVIEW_PAGES && <p className="border-t border-line px-4 py-2 text-xs text-fg-subtle">…and {pages - PREVIEW_PAGES} more. Open the result in a new tab to see every page.</p>}
+      {pages > PREVIEW_PAGES && <p className="border-t border-line px-4 py-2 text-xs text-fg-subtle">{t("…and {count} more. Open the result in a new tab to see every page.", { count: pages - PREVIEW_PAGES })}</p>}
     </section>
   );
 }

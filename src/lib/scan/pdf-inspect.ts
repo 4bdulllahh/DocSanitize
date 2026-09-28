@@ -3,6 +3,7 @@ import { countRevisions, nameTreeKeys, stripPdfDocument, toValue } from "../meta
 import { DEFAULT_STRIP_OPTIONS } from "../metadata/types";
 import { collectGarbage, loadPdf, savePdf } from "../pdf/load";
 import { plural, type Finding } from "./findings";
+import { msg } from "@/i18n/msg";
 
 /*
  * Structural checks for a PDF: what's inside the file besides what the pages show. Hidden and
@@ -107,15 +108,17 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
   // Earlier versions kept by incremental saves.
   const revisions = countRevisions(bytes);
   if (revisions > 1) {
-    add({ id: "revisions", severity: "high", title: `${plural(revisions - 1, "earlier version")} saved inside the file`, detail: "Each save appended changes instead of rewriting the file, so text or pages that were changed or deleted can be recovered from it." });
+    add({ id: "revisions", severity: "high", title: msg`${plural(revisions - 1, "earlier version")} saved inside the file`, detail: msg("Each save appended changes instead of rewriting the file, so text or pages that were changed or deleted can be recovered from it.") });
   }
   const leftovers = leftoverObjects(doc);
   if (leftovers.count > 0) {
     add({
       id: "leftovers",
       severity: leftovers.images > 0 ? "high" : "medium",
-      title: `${plural(leftovers.count, "leftover object")} nothing uses any more`,
-      detail: `Content that was deleted from the document but is still stored in the file${leftovers.images ? `, including ${plural(leftovers.images, "image")}` : ""}.`,
+      title: msg`${plural(leftovers.count, "leftover object")} nothing uses any more`,
+      detail: leftovers.images
+        ? msg`Content that was deleted from the document but is still stored in the file, including ${plural(leftovers.images, "image")}.`
+        : msg("Content that was deleted from the document but is still stored in the file."),
     });
   }
 
@@ -133,42 +136,44 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
   const open = catalog.get(N("OpenAction"));
   if (open) {
     const action = open instanceof PDFRef ? context.lookup(open) : open;
-    if (action instanceof PDFDict && action.has(N("S"))) actions.push({ type: actionType(action), where: "when the document opens" });
+    if (action instanceof PDFDict && action.has(N("S"))) actions.push({ type: actionType(action), where: msg("when the document opens") });
   }
-  collect(catalog, "document events");
-  doc.getPages().forEach((page, i) => collect(page.node, `page ${i + 1}`));
-  for (const { page, annot } of annotations) collect(annot, `page ${page + 1}`);
+  collect(catalog, msg("document events"));
+  doc.getPages().forEach((page, i) => collect(page.node, msg`page ${i + 1}`));
+  for (const { page, annot } of annotations) collect(annot, msg`page ${page + 1}`);
 
   const js = actions.filter((a) => a.type === "JavaScript");
   if (scripts.length || js.length) {
-    const openJs = js.some((a) => a.where === "when the document opens" || a.where === "document events");
+    const openJs = js.some((a) => a.where === msg("when the document opens") || a.where === msg("document events"));
     add({
       id: "javascript",
       severity: openJs ? "high" : "medium",
-      title: `JavaScript: ${plural(scripts.length + js.length, "script")}`,
-      detail: `${openJs ? "Runs automatically when the file is opened. " : ""}Scripts can change what the document shows, check form input or contact websites. Forms sometimes use them for calculations.`,
-      items: [...scripts.map((s) => `Document script “${s}”`), ...js.map((a) => `Script on ${a.where}`)].slice(0, 50),
+      title: msg`JavaScript: ${plural(scripts.length + js.length, "script")}`,
+      detail: openJs
+        ? msg("Runs automatically when the file is opened. Scripts can change what the document shows, check form input or contact websites. Forms sometimes use them for calculations.")
+        : msg("Scripts can change what the document shows, check form input or contact websites. Forms sometimes use them for calculations."),
+      items: [...scripts.map((s) => msg`Document script “${s}”`), ...js.map((a) => msg`Script on ${a.where}`)].slice(0, 50),
     });
   }
   const launch = actions.filter((a) => a.type === "Launch");
-  if (launch.length) add({ id: "launch", severity: "high", title: `${plural(launch.length, "action")} that open${launch.length === 1 ? "s" : ""} a program or file`, detail: "A “Launch” action asks the reader to open another file or run a program. Legitimate documents almost never need this.", items: launch.map((a) => `${a.detail ?? "Unnamed target"} (${a.where})`) });
+  if (launch.length) add({ id: "launch", severity: "high", title: launch.length === 1 ? msg("1 action that opens a program or file") : msg`${launch.length} actions that open a program or file`, detail: msg("A “Launch” action asks the reader to open another file or run a program. Legitimate documents almost never need this."), items: launch.map((a) => `${a.detail ?? msg("Unnamed target")} (${a.where})`) });
   const submit = actions.filter((a) => a.type === "SubmitForm");
-  if (submit.length) add({ id: "submit", severity: "medium", title: "Form data can be sent to a website", detail: "A button submits what's typed into the form to an address on the internet.", items: [...new Set(submit.map((a) => a.detail ?? "Unknown address"))] });
+  if (submit.length) add({ id: "submit", severity: "medium", title: msg("Form data can be sent to a website"), detail: msg("A button submits what's typed into the form to an address on the internet."), items: [...new Set(submit.map((a) => a.detail ?? msg("Unknown address")))] });
   const remote = actions.filter((a) => a.type === "GoToR" || a.type === "GoToE" || a.type === "ImportData");
-  if (remote.length) add({ id: "remote", severity: "medium", title: `${plural(remote.length, "link")} to other files`, items: remote.map((a) => `${a.detail ?? "Another file"} (${a.where})`) });
+  if (remote.length) add({ id: "remote", severity: "medium", title: msg`${plural(remote.length, "link")} to other files`, items: remote.map((a) => `${a.detail ?? msg("Another file")} (${a.where})`) });
   const links = actions.filter((a) => a.type === "URI");
   if (links.length) {
     const hosts = [...new Set(links.map((l) => { try { return new URL(l.detail ?? "").host || l.detail!; } catch { return l.detail ?? "?"; } }))];
-    add({ id: "links", severity: "info", title: `${plural(links.length, "web link")} to ${plural(hosts.length, "site")}`, detail: "Check Links & QR Codes looks at each one for warning signs.", items: hosts });
+    add({ id: "links", severity: "info", title: msg`${plural(links.length, "web link")} to ${plural(hosts.length, "site")}`, detail: msg("Check Links & QR Codes looks at each one for warning signs."), items: hosts });
   }
 
   // Attachments.
   const files = names instanceof PDFDict ? nameTreeKeys(context, names.get(N("EmbeddedFiles"))) : [];
   const attached = annotations.filter(({ annot }) => annot.lookup(N("Subtype")) === N("FileAttachment"));
-  const attachmentNames = [...files, ...attached.map(({ page, annot }) => `${fileName(annot.lookup(N("FS"))) || "Attachment"} (on page ${page + 1})`)];
+  const attachmentNames = [...files, ...attached.map(({ page, annot }) => msg`${fileName(annot.lookup(N("FS"))) || msg("Attachment")} (on page ${page + 1})`)];
   if (attachmentNames.length) {
     const risky = attachmentNames.some((n) => EXECUTABLE.test(n.replace(/ \(on page \d+\)$/, "")));
-    add({ id: "attachments", severity: "high", title: `${plural(attachmentNames.length, "attached file")}`, detail: risky ? "At least one is a program or script: don't open it unless you trust the sender." : "Files carried inside the PDF, which readers show in their attachments panel.", items: attachmentNames });
+    add({ id: "attachments", severity: "high", title: plural(attachmentNames.length, "attached file"), detail: risky ? msg("At least one is a program or script: don't open it unless you trust the sender.") : msg("Files carried inside the PDF, which readers show in their attachments panel."), items: attachmentNames });
   }
 
   // Comments and forms.
@@ -178,12 +183,12 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
     const notes = comments
       .map(({ page, annot }) => ({ page, contents: text(annot.lookup(N("Contents"))).trim().replace(/\s+/g, " ") }))
       .filter((c) => c.contents)
-      .map((c) => `Page ${c.page + 1}: “${c.contents.length > 120 ? `${c.contents.slice(0, 120)}…` : c.contents}”`);
+      .map((c) => msg`Page ${c.page + 1}: “${c.contents.length > 120 ? `${c.contents.slice(0, 120)}…` : c.contents}”`);
     add({
       id: "comments",
       severity: authors.length || notes.length ? "high" : "medium",
-      title: `${plural(comments.length, "comment")} and markup`,
-      detail: authors.length ? `Written by ${authors.join(", ")}. Review notes can reveal more than the document itself.` : "Notes, highlights and drawings added on top of the pages.",
+      title: msg`${plural(comments.length, "comment")} and markup`,
+      detail: authors.length ? msg`Written by ${authors.join(", ")}. Review notes can reveal more than the document itself.` : msg("Notes, highlights and drawings added on top of the pages."),
       items: notes.slice(0, 50),
     });
   }
@@ -203,8 +208,8 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
     } catch {
       // An unusual form structure: just report the fields.
     }
-    add({ id: "form", severity: filled ? "medium" : "info", title: `A form with ${plural(widgets.length, "field")}`, detail: filled ? `${plural(filled, "field")} ${filled === 1 ? "is" : "are"} filled in. Flatten PDF makes the answers part of the page.` : "No field is filled in." });
-    if (signatures) add({ id: "signatures", severity: "info", title: `Digitally signed (${plural(signatures, "signature")})`, detail: "Any change to the file, including cleaning it, will break the signature." });
+    add({ id: "form", severity: filled ? "medium" : "info", title: msg`A form with ${plural(widgets.length, "field")}`, detail: filled ? (filled === 1 ? msg("1 field is filled in. Flatten PDF makes the answers part of the page.") : msg`${filled} fields are filled in. Flatten PDF makes the answers part of the page.`) : msg("No field is filled in.") });
+    if (signatures) add({ id: "signatures", severity: "info", title: msg`Digitally signed (${plural(signatures, "signature")})`, detail: msg("Any change to the file, including cleaning it, will break the signature.") });
   }
 
   // Hidden layers.
@@ -217,11 +222,11 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
       off instanceof PDFArray
         ? off.asArray().map((ref) => {
             const layer = context.lookup(ref);
-            return (layer instanceof PDFDict && text(layer.lookup(N("Name")))) || "Unnamed layer";
+            return (layer instanceof PDFDict && text(layer.lookup(N("Name")))) || msg("Unnamed layer");
           })
         : [];
-    if (hidden.length) add({ id: "layers", severity: "high", title: `${plural(hidden.length, "hidden layer")}`, detail: "Content on these layers isn't shown, but anyone can switch them on in a PDF reader, and it can be copied.", items: hidden });
-    else if (all instanceof PDFArray && all.size()) add({ id: "layers-info", severity: "info", title: `${plural(all.size(), "layer")}, all visible` });
+    if (hidden.length) add({ id: "layers", severity: "high", title: plural(hidden.length, "hidden layer"), detail: msg("Content on these layers isn't shown, but anyone can switch them on in a PDF reader, and it can be copied."), items: hidden });
+    else if (all instanceof PDFArray && all.size()) add({ id: "layers-info", severity: "info", title: msg`${plural(all.size(), "layer")}, all visible` });
   }
 
   // Metadata, private data and thumbnails.
@@ -234,14 +239,14 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
     if (dict?.has(N("PieceInfo"))) pieceInfo++;
   }
   if (infoKeys.length || xmp || pieceInfo) {
-    add({ id: "metadata", severity: "medium", title: "Document properties and metadata", detail: `${xmp ? "An XMP metadata packet (it can hold editing history). " : ""}${pieceInfo ? "Private data from the app that made it, which can include the original editable file. " : ""}Sanitize Metadata shows every entry.`, items: infoKeys });
+    add({ id: "metadata", severity: "medium", title: msg("Document properties and metadata"), detail: [xmp && msg("An XMP metadata packet (it can hold editing history)."), pieceInfo && msg("Private data from the app that made it, which can include the original editable file."), msg("Sanitize Metadata shows every entry.")].filter(Boolean).join(" "), items: infoKeys });
   }
   const thumbnails = doc.getPages().filter((p) => p.node.has(N("Thumb"))).length;
-  if (thumbnails) add({ id: "thumbnails", severity: "medium", title: `${plural(thumbnails, "stored page thumbnail")}`, detail: "Small pictures of the pages saved in the file. They can still show content that was later changed or removed." });
+  if (thumbnails) add({ id: "thumbnails", severity: "medium", title: plural(thumbnails, "stored page thumbnail"), detail: msg("Small pictures of the pages saved in the file. They can still show content that was later changed or removed.") });
 
   const version = /%PDF-(\d\.\d)/.exec(new TextDecoder("latin1").decode(bytes.subarray(0, 1024)))?.[1];
   const producer = info instanceof PDFDict ? text(info.lookup(N("Producer"))) : "";
-  add({ id: "summary", severity: "info", title: `${plural(pages, "page")}${version ? `, PDF ${version}` : ""}`, detail: producer ? `Made with ${producer}.` : undefined });
+  add({ id: "summary", severity: "info", title: version ? msg`${plural(pages, "page")}, PDF ${version}` : plural(pages, "page"), detail: producer ? msg`Made with ${producer}.` : undefined });
 
   return {
     findings,

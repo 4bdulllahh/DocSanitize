@@ -54,8 +54,9 @@ export function PageStage({ doc, index, maxWidth = 760, children }: { doc: PDFDo
 
   return (
     <div ref={containerRef} className="w-full">
+      {/* Page coordinates are physical: overlays keep left and right in any interface language. */}
       {width > 0 && (
-        <div className="relative mx-auto" style={{ width, height }}>
+        <div className="relative mx-auto" style={{ width, height }} dir="ltr">
           <PageThumbnail key={index} doc={doc} pageNumber={index + 1} width={width} height={height} />
           {known && children?.({ width, height, pageWidth: known.width, pageHeight: known.height })}
         </div>

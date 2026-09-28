@@ -1,4 +1,5 @@
 import { ProcessingError, type ProcessingErrorCode } from "./errors";
+import { msg } from "@/i18n/msg";
 
 /*
  * Tiny typed RPC over postMessage. A worker exposes an object of async functions with
@@ -47,7 +48,7 @@ export function exposeWorkerApi(api: Api) {
       scope.postMessage({
         id,
         ok: false,
-        message: error instanceof Error ? error.message : "Something went wrong while processing this file.",
+        message: error instanceof Error ? error.message : msg("Something went wrong while processing this file."),
         code: error instanceof ProcessingError ? error.code : undefined,
       } satisfies Response);
     }

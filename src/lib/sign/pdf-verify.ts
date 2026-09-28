@@ -4,6 +4,7 @@ import { checkSigner, checkTimestamp, parseSignedData, type SignedData } from ".
 import { concat, equalBytes } from "./der";
 import { digest } from "./crypto";
 import { displayName, orderChain, summarizeCertificate as summarize, type CertificateSummary } from "./x509";
+import { msg } from "@/i18n/msg";
 
 /*
  * Checking the digital signatures in a PDF, entirely offline: that each one's bytes are intact,
@@ -151,12 +152,12 @@ async function checkOne(bytes: Uint8Array, found: Found): Promise<Checked> {
 
   const range = dict.lookupMaybe(PDFName.of("ByteRange"), PDFArray)?.asArray().map((n) => (n instanceof PDFNumber ? n.asNumber() : -1)) ?? [];
   const contents = hexBytes(dict.lookup(PDFName.of("Contents")));
-  if (range.length !== 4 || range.some((n) => n < 0) || !contents) return { ...base, problem: "The signature is incomplete." };
+  if (range.length !== 4 || range.some((n) => n < 0) || !contents) return { ...base, problem: msg("The signature is incomplete.") };
   const [a, b, c, d] = range;
   base.end = c + d;
   // The gap must be exactly this signature's /Contents <…>, and the ranges must lie in the file.
   if (a !== 0 || b > c || c + d > bytes.length || bytes[b] !== 0x3c || bytes[c - 1] !== 0x3e) {
-    return { ...base, problem: "The part of the file this signature covers doesn't match its own record, which is a sign of tampering." };
+    return { ...base, problem: msg("The part of the file this signature covers doesn't match its own record, which is a sign of tampering.") };
   }
   const signed = concat([bytes.subarray(a, b), bytes.subarray(c, c + d)]);
 
@@ -164,10 +165,10 @@ async function checkOne(bytes: Uint8Array, found: Found): Promise<Checked> {
   try {
     cms = parseSignedData(contents);
   } catch {
-    return { ...base, problem: subFilter === "adbe.x509.rsa_sha1" ? "This is an old kind of signature (adbe.x509.rsa_sha1) that can't be checked here." : "The signature data couldn't be read." };
+    return { ...base, problem: subFilter === "adbe.x509.rsa_sha1" ? msg("This is an old kind of signature (adbe.x509.rsa_sha1) that can't be checked here.") : msg("The signature data couldn't be read.") };
   }
   const signer = cms.signers[0];
-  if (!signer) return { ...base, problem: "The signature has no signer." };
+  if (!signer) return { ...base, problem: msg("The signature has no signer.") };
   const leaf = signer.certificate;
   if (leaf) {
     base.signer = await summarize(leaf);
@@ -177,16 +178,16 @@ async function checkOne(bytes: Uint8Array, found: Found): Promise<Checked> {
   if (isTimestamp) {
     // A document timestamp: the token stamps the signed bytes themselves.
     const stamp = await checkTimestamp(contents, signed);
-    if (!stamp) return { ...base, problem: "The timestamp couldn't be read." };
+    if (!stamp) return { ...base, problem: msg("The timestamp couldn't be read.") };
     base.timestamp = { time: stamp.time.toISOString(), authority: stamp.authority ? displayName(stamp.authority.subject) : null, valid: stamp.valid };
     base.signedAt = stamp.time.toISOString();
-    return { ...base, intact: stamp.valid, problem: stamp.valid ? null : "The timestamp doesn't match the document." };
+    return { ...base, intact: stamp.valid, problem: stamp.valid ? null : msg("The timestamp doesn't match the document.") };
   }
 
   let content: Uint8Array = signed;
   if (cms.content) {
     // adbe.pkcs7.sha1: the signed content is the SHA-1 of the ranges.
-    if (!equalBytes(cms.content, await digest("SHA-1", signed))) return { ...base, problem: "The document was changed after it was signed." };
+    if (!equalBytes(cms.content, await digest("SHA-1", signed))) return { ...base, problem: msg("The document was changed after it was signed.") };
     content = cms.content;
   }
   const check = await checkSigner(signer, content);
@@ -202,9 +203,9 @@ async function checkOne(bytes: Uint8Array, found: Found): Promise<Checked> {
     const at = new Date(base.signedAt);
     base.certificateValidThen = at >= leaf.notBefore && at <= leaf.notAfter;
   }
-  if (!check.digestMatches) return { ...base, problem: "The document was changed after it was signed: its bytes don't match the signature." };
-  if (check.signatureValid === false) return { ...base, problem: "The signature doesn't match the certificate it carries." };
-  if (check.signatureValid === null) return { ...base, problem: check.problem ?? "The signature couldn't be checked." };
+  if (!check.digestMatches) return { ...base, problem: msg("The document was changed after it was signed: its bytes don't match the signature.") };
+  if (check.signatureValid === false) return { ...base, problem: msg("The signature doesn't match the certificate it carries.") };
+  if (check.signatureValid === null) return { ...base, problem: check.problem ?? msg("The signature couldn't be checked.") };
   return { ...base, intact: true };
 }
 

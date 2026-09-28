@@ -5,6 +5,7 @@ import { CircleCheck, Download, FileArchive, FilePlus2, LoaderCircle, Replace } 
 import { downloadBlob } from "@/lib/download";
 import { formatBytes } from "@/lib/files";
 import { zipFiles } from "@/lib/zip";
+import { useT } from "@/store/locale";
 import { useWorkspaceStore } from "@/store/workspace";
 
 export interface OutputFile {
@@ -26,6 +27,7 @@ interface Props {
 /** Download / open-in-workspace actions for whatever a tool produced. */
 export function OutputCard({ title, outputs, zipName = "files.zip", replaceFileId }: Props) {
   const [zipping, setZipping] = useState(false);
+  const t = useT();
   const { addFiles, replaceFileContent } = useWorkspaceStore.getState();
   const single = outputs.length === 1 ? outputs[0] : null;
 
@@ -69,7 +71,7 @@ export function OutputCard({ title, outputs, zipName = "files.zip", replaceFileI
                 type="button"
                 onClick={() => downloadBlob(o.blob, o.name)}
                 className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg"
-                aria-label={`Download ${o.name}`}
+                aria-label={t("Download {name}", { name: o.name })}
               >
                 <Download className="size-4" />
               </button>
@@ -82,23 +84,23 @@ export function OutputCard({ title, outputs, zipName = "files.zip", replaceFileI
         {single ? (
           <button type="button" onClick={() => downloadBlob(single.blob, single.name)} className={PRIMARY}>
             <Download className="size-4" aria-hidden="true" />
-            Download result
+            {t("Download result")}
           </button>
         ) : (
           <button type="button" onClick={downloadZip} disabled={zipping} className={PRIMARY}>
             {zipping ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <FileArchive className="size-4" aria-hidden="true" />}
-            Download all as ZIP
+            {t("Download all as ZIP")}
           </button>
         )}
         {single && replaceFileId && (
           <button type="button" onClick={() => replaceFileContent(replaceFileId, single.blob)} className={SECONDARY}>
             <Replace className="size-4" aria-hidden="true" />
-            Replace the file in this tab
+            {t("Replace the file in this tab")}
           </button>
         )}
         <button type="button" onClick={openInTabs} className={SECONDARY}>
           <FilePlus2 className="size-4" aria-hidden="true" />
-          {single ? "Open in a new tab" : `Open all ${outputs.length} in new tabs`}
+          {single ? t("Open in a new tab") : t("Open all {count} in new tabs", { count: outputs.length })}
         </button>
       </div>
     </section>

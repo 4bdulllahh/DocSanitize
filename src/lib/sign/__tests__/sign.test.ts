@@ -10,7 +10,8 @@ import { readCertificateFile } from "../pkcs12";
 
 const fontDir = new URL("../../../../node_modules/pdfjs-dist/standard_fonts/", import.meta.url);
 const fonts = { regular: readFileSync(new URL("LiberationSans-Regular.ttf", fontDir)), bold: readFileSync(new URL("LiberationSans-Bold.ttf", fontDir)) };
-const NOW = new Date("2026-09-28T18:15:03Z");
+// A whole second shortly after the test certificate (made when the tests run) becomes valid.
+const NOW = new Date(Math.ceil(Date.now() / 1000) * 1000 + 60_000);
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`fixtures/${name}`, import.meta.url)));
 
 async function samplePdf(pages = 2, rotate = 0): Promise<Uint8Array> {

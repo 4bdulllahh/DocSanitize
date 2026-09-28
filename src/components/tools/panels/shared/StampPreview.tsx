@@ -6,6 +6,7 @@ import { errorMessage } from "@/lib/errors";
 import { extractFromFile } from "@/lib/pdf/client";
 import { renderPageToImage } from "@/lib/pdf/rasterize";
 import { openPdfForRendering } from "@/lib/pdf/render";
+import { useT } from "@/store/locale";
 
 interface Preview {
   key: string;
@@ -68,25 +69,26 @@ export function useStampPreview(file: File, pages: number, key: string, stamp: (
 }
 
 export function StampPreview({ urls, error, updating }: ReturnType<typeof useStampPreview>) {
+  const t = useT();
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Live preview">
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Live preview")}>
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">
-        <span>Live preview</span>
-        {updating && <LoaderCircle className="size-3.5 animate-spin" aria-label="Updating preview" />}
+        <span>{t("Live preview")}</span>
+        {updating && <LoaderCircle className="size-3.5 animate-spin" aria-label={t("Updating preview")} />}
       </div>
       <div className="grid gap-4 bg-surface-muted p-4 sm:grid-cols-2">
         {urls.length === 0 && !error && <div className="aspect-[3/4] animate-pulse rounded bg-surface sm:col-span-2 sm:mx-auto sm:w-1/2" />}
         {urls.map((url, i) => (
           <figure key={url} className="flex flex-col items-center gap-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL of a rendered page */}
-            <img src={url} alt={`Preview of page ${i + 1}`} className="max-h-[30rem] w-auto max-w-full bg-white shadow-elev-1" />
-            <figcaption className="text-xs text-fg-subtle tabular-nums">Page {i + 1}</figcaption>
+            <img src={url} alt={t("Preview of page {page}", { page: i + 1 })} className="max-h-[30rem] w-auto max-w-full bg-white shadow-elev-1" />
+            <figcaption className="text-xs text-fg-subtle tabular-nums">{t("Page {page}", { page: i + 1 })}</figcaption>
           </figure>
         ))}
       </div>
       {error && (
         <p className="border-t border-line px-4 py-2 text-sm text-danger-text" role="alert">
-          {error}
+          {t.dynamic(error)}
         </p>
       )}
     </section>

@@ -1,6 +1,7 @@
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber } from "@cantoo/pdf-lib";
 import { ProcessingError } from "../errors";
 import { collectGarbage, loadPdf, savePdf } from "./load";
+import { msg } from "@/i18n/msg";
 
 export interface ProtectOptions {
   /** Needed to open the document. */
@@ -81,8 +82,8 @@ function describeRestrictions(encrypt: PDFDict): string[] {
   const restrictions: string[] = [];
   if (!allowed(3)) restrictions.push("printing");
   if (!allowed(4)) restrictions.push("editing");
-  if (!allowed(5)) restrictions.push("copying text and images");
-  if (!allowed(6)) restrictions.push("adding comments");
+  if (!allowed(5)) restrictions.push(msg("copying text and images"));
+  if (!allowed(6)) restrictions.push(msg("adding comments"));
   return restrictions;
 }
 

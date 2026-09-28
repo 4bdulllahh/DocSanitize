@@ -1,3 +1,4 @@
+import { createTranslator, type Translator } from "@/i18n/translate";
 import { groupLines, splitColumns, type TextPage } from "../office/text-layout";
 import { pageTextIndex, spanBoxes, type Box } from "../pdf/redact-search";
 
@@ -264,12 +265,12 @@ export function compareWords(before: Word[], after: Word[]): Comparison {
 }
 
 /** A plain-text list of the changes, for copying. */
-export function changesReport(comparison: Comparison, names: { before: string; after: string }): string {
-  const lines = [`Comparing “${names.before}” (before) with “${names.after}” (after)`, `${comparison.changes.length} change${comparison.changes.length === 1 ? "" : "s"}`, ""];
+export function changesReport(comparison: Comparison, names: { before: string; after: string }, t: Translator = createTranslator("en")): string {
+  const lines = [t("Comparing “{before}” (before) with “{after}” (after)", names), t.plural(comparison.changes.length, "{n} change", "{n} changes"), ""];
   for (const c of comparison.changes) {
-    if (c.kind === "added") lines.push(`Added (page ${c.afterPage + 1}): ${c.after}`);
-    else if (c.kind === "removed") lines.push(`Removed (page ${c.beforePage + 1}): ${c.before}`);
-    else lines.push(`Changed (page ${c.beforePage + 1} → ${c.afterPage + 1}): ${c.before} → ${c.after}`);
+    if (c.kind === "added") lines.push(t("Added (page {page}): {text}", { page: c.afterPage + 1, text: c.after }));
+    else if (c.kind === "removed") lines.push(t("Removed (page {page}): {text}", { page: c.beforePage + 1, text: c.before }));
+    else lines.push(t("Changed (page {from} → {to}): {before} → {after}", { from: c.beforePage + 1, to: c.afterPage + 1, before: c.before, after: c.after }));
   }
   return `${lines.join("\n")}\n`;
 }

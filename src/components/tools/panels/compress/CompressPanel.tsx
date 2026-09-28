@@ -16,11 +16,13 @@ import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
 import { OutputCard, PRIMARY } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 const PRESETS: { id: CompressPreset; label: string; description: string }[] = [
-  { id: "light", label: "Light", description: `Hardly visible changes. Images kept up to ${COMPRESS_PRESETS.light.dpi} DPI.` },
-  { id: "balanced", label: "Balanced", description: `Good for email and sharing. Images up to ${COMPRESS_PRESETS.balanced.dpi} DPI.` },
-  { id: "strong", label: "Strong", description: `Smallest file. Images up to ${COMPRESS_PRESETS.strong.dpi} DPI; photos look softer.` },
+  { id: "light", label: msg("Light"), description: msg("Hardly visible changes. Images kept up to {dpi} DPI.") },
+  { id: "balanced", label: msg("Balanced"), description: msg("Good for email and sharing. Images up to {dpi} DPI.") },
+  { id: "strong", label: msg("Strong"), description: msg("Smallest file. Images up to {dpi} DPI; photos look softer.") },
 ];
 
 interface Result {
@@ -38,6 +40,7 @@ export default function CompressPanel({ file }: ToolPanelProps) {
 }
 
 function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const [preset, setPreset] = useState<CompressPreset>("balanced");
   const [removeMetadata, setRemoveMetadata] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -53,7 +56,7 @@ function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy 
       updateFile(file.id, { status: "idle" });
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Compression failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Compression failed"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -63,19 +66,19 @@ function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy 
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="rounded-xl border border-line bg-surface" aria-label="Preview">
-        <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">Preview · page 1</div>
+      <section className="rounded-xl border border-line bg-surface" aria-label={t("Preview")}>
+        <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">{t("Preview · page 1")}</div>
         <div className="grid gap-4 bg-surface-muted p-4 sm:grid-cols-2">
-          <PreviewPane label="Original" size={file.size}>
+          <PreviewPane label={t("Original")} size={file.size}>
             <PageThumbnail doc={doc} pageNumber={1} width={260} height={340} />
           </PreviewPane>
           {shrunk ? (
-            <PreviewPane label="Compressed" size={shrunk.blob.size}>
+            <PreviewPane label={t("Compressed")} size={shrunk.blob.size}>
               <ResultThumbnail blob={shrunk.blob} />
             </PreviewPane>
           ) : (
             <div className="hidden items-center justify-center rounded-lg border border-dashed border-line-strong p-6 text-center text-sm text-fg-subtle sm:flex">
-              {busy ? "Compressing…" : "The compressed page appears here, so you can check the image quality."}
+              {busy ? t("Compressing…") : t("The compressed page appears here, so you can check the image quality.")}
             </div>
           )}
         </div>
@@ -85,12 +88,12 @@ function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy 
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <Shrink className="size-4 text-brand-text" aria-hidden="true" />
-            Compress PDF
+            {t("Compress PDF")}
           </h2>
-          <p className="mt-1 text-sm text-fg-muted">Downscales and re-encodes photos, and repacks the file. Text and vector graphics stay sharp.</p>
+          <p className="mt-1 text-sm text-fg-muted">{t("Downscales and re-encodes photos, and repacks the file. Text and vector graphics stay sharp.")}</p>
 
           <fieldset className="mt-4 space-y-2">
-            <legend className="mb-1.5 text-sm font-medium text-fg">Compression level</legend>
+            <legend className="mb-1.5 text-sm font-medium text-fg">{t("Compression level")}</legend>
             {PRESETS.map((p) => (
               <label
                 key={p.id}
@@ -112,12 +115,12 @@ function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy 
                 />
                 <span>
                   <span className="flex items-center gap-2 text-sm font-medium text-fg">
-                    {p.label}
+                    {t(p.label)}
                     {p.id === "balanced" && (
-                      <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-brand-fg">Recommended</span>
+                      <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-brand-fg">{t("Recommended")}</span>
                     )}
                   </span>
-                  <span className="mt-0.5 block text-xs text-fg-muted">{p.description}</span>
+                  <span className="mt-0.5 block text-xs text-fg-muted">{t(p.description, { dpi: COMPRESS_PRESETS[p.id].dpi })}</span>
                 </span>
               </label>
             ))}
@@ -134,21 +137,21 @@ function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy 
               className="mt-0.5 size-4 shrink-0 accent-brand"
             />
             <span>
-              <span className="block text-sm font-medium text-fg">Also remove metadata</span>
-              <span className="block text-xs text-fg-muted">Author, dates, XMP, attachments and scripts, as Sanitize does.</span>
+              <span className="block text-sm font-medium text-fg">{t("Also remove metadata")}</span>
+              <span className="block text-xs text-fg-muted">{t("Author, dates, XMP, attachments and scripts, as Sanitize does.")}</span>
             </span>
           </label>
 
           <button type="button" onClick={run} disabled={busy} className={clsx(PRIMARY, "mt-5 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Shrink className="size-4" aria-hidden="true" />}
-            {busy ? "Compressing…" : "Compress PDF"}
+            {busy ? t("Compressing…") : t("Compress PDF")}
           </button>
         </section>
 
         {result && <SavingsCard before={file.size} result={result} strongest={preset === "strong"} />}
         {shrunk && (
           <OutputCard
-            title="Compressed"
+            title={t("Compressed")}
             outputs={[{ name: withSuffix(file.name, "compressed"), blob: shrunk.blob }]}
             replaceFileId={file.id}
           />
@@ -159,20 +162,21 @@ function Compressor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy 
 }
 
 function SavingsCard({ before, result, strongest }: { before: number; result: Result; strongest: boolean }) {
+  const t = useT();
   if (result.keptOriginal) {
     return (
       <section className="rounded-xl border border-warning/40 bg-warning-soft p-5" aria-live="polite">
         <div className="flex items-start gap-3">
           <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden="true" />
           <div>
-            <p className="font-medium text-fg">Already well optimized</p>
+            <p className="font-medium text-fg">{t("Already well optimized")}</p>
             <p className="mt-1 text-sm text-fg-muted">
-              Compressing didn&apos;t make this PDF smaller, so your file is unchanged.
+              {t("Compressing didn't make this PDF smaller, so your file is unchanged.")}
               {result.images === 0
-                ? " It has no photos to shrink."
+                ? t(" It has no photos to shrink.")
                 : strongest
-                  ? " Its images are already compact."
-                  : " Try a stronger level."}
+                  ? t(" Its images are already compact.")
+                  : t(" Try a stronger level.")}
             </p>
           </div>
         </div>
@@ -190,7 +194,7 @@ function SavingsCard({ before, result, strongest }: { before: number; result: Re
         </p>
         <p className="flex items-center gap-1.5 text-sm text-fg-muted tabular-nums">
           {formatBytes(before)}
-          <ArrowRight className="size-3.5" aria-label="to" />
+          <ArrowRight className="size-3.5" aria-label={t("to")} />
           <span className="font-medium text-fg">{formatBytes(after)}</span>
         </p>
       </div>
@@ -199,9 +203,9 @@ function SavingsCard({ before, result, strongest }: { before: number; result: Re
       </div>
       <p className="mt-3 text-sm text-fg-muted">
         {result.recompressed === 0
-          ? "No images needed shrinking; the file was repacked."
-          : `${result.recompressed} of ${result.images} image${result.images === 1 ? "" : "s"} recompressed.`}
-        {saved <= 0 && " Metadata was removed."}
+          ? t("No images needed shrinking; the file was repacked.")
+          : t.plural(result.images, "{count} of {n} image recompressed.", "{count} of {n} images recompressed.", { count: result.recompressed })}
+        {saved <= 0 && ` ${t("Metadata was removed.")}`}
       </p>
     </section>
   );

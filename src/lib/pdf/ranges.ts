@@ -1,3 +1,4 @@
+import { msg } from "@/i18n/msg";
 export type RangeResult = { ok: true; groups: number[][] } | { ok: false; error: string };
 
 /**
@@ -9,21 +10,21 @@ export function parsePageRanges(input: string, pageCount: number): RangeResult {
     .split(/[,;]/)
     .map((p) => p.trim())
     .filter(Boolean);
-  if (parts.length === 0) return { ok: false, error: "Enter at least one page or range." };
+  if (parts.length === 0) return { ok: false, error: msg("Enter at least one page or range.") };
 
   const groups: number[][] = [];
   for (const part of parts) {
     const m = /^(\d*)\s*(?:(-|–|to)\s*(\d*))?$/i.exec(part);
-    if (!m || (!m[1] && !m[3])) return { ok: false, error: `“${part}” isn't a page number or range.` };
+    if (!m || (!m[1] && !m[3])) return { ok: false, error: msg`“${part}” isn't a page number or range.` };
     const isRange = Boolean(m[2]);
     const from = m[1] ? Number(m[1]) : 1;
     const to = isRange ? (m[3] ? Number(m[3]) : pageCount) : from;
     for (const n of [from, to]) {
       if (n < 1 || n > pageCount) {
-        return { ok: false, error: `Page ${n} doesn't exist — this document has ${pageCount} page${pageCount === 1 ? "" : "s"}.` };
+        return { ok: false, error: msg`Page ${n} doesn't exist — this document has ${pageCount} page${pageCount === 1 ? "" : "s"}.` };
       }
     }
-    if (from > to) return { ok: false, error: `“${part}” runs backwards. Write it as ${to}-${from}.` };
+    if (from > to) return { ok: false, error: msg`“${part}” runs backwards. Write it as ${to}-${from}.` };
     groups.push(Array.from({ length: to - from + 1 }, (_, i) => from - 1 + i));
   }
   return { ok: true, groups };

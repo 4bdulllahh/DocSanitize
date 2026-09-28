@@ -16,19 +16,21 @@ import { AnchorPicker, ColorField, Field, INPUT, Segmented, Slider, type AnchorI
 import { OutputCard, PRIMARY, type OutputFile } from "../shared/OutputCard";
 import { StampPreview, useStampPreview } from "../shared/StampPreview";
 import { DocGate, Layout, ToolCard, useApply, usePageField } from "../shared/toolkit";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 const COLORS = [
-  { value: "#374151", name: "Grey" },
-  { value: "#111111", name: "Black" },
-  { value: "#263a81", name: "Navy" },
-  { value: "#b91c1c", name: "Red" },
+  { value: "#374151", name: msg("Grey") },
+  { value: "#111111", name: msg("Black") },
+  { value: "#263a81", name: msg("Navy") },
+  { value: "#b91c1c", name: msg("Red") },
 ];
 const MARGINS = { small: 18, medium: 30, large: 48 } as const;
 type Margin = keyof typeof MARGINS;
 const MARGIN_OPTIONS: { id: Margin; label: string }[] = [
-  { id: "small", label: "Small" },
-  { id: "medium", label: "Medium" },
-  { id: "large", label: "Large" },
+  { id: "small", label: msg("Small") },
+  { id: "medium", label: msg("Medium") },
+  { id: "large", label: msg("Large") },
 ];
 const EDGE_ANCHORS: AnchorId[] = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"];
 
@@ -39,21 +41,22 @@ export function HeaderFooterPanel({ file }: ToolPanelProps) {
 }
 
 const SLOT_LABELS: Record<Slot, string> = {
-  "top-left": "Header, left",
-  "top-center": "Header, centre",
-  "top-right": "Header, right",
-  "bottom-left": "Footer, left",
-  "bottom-center": "Footer, centre",
-  "bottom-right": "Footer, right",
+  "top-left": msg("Header, left"),
+  "top-center": msg("Header, centre"),
+  "top-right": msg("Header, right"),
+  "bottom-left": msg("Footer, left"),
+  "bottom-center": msg("Footer, centre"),
+  "bottom-right": msg("Footer, right"),
 };
 const TOKENS = [
-  { token: "{page}", label: "Page number" },
-  { token: "{pages}", label: "Page count" },
-  { token: "{date}", label: "Today's date" },
-  { token: "{file}", label: "File name" },
+  { token: "{page}", label: msg("Page number") },
+  { token: "{pages}", label: msg("Page count") },
+  { token: "{date}", label: msg("Today's date") },
+  { token: "{file}", label: msg("File name") },
 ];
 
 function HeaderFooter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const { busy, output, setOutput, apply } = useApply(file, "header-footer");
   const [slots, setSlots] = useState<Partial<Record<Slot, string>>>({ "top-right": "{file}", "bottom-center": "Page {page} of {pages}" });
   const [focused, setFocused] = useState<Slot>("bottom-center");
@@ -91,10 +94,10 @@ function HeaderFooter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProx
       main={<StampPreview {...preview} />}
       actions={
         <>
-          <ToolCard icon={PanelTop} title="Header & footer">
+          <ToolCard icon={PanelTop} title={t("Header & footer")}>
             <div className="mt-3 grid grid-cols-1 gap-x-3 sm:grid-cols-2 lg:grid-cols-1">
               {SLOTS.map((slot) => (
-                <Field key={slot} label={SLOT_LABELS[slot]}>
+                <Field key={slot} label={t(SLOT_LABELS[slot])}>
                   <input
                     ref={(el) => {
                       inputs.current[slot] = el;
@@ -102,38 +105,38 @@ function HeaderFooter({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProx
                     value={slots[slot] ?? ""}
                     onFocus={() => setFocused(slot)}
                     onChange={(e) => set(setSlots)({ ...slots, [slot]: e.target.value })}
-                    placeholder="Empty"
+                    placeholder={t("Empty")}
                     maxLength={120}
                     className={INPUT}
                   />
                 </Field>
               ))}
             </div>
-            <p className="mt-3 text-xs text-fg-subtle">Insert into “{SLOT_LABELS[focused]}”:</p>
+            <p className="mt-3 text-xs text-fg-subtle">{t("Insert into “{slot}”:", { slot: t(SLOT_LABELS[focused]) })}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {TOKENS.map((t) => (
-                <button key={t.token} type="button" onClick={() => insert(t.token)} className="rounded-md border border-line px-2 py-1 text-xs text-fg-muted hover:border-brand-border hover:text-brand-text" title={t.label}>
-                  {t.token}
+              {TOKENS.map((tok) => (
+                <button key={tok.token} type="button" onClick={() => insert(tok.token)} className="rounded-md border border-line px-2 py-1 text-xs text-fg-muted hover:border-brand-border hover:text-brand-text" title={t(tok.label)}>
+                  {tok.token}
                 </button>
               ))}
             </div>
-            <Slider label="Size" value={size} min={6} max={20} format={(v) => `${v} pt`} onChange={set(setSize)} />
-            <ColorField label="Colour" value={color} onChange={set(setColor)} presets={COLORS} />
-            <Segmented label="Distance from the edge" value={margin} onChange={set(setMargin)} options={MARGIN_OPTIONS} />
+            <Slider label={t("Size")} value={size} min={6} max={20} format={(v) => `${v} pt`} onChange={set(setSize)} />
+            <ColorField label={t("Colour")} value={color} onChange={set(setColor)} presets={COLORS} />
+            <Segmented label={t("Distance from the edge")} value={margin} onChange={set(setMargin)} options={MARGIN_OPTIONS} />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="First page number">
+              <Field label={t("First page number")}>
                 <input type="number" min={0} value={Number.isFinite(start) ? start : ""} onChange={(e) => set(setStart)(e.target.valueAsNumber)} className={INPUT} />
               </Field>
-              <Field label="Pages" error={range.error}>
-                <input value={range.text} onChange={(e) => set(range.setText)(e.target.value)} placeholder="All" className={INPUT} />
+              <Field label={t("Pages")} error={range.error}>
+                <input value={range.text} onChange={(e) => set(range.setText)(e.target.value)} placeholder={t("All")} className={INPUT} />
               </Field>
             </div>
             <button type="button" onClick={() => apply(() => headerFooterFile(file.file, { ...options, total: undefined }))} disabled={busy || empty || Boolean(range.error)} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <PanelTop className="size-4" aria-hidden="true" />}
-              {busy ? "Adding…" : "Add header & footer"}
+              {busy ? t("Adding…") : t("Add header & footer")}
             </button>
           </ToolCard>
-          {output && <OutputCard title="Header & footer added" outputs={[output]} replaceFileId={file.id} />}
+          {output && <OutputCard title={t("Header & footer added")} outputs={[output]} replaceFileId={file.id} />}
         </>
       }
     />
@@ -170,6 +173,7 @@ function usePageCounts(files: WorkspaceFile[]) {
 }
 
 export function BatesPanel({ files }: ToolPanelProps) {
+  const t = useT();
   const [prefix, setPrefix] = useState("DOC-");
   const [suffix, setSuffix] = useState("");
   const [start, setStart] = useState(1);
@@ -211,7 +215,7 @@ export function BatesPanel({ files }: ToolPanelProps) {
       setOutputs(results.map((r, i) => ({ name: withSuffix(files[i].name, "bates"), blob: r.blob, detail: `${r.first} – ${r.last}` })));
       files.forEach((f) => updateFile(f.id, { status: "idle", error: undefined }));
     } catch (error) {
-      toast({ tone: "error", title: "Couldn't number the files", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't number the files"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -221,8 +225,8 @@ export function BatesPanel({ files }: ToolPanelProps) {
     <Layout
       main={
         <div className="space-y-4">
-          <section className="rounded-xl border border-line bg-surface" aria-label="Files in numbering order">
-            <header className="border-b border-line px-4 py-3 text-sm text-fg-muted">Numbered in tab order; drag the tabs above to reorder.</header>
+          <section className="rounded-xl border border-line bg-surface" aria-label={t("Files in numbering order")}>
+            <header className="border-b border-line px-4 py-3 text-sm text-fg-muted">{t("Numbered in tab order; drag the tabs above to reorder.")}</header>
             <ol className="divide-y divide-line">
               {files.map((f, i) => (
                 <li key={f.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
@@ -237,33 +241,33 @@ export function BatesPanel({ files }: ToolPanelProps) {
       }
       actions={
         <>
-          <ToolCard icon={Hash} title="Bates numbering">
-            <p className="mt-1 text-sm text-fg-muted">Gives every page of every open PDF a unique number, continuing from one file to the next.</p>
+          <ToolCard icon={Hash} title={t("Bates numbering")}>
+            <p className="mt-1 text-sm text-fg-muted">{t("Gives every page of every open PDF a unique number, continuing from one file to the next.")}</p>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Prefix">
+              <Field label={t("Prefix")}>
                 <input value={prefix} onChange={(e) => set(setPrefix)(e.target.value)} maxLength={30} className={INPUT} />
               </Field>
-              <Field label="Suffix">
+              <Field label={t("Suffix")}>
                 <input value={suffix} onChange={(e) => set(setSuffix)(e.target.value)} maxLength={30} className={INPUT} />
               </Field>
-              <Field label="First number" error={options.start >= 0 && Number.isInteger(options.start) ? undefined : "0 or more"}>
+              <Field label={t("First number")} error={options.start >= 0 && Number.isInteger(options.start) ? undefined : t("0 or more")}>
                 <input type="number" min={0} value={Number.isFinite(start) ? start : ""} onChange={(e) => set(setStart)(e.target.valueAsNumber)} className={INPUT} />
               </Field>
-              <Field label="Digits" error={options.digits >= 1 && options.digits <= 12 ? undefined : "1 to 12"}>
+              <Field label={t("Digits")} error={options.digits >= 1 && options.digits <= 12 ? undefined : t("1 to 12")}>
                 <input type="number" min={1} max={12} value={Number.isFinite(digits) ? digits : ""} onChange={(e) => set(setDigits)(e.target.valueAsNumber)} className={INPUT} />
               </Field>
             </div>
-            <p className="mt-2 font-mono text-xs text-fg-subtle">e.g. {batesLabel(options, options.start)}</p>
-            <AnchorPicker label="Position" value={position} onChange={set(setPosition)} allowed={EDGE_ANCHORS} />
-            <Segmented label="Distance from the edge" value={margin} onChange={set(setMargin)} options={MARGIN_OPTIONS} />
-            <Slider label="Size" value={size} min={6} max={16} format={(v) => `${v} pt`} onChange={set(setSize)} />
-            <ColorField label="Colour" value={color} onChange={set(setColor)} presets={COLORS} />
+            <p className="mt-2 font-mono text-xs text-fg-subtle">{t("e.g. {example}", { example: batesLabel(options, options.start) })}</p>
+            <AnchorPicker label={t("Position")} value={position} onChange={set(setPosition)} allowed={EDGE_ANCHORS} />
+            <Segmented label={t("Distance from the edge")} value={margin} onChange={set(setMargin)} options={MARGIN_OPTIONS} />
+            <Slider label={t("Size")} value={size} min={6} max={16} format={(v) => `${v} pt`} onChange={set(setSize)} />
+            <ColorField label={t("Colour")} value={color} onChange={set(setColor)} presets={COLORS} />
             <button type="button" onClick={run} disabled={busy || !valid} className={clsx(PRIMARY, "mt-5 w-full")}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Hash className="size-4" aria-hidden="true" />}
-              {busy ? "Numbering…" : `Number ${files.length === 1 ? "the PDF" : `${files.length} PDFs`}`}
+              {busy ? t("Numbering…") : files.length === 1 ? t("Number the PDF") : t("Number {count} PDFs", { count: files.length })}
             </button>
           </ToolCard>
-          {outputs && <OutputCard title="Bates numbers added" outputs={outputs} zipName="bates-numbered.zip" replaceFileId={outputs.length === 1 ? files[0].id : undefined} />}
+          {outputs && <OutputCard title={t("Bates numbers added")} outputs={outputs} zipName="bates-numbered.zip" replaceFileId={outputs.length === 1 ? files[0].id : undefined} />}
         </>
       }
     />

@@ -5,6 +5,7 @@ import { PAGE_SIZES } from "../pdf/images";
 import { renderFlow, type Block, type FontFiles, type ParagraphBlock, type TableBlock } from "./flow";
 import { columnName } from "./xlsx";
 import { missingCharactersWarning, type ConversionResult } from "./word";
+import { msg } from "@/i18n/msg";
 
 /*
  * Spreadsheet (.xlsx, .xls, .ods, .csv) -> PDF: each chosen sheet becomes a paginated table.
@@ -79,7 +80,7 @@ function usedRange(sheet: XLSX.WorkSheet): XLSX.Range | null {
   return rows < 0 ? null : { s: range.s, e: { r: rows, c: cols } };
 }
 
-export function inspectWorkbook(bytes: Uint8Array, name = "This file"): SheetSummary[] {
+export function inspectWorkbook(bytes: Uint8Array, name = msg("This file")): SheetSummary[] {
   const book = readWorkbook(bytes, name);
   return book.SheetNames.map((sheetName, i) => {
     const range = usedRange(book.Sheets[sheetName]);
@@ -142,7 +143,7 @@ function sheetGrid(sheet: XLSX.WorkSheet): Grid | null {
   return { rows, columns, truncated };
 }
 
-export async function workbookToPdf(bytes: Uint8Array, options: SheetToPdfOptions, fonts: FontFiles, name = "This file"): Promise<ConversionResult> {
+export async function workbookToPdf(bytes: Uint8Array, options: SheetToPdfOptions, fonts: FontFiles, name = msg("This file")): Promise<ConversionResult> {
   const book = readWorkbook(bytes, name);
   const chosen = book.SheetNames.filter((n) => options.sheets.includes(n));
   if (chosen.length === 0) throw new ProcessingError("Choose at least one sheet.", "invalid");
@@ -160,7 +161,7 @@ export async function workbookToPdf(bytes: Uint8Array, options: SheetToPdfOption
     if (index > 0) blocks.push({ type: "pageBreak" });
     blocks.push({ type: "paragraph", runs: [{ text: sheetName, bold: true }], size: 12, spaceAfter: 8 });
     if (!grid) {
-      blocks.push({ type: "paragraph", runs: [{ text: "This sheet is empty.", italic: true }], size: FONT_SIZE });
+      blocks.push({ type: "paragraph", runs: [{ text: msg("This sheet is empty."), italic: true }], size: FONT_SIZE });
       return;
     }
     if (grid.truncated) warnings.push(`“${sheetName}” has more than ${MAX_ROWS.toLocaleString()} rows; only the first ${MAX_ROWS.toLocaleString()} are included.`);

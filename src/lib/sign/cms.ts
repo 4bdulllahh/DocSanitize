@@ -17,6 +17,7 @@ import {
 } from "./der";
 import { algorithm, digest, hashOfOid, OID, readAlgorithm, sign, signatureAlgorithmFor, verifySignature, type Hash, type SigningKey } from "./crypto";
 import { parseCertificate, type Certificate } from "./x509";
+import { msg } from "@/i18n/msg";
 
 /*
  * CMS SignedData (RFC 5652), the "PKCS #7" inside a PDF signature. We write detached signatures
@@ -156,8 +157,8 @@ export interface SignerCheck {
 
 /** Check one signer against the signed bytes (for detached signatures) or the encapsulated content. */
 export async function checkSigner(signer: CmsSigner, content: Uint8Array): Promise<SignerCheck> {
-  if (!signer.hash) return { digestMatches: false, signatureValid: null, problem: "It uses a digest algorithm that can't be checked here." };
-  if (!signer.certificate) return { digestMatches: false, signatureValid: null, problem: "The signer's certificate isn't included in the signature." };
+  if (!signer.hash) return { digestMatches: false, signatureValid: null, problem: msg("It uses a digest algorithm that can't be checked here.") };
+  if (!signer.certificate) return { digestMatches: false, signatureValid: null, problem: msg("The signer's certificate isn't included in the signature.") };
   let signed: Uint8Array;
   let digestMatches: boolean;
   if (signer.signedAttrs) {
@@ -172,7 +173,7 @@ export async function checkSigner(signer: CmsSigner, content: Uint8Array): Promi
     const signatureValid = await verifySignature(signer.certificate.spki, signer.signatureAlgorithm, signed, signer.signature, signer.hash);
     return { digestMatches, signatureValid };
   } catch (error) {
-    return { digestMatches, signatureValid: null, problem: error instanceof Error ? error.message : "The signature couldn't be checked." };
+    return { digestMatches, signatureValid: null, problem: error instanceof Error ? error.message : msg("The signature couldn't be checked.") };
   }
 }
 

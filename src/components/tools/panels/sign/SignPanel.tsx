@@ -21,6 +21,9 @@ import { FidelityNote } from "../shared/ConversionParts";
 import { OutputCard, PRIMARY, SECONDARY, type OutputFile } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
 import { SignatureCreator, useSignatures, type SignatureAsset } from "./SignatureCreator";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
+import { Rich } from "@/i18n/Rich";
 
 type Placed = Placement & { id: string };
 type Rect = Pick<Placement, "x" | "y" | "width" | "height">;
@@ -35,6 +38,7 @@ export default function SignPanel({ file }: ToolPanelProps) {
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
 function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const t = useT();
   const { assets, add, remove } = useSignatures();
   const [creating, setCreating] = useState(assets.length === 0);
   const [placements, setPlacements] = useState<Placed[]>([]);
@@ -76,7 +80,7 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
       updateFile(file.id, { status: "idle" });
     } catch (error) {
       updateFile(file.id, { status: "error", error: errorMessage(error) });
-      toast({ tone: "error", title: "Signing failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Signing failed"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -88,7 +92,7 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Pages">
+      <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label={t("Pages")}>
         <PageStrip
           doc={doc}
           current={current}
@@ -97,23 +101,23 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
             setSelected(null);
           }}
           counts={counts}
-          noun="placement"
+          countLabel={(n) => t.plural(n, "{n} placement", "{n} placements")}
         />
         <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm">
-          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label="Previous page">
+          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === 0} onClick={() => setCurrent(current - 1)} aria-label={t("Previous page")}>
             <ChevronLeft className="size-4" />
           </button>
           <span className="text-fg-muted tabular-nums">
-            Page {current + 1} of {doc.numPages}
+            {t("Page {page} of {count}", { page: current + 1, count: doc.numPages })}
           </span>
-          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => setCurrent(current + 1)} aria-label="Next page">
+          <button type="button" className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40" disabled={current === doc.numPages - 1} onClick={() => setCurrent(current + 1)} aria-label={t("Next page")}>
             <ChevronRight className="size-4" />
           </button>
         </div>
         <div className="bg-surface-muted p-3 sm:p-5" onPointerDown={(e) => e.target === e.currentTarget && setSelected(null)}>
           <PageStage doc={doc} index={current}>
             {(stage) => (
-              <div className="absolute inset-0" onPointerDown={(e) => e.target === e.currentTarget && setSelected(null)} role="group" aria-label={`Page ${current + 1}: placed signatures`}>
+              <div className="absolute inset-0" onPointerDown={(e) => e.target === e.currentTarget && setSelected(null)} role="group" aria-label={t("Page {page}: placed signatures", { page: current + 1 })}>
                 {placements
                   .filter((p) => p.page === current)
                   .map((p) => (
@@ -134,7 +138,7 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
               </div>
             )}
           </PageStage>
-          <p className="mt-3 text-center text-xs text-fg-subtle">Drag to move, drag the corner to resize. Arrow keys nudge the selected item; Delete removes it.</p>
+          <p className="mt-3 text-center text-xs text-fg-subtle">{t("Drag to move, drag the corner to resize. Arrow keys nudge the selected item; Delete removes it.")}</p>
         </div>
       </section>
 
@@ -142,27 +146,32 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <Signature className="size-4 text-brand-text" aria-hidden="true" />
-            Sign
+            {t("Sign")}
           </h2>
           <FidelityNote>
-            Adds a visible signature to the page. It isn&apos;t a certificate-based digital signature; for one that others can verify, use{" "}
-            <Link href="/tools/digital-signature/" className="font-medium text-brand-text hover:underline">
-              Digital Signature
-            </Link>
-            . Signatures stay in this browser tab only and are forgotten when you close it.
+            <Rich
+              text={t("Adds a visible signature to the page. It isn't a certificate-based digital signature; for one that others can verify, use {link}. Signatures stay in this browser tab only and are forgotten when you close it.")}
+              values={{
+                link: (
+                  <Link href="/tools/digital-signature/" className="font-medium text-brand-text hover:underline">
+                    {t("Digital Signature")}
+                  </Link>
+                ),
+              }}
+            />
           </FidelityNote>
 
           {assets.length > 0 && (
-            <ul className="mt-4 space-y-2" aria-label="Your signatures">
+            <ul className="mt-4 space-y-2" aria-label={t("Your signatures")}>
               {assets.map((asset, i) => (
                 <li key={asset.id} className="flex items-center gap-2 rounded-lg border border-line p-2">
                   <span className="flex h-12 flex-1 items-center justify-center rounded bg-white px-2">
                     {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL */}
-                    <img src={asset.url} alt={`Signature ${i + 1}`} className="max-h-10 max-w-full object-contain" />
+                    <img src={asset.url} alt={t("Signature {n}", { n: i + 1 })} className="max-h-10 max-w-full object-contain" />
                   </span>
-                  <button type="button" onClick={() => placeSignature(asset)} className={clsx(PRIMARY, "px-3 py-2")} aria-label={`Place signature ${i + 1} on page ${current + 1}`}>
+                  <button type="button" onClick={() => placeSignature(asset)} className={clsx(PRIMARY, "px-3 py-2")} aria-label={t("Place signature {n} on page {page}", { n: i + 1, page: current + 1 })}>
                     <Plus className="size-4" aria-hidden="true" />
-                    Place
+                    {t("Place")}
                   </button>
                   <button
                     type="button"
@@ -171,7 +180,7 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
                       change((prev) => prev.filter((p) => !(p.kind === "image" && p.image === asset.id)));
                     }}
                     className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg"
-                    aria-label={`Delete signature ${i + 1}`}
+                    aria-label={t("Delete signature {n}", { n: i + 1 })}
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -192,29 +201,30 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
           ) : (
             <button type="button" onClick={() => setCreating(true)} className={clsx(SECONDARY, "mt-3 w-full")}>
               <Signature className="size-4" aria-hidden="true" />
-              {assets.length ? "Create another signature" : "Create a signature"}
+              {assets.length ? t("Create another signature") : t("Create a signature")}
             </button>
           )}
           <button type="button" onClick={placeDate} className={clsx(SECONDARY, "mt-2 w-full")}>
             <CalendarDays className="size-4" aria-hidden="true" />
-            Add today&apos;s date
+            {t("Add today's date")}
           </button>
 
           <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-sm text-fg-muted">
             {placements.length === 0 ? (
-              "Nothing placed yet"
+              t("Nothing placed yet")
             ) : (
-              <>
-                <span className="font-semibold text-fg">{placements.length}</span> placed on {pages.length === 1 ? "page" : "pages"} {formatPageRanges(pages)}
-              </>
+              <Rich
+                text={pages.length === 1 ? t("{count} placed on page {pages}", { pages: formatPageRanges(pages) }) : t("{count} placed on pages {pages}", { pages: formatPageRanges(pages) })}
+                values={{ count: <span className="font-semibold text-fg">{placements.length}</span> }}
+              />
             )}
           </p>
           <button type="button" onClick={apply} disabled={busy || placements.length === 0} className={clsx(PRIMARY, "mt-4 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Signature className="size-4" aria-hidden="true" />}
-            {busy ? "Signing…" : "Sign PDF"}
+            {busy ? t("Signing…") : t("Sign PDF")}
           </button>
         </section>
-        {output && <OutputCard title="Signed" outputs={[output]} replaceFileId={file.id} />}
+        {output && <OutputCard title={t("Signed")} outputs={[output]} replaceFileId={file.id} />}
       </div>
     </div>
   );
@@ -237,6 +247,7 @@ function PlacedItem({
   onChange: (next: Partial<Rect>) => void;
   onRemove: () => void;
 }) {
+  const t = useT();
   const drag = useRef<{ mode: "move" | "resize"; x: number; y: number; start: Rect } | null>(null);
   const { x, y, width, height } = placement;
 
@@ -308,8 +319,8 @@ function PlacedItem({
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={onRemove}
-            aria-label={`Remove ${label.toLowerCase()}`}
-            className="absolute -top-3 -right-3 flex size-6 items-center justify-center rounded-full bg-danger text-white shadow-elev-2"
+            aria-label={t("Remove {label}", { label: label.toLowerCase() })}
+            className="absolute -end-3 -top-3 flex size-6 items-center justify-center rounded-full bg-danger text-white shadow-elev-2"
           >
             <X className="size-3.5" />
           </button>

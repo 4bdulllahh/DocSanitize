@@ -10,10 +10,12 @@ import type { Change } from "@/lib/convert/compare";
 import { changesReport } from "@/lib/convert/compare";
 import { changeMarks, comparePdfs, type ComparedDocuments } from "@/lib/convert/client";
 import { diffPixels } from "@/lib/convert/visual-diff";
+import { msg } from "@/i18n/msg";
 import { errorMessage } from "@/lib/errors";
 import { editFile } from "@/lib/pdf/client";
 import { withRenderSlot } from "@/lib/pdf/render";
 import { withSuffix } from "@/lib/zip";
+import { useT } from "@/store/locale";
 import { toast } from "@/store/toast";
 import type { WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
@@ -21,16 +23,18 @@ import { ProgressBar } from "../shared/ConversionParts";
 import { Field, INPUT, Segmented } from "../shared/controls";
 import { OutputCard, PRIMARY, SECONDARY, type OutputFile } from "../shared/OutputCard";
 import { PdfLoadError, PdfLoading } from "../shared/PdfStates";
+import { copyText } from "../inspect/CheckFilePanel";
 
 /** Compare two open PDFs: first tab is the original, second the changed version (both can be picked). */
 export default function ComparePanel({ files }: ToolPanelProps) {
   const [ids, setIds] = useState<[string, string] | null>(null);
+  const t = useT();
   if (files.length < 2) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong bg-surface px-6 py-14 text-center">
         <Plus className="size-8 text-fg-subtle" aria-hidden="true" />
-        <p className="font-semibold text-fg">Add the other version</p>
-        <p className="max-w-sm text-sm text-fg-muted">Drop a second PDF anywhere on this page, or use “Add files” above. The first tab is taken as the original.</p>
+        <p className="font-semibold text-fg">{t("Add the other version")}</p>
+        <p className="max-w-sm text-sm text-fg-muted">{t("Drop a second PDF anywhere on this page, or use “Add files” above. The first tab is taken as the original.")}</p>
       </div>
     );
   }
@@ -42,9 +46,9 @@ export default function ComparePanel({ files }: ToolPanelProps) {
     <section className="rounded-xl border border-line bg-surface p-5">
       <h2 className="flex items-center gap-2 font-semibold text-fg">
         <GitCompareArrows className="size-4 text-brand-text" aria-hidden="true" />
-        Compare PDFs
+        {t("Compare PDFs")}
       </h2>
-      <Field label="Original">
+      <Field label={t("Original")}>
         <select value={before.id} onChange={(e) => setIds([e.target.value, e.target.value === after.id ? before.id : after.id])} className={INPUT}>
           {files.map((f) => (
             <option key={f.id} value={f.id}>
@@ -53,7 +57,7 @@ export default function ComparePanel({ files }: ToolPanelProps) {
           ))}
         </select>
       </Field>
-      <Field label="Changed version">
+      <Field label={t("Changed version")}>
         <select value={after.id} onChange={(e) => setIds([e.target.value === before.id ? after.id : before.id, e.target.value])} className={INPUT}>
           {files.map((f) => (
             <option key={f.id} value={f.id}>
@@ -64,7 +68,7 @@ export default function ComparePanel({ files }: ToolPanelProps) {
       </Field>
       <button type="button" onClick={() => setIds([after.id, before.id])} className={clsx(SECONDARY, "mt-3 w-full")}>
         <ArrowLeftRight className="size-4" aria-hidden="true" />
-        Swap
+        {t("Swap")}
       </button>
     </section>
   );
@@ -74,9 +78,10 @@ export default function ComparePanel({ files }: ToolPanelProps) {
 function Loader({ before, after, picker }: { before: WorkspaceFile; after: WorkspaceFile; picker: React.ReactNode }) {
   const a = usePdfDocument(before.file);
   const b = usePdfDocument(after.file);
-  if (a.status === "loading" || b.status === "loading") return <PdfLoading label="Opening both PDFs" />;
-  if (a.status === "error") return <PdfLoadError title={`Couldn't open “${before.name}”`} message={a.message} code={a.code} />;
-  if (b.status === "error") return <PdfLoadError title={`Couldn't open “${after.name}”`} message={b.message} code={b.code} />;
+  const t = useT();
+  if (a.status === "loading" || b.status === "loading") return <PdfLoading label={t("Opening both PDFs")} />;
+  if (a.status === "error") return <PdfLoadError title={t("Couldn't open “{name}”", { name: before.name })} message={a.message} code={a.code} />;
+  if (b.status === "error") return <PdfLoadError title={t("Couldn't open “{name}”", { name: after.name })} message={b.message} code={b.code} />;
   return <Comparer before={before} after={after} docA={a.doc} docB={b.doc} picker={picker} />;
 }
 
@@ -84,6 +89,7 @@ type Mode = "text" | "visual";
 
 function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile; after: WorkspaceFile; docA: PDFDocumentProxy; docB: PDFDocumentProxy; picker: React.ReactNode }) {
   const [mode, setMode] = useState<Mode>("text");
+  const t = useT();
   const [progress, setProgress] = useState<number | null>(null);
   const [result, setResult] = useState<ComparedDocuments | null>(null);
   const [selected, setSelected] = useState(0);
@@ -99,18 +105,14 @@ function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile
       setResult(comparison);
       setSelected(0);
     } catch (error) {
-      toast({ tone: "error", title: "Comparison failed", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Comparison failed"), description: errorMessage(error) });
     } finally {
       setProgress(null);
     }
   };
 
-  const report = () => changesReport(result!, { before: before.name, after: after.name });
-  const copyList = () =>
-    navigator.clipboard.writeText(report()).then(
-      () => toast({ tone: "success", title: "List copied" }),
-      () => toast({ tone: "error", title: "Couldn't copy", description: "Your browser blocked the clipboard." }),
-    );
+  const report = () => changesReport(result!, { before: before.name, after: after.name }, t);
+  const copyList = () => copyText(report(), t("List copied"));
 
   const markCopies = async () => {
     if (!result) return;
@@ -118,15 +120,15 @@ function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile
     try {
       const made: OutputFile[] = [];
       for (const [side, file] of [["before", before], ["after", after]] as const) {
-        const objects = changeMarks(result, side);
+        const objects = changeMarks(result, side, t);
         if (!objects.length) continue;
         const { blob } = await editFile(file.file, { objects, images: {}, flatten: false });
-        made.push({ name: withSuffix(file.name, side === "before" ? "removed-marked" : "changes-marked"), blob, detail: side === "before" ? "Removed and changed text in red" : "Added in green, changed in amber, notes for removals" });
+        made.push({ name: withSuffix(file.name, side === "before" ? "removed-marked" : "changes-marked"), blob, detail: side === "before" ? t("Removed and changed text in red") : t("Added in green, changed in amber, notes for removals") });
       }
-      made.push({ name: withSuffix(after.name, "changes", ".txt"), blob: new Blob([report()], { type: "text/plain" }), detail: "The list of changes" });
+      made.push({ name: withSuffix(after.name, "changes", ".txt"), blob: new Blob([report()], { type: "text/plain" }), detail: t("The list of changes") });
       setOutputs(made);
     } catch (error) {
-      toast({ tone: "error", title: "Couldn't mark the copies", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't mark the copies"), description: errorMessage(error) });
     } finally {
       setMarking(false);
     }
@@ -148,10 +150,8 @@ function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile
           result.changes.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-line bg-surface px-6 py-14 text-center">
               <CircleCheck className="size-8 text-success" aria-hidden="true" />
-              <p className="font-semibold text-fg">The text is the same</p>
-              <p className="max-w-md text-sm text-fg-muted">
-                All {result.unchanged.toLocaleString()} words match. Layout, pictures or formatting can still differ: try the picture comparison.
-              </p>
+              <p className="font-semibold text-fg">{t("The text is the same")}</p>
+              <p className="max-w-md text-sm text-fg-muted">{t("All {count} words match. Layout, pictures or formatting can still differ: try the picture comparison.", { count: result.unchanged })}</p>
             </div>
           ) : (
             <>
@@ -163,9 +163,9 @@ function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile
           <div className="flex min-h-72 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-surface px-6 py-14 text-center text-sm text-fg-muted">
             <GitCompareArrows className="size-8 text-fg-subtle" aria-hidden="true" />
             <p className="font-medium text-fg">
-              “{before.name}” ({docA.numPages} page{docA.numPages === 1 ? "" : "s"}) → “{after.name}” ({docB.numPages} page{docB.numPages === 1 ? "" : "s"})
+              “{before.name}” ({t.plural(docA.numPages, "{n} page", "{n} pages")}) {t.dir === "rtl" ? "←" : "→"} “{after.name}” ({t.plural(docB.numPages, "{n} page", "{n} pages")})
             </p>
-            <p className="max-w-sm">Words added, removed and changed are listed and highlighted on both versions. Everything happens in your browser.</p>
+            <p className="max-w-sm">{t("Words added, removed and changed are listed and highlighted on both versions. Everything happens in your browser.")}</p>
           </div>
         )}
       </div>
@@ -174,41 +174,41 @@ function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile
         {picker}
         <section className="rounded-xl border border-line bg-surface p-5">
           <Segmented
-            label="Compare"
+            label={t("Compare")}
             value={mode}
             onChange={setMode}
             options={[
-              { id: "text", label: "Text" },
-              { id: "visual", label: "Pictures" },
+              { id: "text", label: t("Text") },
+              { id: "visual", label: t("Pictures") },
             ]}
           />
           {mode === "text" ? (
             <>
-              <p className="mt-3 text-xs text-fg-muted">Compares the words, ignoring how lines wrap. Scanned PDFs need OCR PDF first.</p>
+              <p className="mt-3 text-xs text-fg-muted">{t("Compares the words, ignoring how lines wrap. Scanned PDFs need OCR PDF first.")}</p>
               {progress !== null ? (
-                <ProgressBar label="Reading both documents…" fraction={progress} />
+                <ProgressBar label={t("Reading both documents…")} fraction={progress} />
               ) : (
                 <button type="button" onClick={compare} className={clsx(PRIMARY, "mt-4 w-full")}>
                   <GitCompareArrows className="size-4" aria-hidden="true" />
-                  {result ? "Compare again" : "Compare text"}
+                  {result ? t("Compare again") : t("Compare text")}
                 </button>
               )}
               {result && counts && (
                 <div className="mt-4 space-y-3">
                   <p className="text-sm text-fg" role="status">
                     {result.changes.length === 0
-                      ? "No differences in the text."
-                      : `${result.changes.length} change${result.changes.length === 1 ? "" : "s"}: ${counts.added} added, ${counts.removed} removed, ${counts.changed} changed.`}
+                      ? t("No differences in the text.")
+                      : t.plural(result.changes.length, "{n} change: {added} added, {removed} removed, {changed} changed.", "{n} changes: {added} added, {removed} removed, {changed} changed.", counts)}
                   </p>
                   {result.changes.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={copyList} className={SECONDARY}>
                         <Copy className="size-4" aria-hidden="true" />
-                        Copy the list
+                        {t("Copy the list")}
                       </button>
                       <button type="button" onClick={markCopies} disabled={marking} className={SECONDARY}>
                         {marking && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-                        Mark changes
+                        {t("Mark changes")}
                       </button>
                     </div>
                   )}
@@ -216,44 +216,45 @@ function Comparer({ before, after, docA, docB, picker }: { before: WorkspaceFile
               )}
             </>
           ) : (
-            <p className="mt-3 text-xs text-fg-muted">Each page pair is drawn and compared pixel by pixel; differences show in red. Good for drawings, stamps and layout changes.</p>
+            <p className="mt-3 text-xs text-fg-muted">{t("Each page pair is drawn and compared pixel by pixel; differences show in red. Good for drawings, stamps and layout changes.")}</p>
           )}
         </section>
-        {outputs && mode === "text" && <OutputCard title="Marked copies ready" outputs={outputs} zipName={withSuffix(after.name, "comparison", ".zip")} />}
+        {outputs && mode === "text" && <OutputCard title={t("Marked copies ready")} outputs={outputs} zipName={withSuffix(after.name, "comparison", ".zip")} />}
       </div>
     </div>
   );
 }
 
 const KIND_STYLE: Record<Change["kind"], { label: string; badge: string }> = {
-  added: { label: "Added", badge: "bg-success/15 text-success-text" },
-  removed: { label: "Removed", badge: "bg-danger/10 text-danger-text" },
-  changed: { label: "Changed", badge: "bg-warning-soft text-fg" },
+  added: { label: msg("Added"), badge: "bg-success/15 text-success-text" },
+  removed: { label: msg("Removed"), badge: "bg-danger/10 text-danger-text" },
+  changed: { label: msg("Changed"), badge: "bg-warning-soft text-fg" },
 };
 
 const LIST_LIMIT = 500;
 const clip = (text: string) => (text.length > 240 ? `${text.slice(0, 240)}…` : text);
 
 function ChangeList({ changes, selected, onSelect }: { changes: Change[]; selected: number; onSelect: (i: number) => void }) {
+  const t = useT();
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Changes">
-      <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">Changes</div>
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Changes")}>
+      <div className="border-b border-line px-4 py-2.5 text-xs font-medium tracking-wider text-fg-subtle uppercase">{t("Changes")}</div>
       <ol className="max-h-[32rem] divide-y divide-line overflow-y-auto">
         {changes.slice(0, LIST_LIMIT).map((c, i) => (
           <li key={i}>
-            <button type="button" onClick={() => onSelect(i)} aria-current={i === selected} className={clsx("flex w-full items-start gap-3 px-4 py-2.5 text-left text-sm", i === selected ? "bg-brand-soft" : "hover:bg-surface-muted")}>
-              <span className={clsx("mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium", KIND_STYLE[c.kind].badge)}>{KIND_STYLE[c.kind].label}</span>
+            <button type="button" onClick={() => onSelect(i)} aria-current={i === selected} className={clsx("flex w-full items-start gap-3 px-4 py-2.5 text-start text-sm", i === selected ? "bg-brand-soft" : "hover:bg-surface-muted")}>
+              <span className={clsx("mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium", KIND_STYLE[c.kind].badge)}>{t(KIND_STYLE[c.kind].label)}</span>
               <span className="min-w-0 flex-1 break-words">
                 {c.before && <del className="text-danger-text">{clip(c.before)}</del>}
                 {c.before && c.after && " → "}
                 {c.after && <ins className="text-success-text no-underline">{clip(c.after)}</ins>}
               </span>
-              <span className="shrink-0 text-xs text-fg-subtle tabular-nums">p. {c.kind === "removed" ? c.beforePage + 1 : c.afterPage + 1}</span>
+              <span className="shrink-0 text-xs text-fg-subtle tabular-nums">{t("p. {page}", { page: c.kind === "removed" ? c.beforePage + 1 : c.afterPage + 1 })}</span>
             </button>
           </li>
         ))}
       </ol>
-      {changes.length > LIST_LIMIT && <p className="border-t border-line px-4 py-2 text-xs text-fg-subtle">The first {LIST_LIMIT} are listed; “Copy the list” has all {changes.length}.</p>}
+      {changes.length > LIST_LIMIT && <p className="border-t border-line px-4 py-2 text-xs text-fg-subtle">{t("The first {limit} are listed; “Copy the list” has all {count}.", { limit: LIST_LIMIT, count: changes.length })}</p>}
     </section>
   );
 }
@@ -262,12 +263,13 @@ const PAGE_WIDTH = 300;
 
 /** Both versions' pages for the selected change, with every change on them highlighted. */
 function PagePair({ change, result, docA, docB }: { change: Change; result: ComparedDocuments; docA: PDFDocumentProxy; docB: PDFDocumentProxy }) {
+  const t = useT();
   const sides = [
-    { label: "Original", doc: docA, page: change.beforePage, size: result.sizes.before[change.beforePage], words: result.changes.flatMap((c) => c.beforeWords), tone: "bg-danger/35", current: change.beforeWords },
-    { label: "Changed version", doc: docB, page: change.afterPage, size: result.sizes.after[change.afterPage], words: result.changes.flatMap((c) => c.afterWords), tone: "bg-success/40", current: change.afterWords },
+    { label: t("Original"), doc: docA, page: change.beforePage, size: result.sizes.before[change.beforePage], words: result.changes.flatMap((c) => c.beforeWords), tone: "bg-danger/35", current: change.beforeWords },
+    { label: t("Changed version"), doc: docB, page: change.afterPage, size: result.sizes.after[change.afterPage], words: result.changes.flatMap((c) => c.afterWords), tone: "bg-success/40", current: change.afterWords },
   ];
   return (
-    <section className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2" aria-label="Pages with the change">
+    <section className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2" aria-label={t("Pages with the change")}>
       {sides.map((side) => {
         if (!side.size) return null;
         const height = Math.round((PAGE_WIDTH * side.size.height) / side.size.width);
@@ -275,9 +277,9 @@ function PagePair({ change, result, docA, docB }: { change: Change; result: Comp
         return (
           <figure key={side.label} className="flex flex-col items-center gap-2">
             <figcaption className="text-xs font-medium text-fg-muted">
-              {side.label} · page {side.page + 1}
+              {side.label} · {t("page {page}", { page: side.page + 1 })}
             </figcaption>
-            <div className="relative bg-white shadow-sm" style={{ width: PAGE_WIDTH, height }}>
+            <div className="relative bg-white shadow-sm" style={{ width: PAGE_WIDTH, height }} dir="ltr">
               <PageThumbnail key={side.page} doc={side.doc} pageNumber={side.page + 1} width={PAGE_WIDTH} height={height} />
               {side.words
                 .filter((w) => w.page === side.page)
@@ -342,6 +344,7 @@ function VisualDiff({ docA, docB }: { docA: PDFDocumentProxy; docB: PDFDocumentP
   const [page, setPage] = useState(1);
   const [state, setState] = useState<{ page: number; changed: number; width: number; height: number; data: Uint8ClampedArray } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -354,7 +357,7 @@ function VisualDiff({ docA, docB }: { docA: PDFDocumentProxy; docB: PDFDocumentP
       if (cancelled) return;
       const diff = diffPixels(a, b, width, height);
       setState({ page, changed: diff.changed, width, height, data: diff.data });
-    })().catch((error: unknown) => toast({ tone: "error", title: "Couldn't compare this page", description: errorMessage(error) }));
+    })().catch((error: unknown) => toast({ tone: "error", title: msg("Couldn't compare this page"), description: errorMessage(error) }));
     return () => {
       cancelled = true;
     };
@@ -369,27 +372,25 @@ function VisualDiff({ docA, docB }: { docA: PDFDocumentProxy; docB: PDFDocumentP
   }, [state]);
 
   const ready = state?.page === page;
-  const missing = page > docA.numPages ? "This page is only in the changed version." : page > docB.numPages ? "This page is only in the original." : null;
+  const missing = page > docA.numPages ? t("This page is only in the changed version.") : page > docB.numPages ? t("This page is only in the original.") : null;
   return (
-    <section className="rounded-xl border border-line bg-surface" aria-label="Picture comparison">
+    <section className="rounded-xl border border-line bg-surface" aria-label={t("Picture comparison")}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2">
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded p-1.5 text-fg-muted hover:bg-surface-muted disabled:opacity-40" aria-label="Previous page">
-            <ChevronLeft className="size-4" aria-hidden="true" />
+          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded p-1.5 text-fg-muted hover:bg-surface-muted disabled:opacity-40" aria-label={t("Previous page")}>
+            <ChevronLeft className="size-4 rtl:-scale-x-100" aria-hidden="true" />
           </button>
-          <span className="text-sm text-fg tabular-nums">
-            Page {page} of {pages}
-          </span>
-          <button type="button" onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages} className="rounded p-1.5 text-fg-muted hover:bg-surface-muted disabled:opacity-40" aria-label="Next page">
-            <ChevronRight className="size-4" aria-hidden="true" />
+          <span className="text-sm text-fg tabular-nums">{t("Page {page} of {count}", { page, count: pages })}</span>
+          <button type="button" onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages} className="rounded p-1.5 text-fg-muted hover:bg-surface-muted disabled:opacity-40" aria-label={t("Next page")}>
+            <ChevronRight className="size-4 rtl:-scale-x-100" aria-hidden="true" />
           </button>
         </div>
         <p className="text-sm text-fg-muted" role="status">
-          {!ready ? "Comparing…" : missing ?? (state.changed === 0 ? "No visible differences" : `${state.changed < 0.001 ? "Under 0.1" : (state.changed * 100).toFixed(1)}% of the page differs`)}
+          {!ready ? t("Comparing…") : missing ?? (state.changed === 0 ? t("No visible differences") : state.changed < 0.001 ? t("Under 0.1% of the page differs") : t("{percent}% of the page differs", { percent: (state.changed * 100).toFixed(1) }))}
         </p>
       </div>
       <div className="flex justify-center bg-surface-muted p-4">
-        <canvas ref={canvasRef} className={clsx("h-auto max-w-full bg-white shadow-sm", !ready && "opacity-50")} aria-label={`Page ${page}, differences in red`} role="img" />
+        <canvas ref={canvasRef} className={clsx("h-auto max-w-full bg-white shadow-sm", !ready && "opacity-50")} aria-label={t("Page {page}, differences in red", { page })} role="img" />
       </div>
     </section>
   );

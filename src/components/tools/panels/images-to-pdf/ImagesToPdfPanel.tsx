@@ -25,6 +25,8 @@ import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
 import { Field, INPUT, Segmented } from "../shared/controls";
 import { OutputCard, PRIMARY, type OutputFile } from "../shared/OutputCard";
+import { useT } from "@/store/locale";
+import { msg } from "@/i18n/msg";
 
 // Margins in points: none, ¼ inch, ½ inch.
 const MARGINS = { none: 0, small: 18, large: 36 } as const;
@@ -40,6 +42,7 @@ interface Options {
 const toPdfOptions = (o: Options): ImagesToPdfOptions => ({ ...o, margin: MARGINS[o.margin] });
 
 export default function ImagesToPdfPanel({ files }: ToolPanelProps) {
+  const t = useT();
   const moveFile = useWorkspaceStore((s) => s.moveFile);
   const [options, setOptions] = useState<Options>({ pageSize: "a4", orientation: "auto", margin: "none", fit: "contain" });
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
@@ -94,9 +97,9 @@ export default function ImagesToPdfPanel({ files }: ToolPanelProps) {
         included.map((f) => ({ name: f.name, file: f.file, rotate: rotations[f.id] ?? 0 })),
         toPdfOptions(options),
       );
-      setOutput({ name, blob, detail: `${included.length} page${included.length === 1 ? "" : "s"}` });
+      setOutput({ name, blob, detail: t.plural(included.length, "{n} page", "{n} pages") });
     } catch (error) {
-      toast({ tone: "error", title: "Couldn't create the PDF", description: errorMessage(error) });
+      toast({ tone: "error", title: msg("Couldn't create the PDF"), description: errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -108,12 +111,12 @@ export default function ImagesToPdfPanel({ files }: ToolPanelProps) {
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-5 py-4">
           <div>
             <h2 id="images-heading" className="font-semibold text-fg">
-              Page order
+              {t("Page order")}
             </h2>
-            <p className="mt-0.5 text-sm text-fg-muted">Drag to reorder. Each image becomes one page.</p>
+            <p className="mt-0.5 text-sm text-fg-muted">{t("Drag to reorder. Each image becomes one page.")}</p>
           </div>
           <p className="text-sm text-fg-subtle">
-            {included.length} of {files.length} images
+            {t("{included} of {total} images", { included: included.length, total: files.length })}
           </p>
         </header>
         <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEnd}>
@@ -142,52 +145,52 @@ export default function ImagesToPdfPanel({ files }: ToolPanelProps) {
         <section className="rounded-xl border border-line bg-surface p-5">
           <h2 className="flex items-center gap-2 font-semibold text-fg">
             <FileImage className="size-4 text-brand-text" aria-hidden="true" />
-            Images to PDF
+            {t("Images to PDF")}
           </h2>
-          <p className="mt-1 text-sm text-fg-muted">JPEGs go in as-is, with no quality loss. Camera data such as GPS location is removed.</p>
+          <p className="mt-1 text-sm text-fg-muted">{t("JPEGs go in as-is, with no quality loss. Camera data such as GPS location is removed.")}</p>
 
           <Segmented
-            label="Page size"
+            label={t("Page size")}
             value={options.pageSize}
             onChange={(v) => setOption("pageSize", v)}
             options={[
-              { id: "fit", label: "Fit image" },
+              { id: "fit", label: t("Fit image") },
               { id: "a4", label: "A4" },
-              { id: "letter", label: "Letter" },
+              { id: "letter", label: t("Letter") },
             ]}
           />
           <Segmented
-            label="Orientation"
+            label={t("Orientation")}
             value={options.orientation}
             onChange={(v) => setOption("orientation", v)}
             disabled={fitted}
             options={[
-              { id: "auto", label: "Auto" },
-              { id: "portrait", label: "Portrait" },
-              { id: "landscape", label: "Landscape" },
+              { id: "auto", label: t("Auto") },
+              { id: "portrait", label: t("Portrait") },
+              { id: "landscape", label: t("Landscape") },
             ]}
           />
           <Segmented
-            label="Image placement"
+            label={t("Image placement")}
             value={options.fit}
             onChange={(v) => setOption("fit", v)}
             disabled={fitted}
             options={[
-              { id: "contain", label: "Whole image" },
-              { id: "cover", label: "Fill page" },
+              { id: "contain", label: t("Whole image") },
+              { id: "cover", label: t("Fill page") },
             ]}
           />
           <Segmented
-            label="Margin"
+            label={t("Margin")}
             value={options.margin}
             onChange={(v) => setOption("margin", v)}
             options={[
-              { id: "none", label: "None" },
-              { id: "small", label: "Small" },
-              { id: "large", label: "Large" },
+              { id: "none", label: t("None") },
+              { id: "small", label: t("Small") },
+              { id: "large", label: t("Large") },
             ]}
           />
-          <Field label="File name">
+          <Field label={t("File name")}>
             <input
               value={outputName}
               onChange={(e) => {
@@ -199,11 +202,11 @@ export default function ImagesToPdfPanel({ files }: ToolPanelProps) {
           </Field>
           <button type="button" onClick={create} disabled={busy || included.length === 0} className={clsx(PRIMARY, "mt-5 w-full")}>
             {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <FileImage className="size-4" aria-hidden="true" />}
-            {busy ? "Creating PDF…" : `Create PDF from ${included.length} image${included.length === 1 ? "" : "s"}`}
+            {busy ? t("Creating PDF…") : t.plural(included.length, "Create PDF from {n} image", "Create PDF from {n} images")}
           </button>
-          {included.length === 0 && <p className="mt-2 text-xs text-fg-subtle">Select at least one image.</p>}
+          {included.length === 0 && <p className="mt-2 text-xs text-fg-subtle">{t("Select at least one image.")}</p>}
         </section>
-        {output && <OutputCard title="PDF created" outputs={[output]} />}
+        {output && <OutputCard title={t("PDF created")} outputs={[output]} />}
       </div>
     </div>
   );
@@ -230,6 +233,7 @@ function ImageRow({
   onRotate: () => void;
   onUnreadable: () => void;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: file.id });
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
@@ -248,18 +252,18 @@ function ImageRow({
         type="button"
         {...attributes}
         {...listeners}
-        aria-label={`Reorder ${file.name}, position ${position}`}
+        aria-label={t("Reorder {name}, position {position}", { name: file.name, position })}
         className="cursor-grab touch-none rounded p-1 text-fg-subtle hover:bg-surface-muted hover:text-fg active:cursor-grabbing"
       >
         <GripVertical className="size-4" />
       </button>
-      <span className="w-5 text-right text-sm font-medium text-fg-subtle tabular-nums">{position}</span>
+      <span className="w-5 text-end text-sm font-medium text-fg-subtle tabular-nums">{position}</span>
       <PagePreview file={file.file} rotation={rotation} options={options} onSize={setSize} onError={onUnreadable} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{file.name}</p>
         <p className={clsx("text-xs", unreadable ? "text-danger-text" : "text-fg-subtle")}>
           {unreadable
-            ? "This image can't be read."
+            ? t("This image can't be read.")
             : `${size ? `${size.w} × ${size.h} px · ` : ""}${formatBytes(file.size)}${rotation ? ` · rotated ${rotation}°` : ""}`}
         </p>
       </div>
@@ -267,8 +271,8 @@ function ImageRow({
         type="button"
         onClick={onRotate}
         disabled={unreadable}
-        aria-label={`Rotate ${file.name} clockwise`}
-        title="Rotate 90° clockwise"
+        aria-label={t("Rotate {name} clockwise", { name: file.name })}
+        title={t("Rotate 90° clockwise")}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-40"
       >
         <RotateCw className="size-4" />
@@ -278,7 +282,7 @@ function ImageRow({
         checked={included}
         disabled={unreadable}
         onChange={onToggle}
-        aria-label={`Include ${file.name}`}
+        aria-label={t("Include {name}", { name: file.name })}
         className="size-4 accent-brand"
       />
     </li>

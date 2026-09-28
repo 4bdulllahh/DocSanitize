@@ -1,6 +1,7 @@
 import { errorMessage } from "../errors";
 import type { FileKind } from "../files";
 import { STEP_INFO, type BatchStep } from "./steps";
+import { msg } from "@/i18n/msg";
 
 /*
  * Runs the steps one at a time over all the files (step by step, not file by file), so steps that
@@ -50,7 +51,7 @@ export interface BatchResult {
   untouched: string[];
 }
 
-const aborted = () => new DOMException("The batch was cancelled.", "AbortError");
+const aborted = () => new DOMException(msg("The batch was cancelled."), "AbortError");
 
 export async function runBatch(files: BatchItem[], steps: BatchStep[], ops: Operations, options: { signal: AbortSignal; onProgress?: (p: BatchProgress) => void }): Promise<BatchResult> {
   const { signal, onProgress } = options;

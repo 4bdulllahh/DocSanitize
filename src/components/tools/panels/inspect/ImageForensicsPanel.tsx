@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { ImageUp, ScanEye } from "lucide-react";
+import { msg } from "@/i18n/msg";
 import { errorMessage } from "@/lib/errors";
 import { decodeImage } from "@/lib/image/canvas";
 import { inspectImageFile } from "@/lib/scan/client";
 import { compareThumbnail, errorLevelAnalysis } from "@/lib/scan/ela";
 import type { Finding } from "@/lib/scan/findings";
+import { useT } from "@/store/locale";
 import type { WorkspaceFile } from "@/store/workspace";
 import type { ToolPanelProps } from "../registry";
 import { FidelityNote } from "../shared/ConversionParts";
@@ -57,10 +59,10 @@ function useVisual(file: WorkspaceFile, thumbnail: Uint8Array | null | undefined
           const cropped = Math.abs(thumbnailAspect - imageAspect) / imageAspect > 0.08;
           thumbnailFinding =
             difference > 35 || cropped
-              ? { id: "thumbnail", severity: "high", title: cropped ? "The thumbnail has a different shape" : "The thumbnail shows a different picture", detail: "The small preview saved inside the file doesn't match the picture, so the picture was cropped or changed after the preview was made. The preview may show what was removed." }
+              ? { id: "thumbnail", severity: "high", title: cropped ? msg("The thumbnail has a different shape") : msg("The thumbnail shows a different picture"), detail: msg("The small preview saved inside the file doesn't match the picture, so the picture was cropped or changed after the preview was made. The preview may show what was removed.") }
               : difference > 18
-                ? { id: "thumbnail", severity: "medium", title: "The thumbnail differs a little", detail: "Colours or details changed after the preview inside the file was made (an edit or a filter)." }
-                : { id: "thumbnail", severity: "info", title: "The thumbnail matches the picture" };
+                ? { id: "thumbnail", severity: "medium", title: msg("The thumbnail differs a little"), detail: msg("Colours or details changed after the preview inside the file was made (an edit or a filter).") }
+                : { id: "thumbnail", severity: "info", title: msg("The thumbnail matches the picture") };
         } catch {
           thumbnailFinding = null;
         }
@@ -76,12 +78,13 @@ function useVisual(file: WorkspaceFile, thumbnail: Uint8Array | null | undefined
 }
 
 export default function ImageForensicsPanel({ file }: ToolPanelProps) {
+  const t = useT();
   const report = useLoaded(file, inspectImageFile);
   const visual = useVisual(file, report?.value?.thumbnail);
   const [view, setView] = useState<"picture" | "ela" | "thumbnail">("ela");
 
-  if (!report) return <PdfLoading label="Reading the image" />;
-  if (report.error || !report.value) return <PdfLoadError title="Couldn't read this image" message={report.error ?? ""} code={report.code} />;
+  if (!report) return <PdfLoading label={t("Reading the image")} />;
+  if (report.error || !report.value) return <PdfLoadError title={t("Couldn't read this image")} message={report.error ?? ""} code={report.code} />;
   const findings = [...(visual?.thumbnailFinding ? [visual.thumbnailFinding] : []), ...report.value.findings];
   const shown = view === "thumbnail" ? visual?.thumbnail : view === "ela" ? visual?.ela : visual?.picture;
 
@@ -89,49 +92,50 @@ export default function ImageForensicsPanel({ file }: ToolPanelProps) {
     <Layout
       main={
         <div className="space-y-4">
-          <FindingList title="What the file says about itself" findings={findings} />
-          <section className="rounded-xl border border-line bg-surface" aria-label="Picture">
+          <FindingList title={t("What the file says about itself")} findings={findings} />
+          <section className="rounded-xl border border-line bg-surface" aria-label={t("Picture")}>
             <div className="border-b border-line px-4 py-2.5">
               <Segmented
-                label="Show"
+                label={t("Show")}
                 value={view}
                 onChange={setView}
                 options={[
-                  { id: "picture", label: "Picture" },
-                  { id: "ela", label: "Error levels" },
-                  { id: "thumbnail", label: "Thumbnail", disabled: !visual?.thumbnail },
+                  { id: "picture", label: t("Picture") },
+                  { id: "ela", label: t("Error levels") },
+                  { id: "thumbnail", label: t("Thumbnail"), disabled: !visual?.thumbnail },
                 ]}
               />
             </div>
             <div className="flex min-h-72 items-center justify-center bg-surface-muted p-4">
               {visual?.error ? (
-                <p className="text-sm text-fg-muted">{visual.error}</p>
+                <p className="text-sm text-fg-muted">{t.dynamic(visual.error)}</p>
               ) : shown ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={shown} alt={view === "ela" ? "Error level analysis" : view === "thumbnail" ? "Thumbnail stored in the file" : "The picture"} className={clsx("max-h-[36rem] max-w-full rounded", view === "thumbnail" && "min-w-40")} />
+                <img src={shown} alt={view === "ela" ? t("Error level analysis") : view === "thumbnail" ? t("Thumbnail stored in the file") : t("The picture")} className={clsx("max-h-[36rem] max-w-full rounded", view === "thumbnail" && "min-w-40")} />
               ) : (
                 <div className="h-64 w-full animate-pulse rounded bg-surface" aria-busy="true" />
               )}
             </div>
             {view === "ela" && (
               <p className="border-t border-line px-4 py-3 text-xs text-fg-muted">
-                Error level analysis saves the picture again and shows how much each part changed, brighter meaning more. Similar areas (sky, skin, text)
-                should look alike; a patch that&apos;s much brighter or darker than its surroundings may have been pasted in or retouched after the last
-                save. Edges and fine detail are always brighter, and pictures saved many times look dark all over. It&apos;s a hint, not proof.
+                {t(
+                  "Error level analysis saves the picture again and shows how much each part changed, brighter meaning more. Similar areas (sky, skin, text) should look alike; a patch that's much brighter or darker than its surroundings may have been pasted in or retouched after the last save. Edges and fine detail are always brighter, and pictures saved many times look dark all over. It's a hint, not proof.",
+                )}
               </p>
             )}
           </section>
         </div>
       }
       actions={
-        <ToolCard icon={ScanEye} title="Image forensics">
+        <ToolCard icon={ScanEye} title={t("Image forensics")}>
           <FidelityNote>
-            Reads what the file records about how it was made and changed, compares its stored thumbnail, and runs an error level analysis. Metadata can be
-            removed or faked, so a clean result doesn&apos;t prove a picture is genuine.
+            {t(
+              "Reads what the file records about how it was made and changed, compares its stored thumbnail, and runs an error level analysis. Metadata can be removed or faked, so a clean result doesn't prove a picture is genuine.",
+            )}
           </FidelityNote>
           <p className="mt-4 flex items-center gap-2 text-xs text-fg-subtle">
             <ImageUp className="size-4" aria-hidden="true" />
-            Everything is analysed on this device.
+            {t("Everything is analysed on this device.")}
           </p>
         </ToolCard>
       }

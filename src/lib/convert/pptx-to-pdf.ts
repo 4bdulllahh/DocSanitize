@@ -12,6 +12,7 @@ import { drawLine, embedFonts, hexColor, tokenize, wrap, type Context, type Font
 import { missingCharactersWarning } from "../office/word";
 import { createPdf, savePdf } from "../pdf/load";
 import { readPresentation, type Box, type Geometry, type Paragraph, type Shape, type Slide, type TextBody } from "./pptx-model";
+import { msg } from "@/i18n/msg";
 
 /*
  * PowerPoint -> PDF, the drawing half: each slide becomes a page the slide's size, drawn with
@@ -429,14 +430,14 @@ export async function pptxToPdf(bytes: Uint8Array, options: PptxToPdfOptions, fi
 
   const warnings: string[] = [];
   const hidden = presentation.slides.length - slides.length;
-  if (hidden) warnings.push(`${hidden} hidden slide${hidden === 1 ? " was" : "s were"} left out.`);
+  if (hidden) warnings.push(msg`${hidden} hidden slide${hidden === 1 ? " was" : "s were"} left out.`);
   const { charts, diagrams, media } = presentation.skipped;
   if (charts + diagrams) {
-    const parts = [charts && `${charts} chart${charts === 1 ? "" : "s"}`, diagrams && `${diagrams} SmartArt diagram${diagrams === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
+    const parts = [charts && `${charts} chart${charts === 1 ? "" : "s"}`, diagrams && msg`${diagrams} SmartArt diagram${diagrams === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
     warnings.push(`${parts} can't be drawn and ${charts + diagrams === 1 ? "is" : "are"} left out.`);
   }
-  if (media) warnings.push("Videos, sounds and embedded objects are left out (their preview pictures are kept).");
-  if (ctx.skippedPictures) warnings.push(`${ctx.skippedPictures} picture${ctx.skippedPictures === 1 ? " is" : "s are"} in a format that can't be drawn here (such as EMF or WMF) and ${ctx.skippedPictures === 1 ? "is" : "are"} left out.`);
+  if (media) warnings.push(msg("Videos, sounds and embedded objects are left out (their preview pictures are kept)."));
+  if (ctx.skippedPictures) warnings.push(msg`${ctx.skippedPictures} picture${ctx.skippedPictures === 1 ? " is" : "s are"} in a format that can't be drawn here (such as EMF or WMF) and ${ctx.skippedPictures === 1 ? "is" : "are"} left out.`);
   if (fonts.missing) warnings.push(missingCharactersWarning(fonts.missing));
   return { bytes: await savePdf(doc), pages: doc.getPageCount(), warnings };
 }
