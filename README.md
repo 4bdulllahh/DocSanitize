@@ -14,7 +14,7 @@ Strip hidden metadata from photos and documents, find what files hide (fake reda
 
 ## Features
 
-54 tools in eight groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+55 tools in eight groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
@@ -60,6 +60,7 @@ Tools that show what a file carries besides what's on screen, and what it really
 
 ### Organize
 
+- **Batch Process.** Run several tools one after another on all your open files and download the results as one ZIP: remove metadata, flatten, grayscale, compress, rotate, delete or resize pages, watermark, page numbers, headers and footers, Bates numbers across the files, convert photos and Office or text files to PDF, OCR, combine into one PDF, password-protect, sign with your certificate, convert images, and clean or convert audio and video. Each step only touches the files it can open, and a step that converts hands its result on (a photo turned into a PDF gets the watermark too). Start from a ready-made list (Share safely, Numbered bundle, Searchable scans, Draft copies, Photos for sharing) or build your own, choose which files to include, and see what will happen to each before you run. Steps in an order that can't work, such as a change after signing, are flagged. A file that fails is reported with its reason while the others finish. Save a list of steps as a small file to run it again later; passwords are never saved in it.
 - **Merge PDF.** Combine files in any order; drag to reorder.
 - **Split PDF.** Pick pages on a thumbnail grid, type ranges (`1-3, 5, 8-`), or split into a new file every N pages or every page. Several files download as a ZIP.
 - **Rotate PDF**, **Delete Pages** and **Insert Pages** (blank pages in any size, or pages from another open PDF) at a click, each on a page grid.
@@ -220,6 +221,10 @@ Pages are read the same way Edit PDF reads them, and their lines are grouped int
 
 Signing appends an incremental update to the PDF: a signature field and widget, a signature dictionary with a `/ByteRange` covering every byte of the file except its own `/Contents`, and, for certification, a DocMDP reference. The original bytes are never rewritten, which is what keeps earlier signatures valid. The signature itself is a detached CMS SignedData (`ETSI.CAdES.detached`) with the PAdES baseline signed attributes: content type, the SHA-256 message digest of the byte range, and the signing certificate's hash (`signingCertificateV2`); the signing time goes in the dictionary's `/M`. The key signs through WebCrypto and never leaves the signing worker. Verification recomputes the digest, checks the signature against the certificate it carries, follows the byte ranges to see what was added after each signature, and reads RFC 3161 timestamps. The unit tests check our signatures with our verifier and pyHanko's signatures with ours; our output was also validated by pyHanko and our `.p12` files opened by OpenSSL.
 
+## How batch processing works
+
+Batch Process calls the same code as each tool, one step at a time over all the files (not one file at a time through every step), so steps that work on the files together, Bates numbers and Combine, see every file at that point, in tab order. Each file carries its kind with it: a step skips files it can't open, and Convert to PDF or Convert to audio change what later steps apply to. Files are processed one after another to keep memory use down, and Cancel stops between files (or at once, for OCR and media). A tool's code is only downloaded when a step first needs it. A saved list is JSON (`docsanitize-batch`, version 1) holding each step's settings; when a list is opened, unknown settings are dropped and missing ones take their defaults.
+
 ## How the media tools work
 
 The media tools share one engine: FFmpeg compiled to WebAssembly, run in a worker. Your file isn't copied into it: the worker reads it in place from the browser's File object (Emscripten's WORKERFS), and only the result is copied back. Every job runs FFmpeg with `-map_metadata -1` for the file and each track, drops chapters, data tracks and attachments, and sets FFmpeg's "bit-exact" flags so it writes no encoder version or creation time of its own. Remove Metadata copies the tracks with `-c copy`, so the picture and sound are bit-for-bit the same, and keeps a phone video's rotation (stored in the track header, not as metadata). The tools read the file with ffprobe first, to know its length (for progress), size, rotation and whether it's HDR. Cancel stops the worker immediately; the next job starts a fresh one.
@@ -270,6 +275,7 @@ flowchart LR
 | `src/lib/scan` | The Inspect tools: personal data patterns, PDF and Office inspection and cleaning, hidden-text rendering check, file types and hashes, link and QR checks, image forensics |
 | `src/lib/ocr`, `src/lib/translate` | The OCR engine client, Tesseract result reading and languages; block grouping, text fitting and the browser translator |
 | `src/lib/sign` | Digital signatures: DER, X.509, `.p12` files, CMS, signing and verifying PDFs, creating certificates |
+| `src/lib/batch` | Batch Process: the steps and their checks, the runner, presets, saved lists, and each step's call into the tools |
 | `src/lib/media` | The media engine client, ffprobe reading (tracks, rotation, HDR, revealing details) and the FFmpeg command for each tool |
 | `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
@@ -363,6 +369,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **HEIC photos** need a one-time download of the decoder (about 1.5 MB) the first time you preview or convert one; auditing and stripping don't. **AVIF** uses the browser's own decoder, so it needs a current browser.
 - **The Inspect tools** find what they're built to recognise. Find Personal Data can't recognise names or postal addresses; Check Links judges addresses without visiting them; Image Forensics reads what a file says about itself, which can be faked or removed. Inspect Office reads `.docx`, `.xlsx` and `.pptx`, not older `.doc`/`.xls`/`.ppt` or OpenDocument files.
 - **Audio and video** are converted by a single-threaded engine, so it's slower than desktop software: about 25 frames a second for 720p video on a laptop, slower for 1080p and on phones. WebM output uses VP8 (VP9 crashes this build of the engine). Very long or high-resolution videos can run out of memory in the browser; trim them first. Only the first sound track is converted, and subtitles are kept only by a fast Trim and by Remove Metadata.
+- **Batch Process** offers the tools' main settings, not every option (a watermark is text only, page numbers and stamps apply to every page, OCR reads up to three languages). Files run one at a time, so a batch of long videos or big scans takes as long as doing them one by one.
 - **Very large files** are limited by your device's memory.
 
 ## Roadmap
@@ -384,7 +391,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
 - [x] **M16** Audio and video: convert, compress, trim, video to GIF, and remove video and audio metadata
 - [x] **M17** Certificate-based digital signatures (sign, certify, create a certificate) and signature verification
-- [ ] **M18** Batch processing
+- [x] **M18** Batch processing
 - [ ] **M19** Interface languages, including right-to-left
 
 Ideas for later: keep bookmarks when merging.

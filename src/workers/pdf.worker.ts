@@ -17,6 +17,7 @@ import { applyRedactions } from "@/lib/pdf/redact";
 import { stripText } from "@/lib/pdf/strip-text";
 import { translatePdf, type TranslatedBlock } from "@/lib/pdf/translate";
 import { inspectEncryption, protectPdf, unlockPdf } from "@/lib/pdf/security";
+import { loadPdf } from "@/lib/pdf/load";
 import { loadFonts } from "@/lib/office/fonts";
 import { exposeWorkerApi } from "@/lib/worker-rpc";
 
@@ -42,6 +43,7 @@ const api = {
   stampLabels: async (bytes: Uint8Array, labels: (string | null)[], style: LabelStyle) => stampPageLabels(bytes, labels, style, await loadFonts()),
   sign: async (bytes: Uint8Array, placements: Placement[], images: Record<string, Uint8Array>) => applySignatures(bytes, placements, images, await loadFonts()),
   edit: async (bytes: Uint8Array, request: EditRequest) => applyEdits(bytes, request, await loadFonts()),
+  pageCount: async (bytes: Uint8Array) => (await loadPdf(bytes)).getPageCount(),
   rotate: rotatePages,
   deletePages,
   insert: insertPages,

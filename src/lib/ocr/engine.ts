@@ -128,6 +128,16 @@ async function renderForOcr(doc: PDFDocumentProxy, index: number, fromImage: boo
   });
 }
 
+/** Pages (0-based) that already have text, so they needn't be read again. */
+export async function pagesWithText(doc: PDFDocumentProxy, cancelled: () => boolean = () => false): Promise<Set<number>> {
+  const pages = new Set<number>();
+  for (let i = 0; i < doc.numPages && !cancelled(); i++) {
+    const content = await (await doc.getPage(i + 1)).getTextContent();
+    if (content.items.some((item) => "str" in item && item.str.trim())) pages.add(i);
+  }
+  return pages;
+}
+
 /** Recognise the text of the given pages (0-based), one page at a time. */
 export async function recognizePages(doc: PDFDocumentProxy, pages: number[], options: OcrOptions): Promise<OcrPageResult[]> {
   const { onProgress, signal } = options;

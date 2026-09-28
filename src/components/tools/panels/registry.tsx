@@ -43,6 +43,7 @@ export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>>
   flatten: dynamic(() => import("./pages/PagePanels").then((m) => m.FlattenPanel), { ssr: false, loading: PanelSkeleton }),
   crop: dynamic(() => import("./pages/ScanPanels").then((m) => m.CropPanel), { ssr: false, loading: PanelSkeleton }),
   "remove-blank": dynamic(() => import("./pages/ScanPanels").then((m) => m.RemoveBlankPanel), { ssr: false, loading: PanelSkeleton }),
+  batch: dynamic(() => import("./batch/BatchPanel"), { ssr: false, loading: PanelSkeleton }),
   merge: dynamic(() => import("./merge/MergePanel"), { ssr: false, loading: PanelSkeleton }),
   split: dynamic(() => import("./split/SplitPanel"), { ssr: false, loading: PanelSkeleton }),
   organize: dynamic(() => import("./organize/OrganizePanel"), { ssr: false, loading: PanelSkeleton }),

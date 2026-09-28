@@ -6,7 +6,7 @@ import { Copy, Download, LoaderCircle, ScanText, X } from "lucide-react";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
 import { downloadBlob } from "@/lib/download";
 import { errorMessage } from "@/lib/errors";
-import { recognizePages, type OcrProgress } from "@/lib/ocr/engine";
+import { pagesWithText, recognizePages, type OcrProgress } from "@/lib/ocr/engine";
 import { defaultOcrLanguage, OCR_ENGINE_MB, OCR_LANGUAGES } from "@/lib/ocr/languages";
 import { joinPageTexts, type OcrPageResult } from "@/lib/ocr/result";
 import { addOcrTextToFile, imagesToPdfFile } from "@/lib/pdf/client";
@@ -50,11 +50,7 @@ function usePagesWithText(doc: PDFDocumentProxy) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const pages = new Set<number>();
-      for (let i = 0; i < doc.numPages && !cancelled; i++) {
-        const content = await (await doc.getPage(i + 1)).getTextContent();
-        if (content.items.some((item) => "str" in item && item.str.trim())) pages.add(i);
-      }
+      const pages = await pagesWithText(doc, () => cancelled);
       if (!cancelled) setState({ doc, pages });
     })().catch(() => !cancelled && setState({ doc, pages: new Set() }));
     return () => {

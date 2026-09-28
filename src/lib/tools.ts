@@ -53,6 +53,7 @@ import {
   Minimize2,
   BadgeCheck,
   FileKey,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import type { FileKind } from "./files";
@@ -274,6 +275,17 @@ export const TOOLS: Tool[] = [
     icon: LayoutGrid,
     keywords: ["reorder", "rotate", "delete pages", "remove pages", "sort", "arrange", "move pages"],
     accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "batch",
+    name: "Batch Process",
+    description: "Run several tools one after another on all your open files (clean, stamp, convert, protect, sign) and download the results together.",
+    category: "organize",
+    icon: Workflow,
+    keywords: ["batch", "bulk", "many files", "multiple files", "all files", "at once", "automate", "action wizard", "workflow", "sequence", "steps", "recipe"],
+    accepts: ["pdf", "image", "word", "excel", "powerpoint", "text", "video", "audio"],
+    multiFile: true,
     status: "ready",
   },
   {

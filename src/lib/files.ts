@@ -66,10 +66,12 @@ export function acceptFor(kinds: readonly FileKind[]): string {
 
 /**
  * What to show as the formats a tool takes: extensions, but one summary for the long video and
- * audio lists. A tool that takes "unknown" files takes any file.
+ * audio lists, and kinds instead of extensions for tools that take most kinds of file. A tool that
+ * takes "unknown" files takes any file.
  */
 export function extensionsFor(kinds: readonly FileKind[]): string[] {
   if (kinds.includes("unknown")) return ["Any file"];
+  if (kinds.length > 4) return kinds.map((kind) => (kind === "image" ? "Images" : KIND_LABELS[kind]));
   return kinds.flatMap((kind) => {
     if (kind === "unknown") return [];
     if (kind === "video" || kind === "audio") return [`${kind} (${EXTENSIONS[kind].slice(0, 4).join(", ")}…)`];

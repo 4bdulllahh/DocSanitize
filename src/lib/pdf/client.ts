@@ -94,6 +94,7 @@ export async function editFile(file: Blob, request: EditRequest): Promise<{ blob
 
 // ---------------------------------------------------------------------------- Page tools and forms
 
+export const countPages = async (file: Blob): Promise<number> => worker.pageCount(await bytesOf(file));
 export const rotateFile = async (file: Blob, pages: number[], angle: number) => asPdf(await worker.rotate(await bytesOf(file), pages, angle));
 export const deletePagesOfFile = async (file: Blob, pages: number[]) => asPdf(await worker.deletePages(await bytesOf(file), pages));
 export async function insertIntoFile(file: Blob, options: Omit<InsertOptions, "source"> & { source?: { file: Blob; name?: string; pages?: number[] } }): Promise<Blob> {

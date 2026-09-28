@@ -91,6 +91,13 @@ describe("tool search", () => {
     expect(top("tampered")).toBe("verify-signatures");
   });
 
+  it("finds batch processing", () => {
+    expect(top("batch")).toBe("batch");
+    expect(top("bulk")).toBe("batch");
+    expect(top("many files")).toBe("batch");
+    expect(top("action wizard")).toBe("batch");
+  });
+
   it("needs every word to match, and lists all tools for an empty query", () => {
     expect(searchTools("xyzzy")).toEqual([]);
     expect(searchTools("merge xyzzy")).toEqual([]);
