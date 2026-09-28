@@ -48,9 +48,10 @@ export function pageTextIndex(page: TextPage): PageTextIndex {
       text += ch;
       origin.push({ item: i, char: c });
     }
-    // Separate items that aren't touching, so words don't run together.
+    // Separate items that aren't touching or start a new line, so words don't run together.
     const next = page.items[i + 1];
-    if (next && !text.endsWith(" ") && next.x - (item.x + item.width) > item.size * 0.15) {
+    const newLine = next && Math.abs(next.y - item.y) > item.size * 0.5;
+    if (next && !text.endsWith(" ") && (newLine || next.x - (item.x + item.width) > item.size * 0.15)) {
       text += " ";
       origin.push({ item: i, char: item.text.length });
     }

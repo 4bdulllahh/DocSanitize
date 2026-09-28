@@ -1,6 +1,6 @@
 {
   "name": "docsanitize",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "predev": "node scripts/copy-pdfjs-assets.mjs && node scripts/copy-addons.mjs",

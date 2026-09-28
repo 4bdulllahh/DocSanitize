@@ -2,9 +2,9 @@
 
 Free, private PDF and image tools that run entirely in your browser.
 
-Strip hidden metadata from photos and documents, find what files hide (fake redactions, tracked changes, personal data, disguised programs, phishing links), compare two versions of a PDF, merge and split PDFs, convert to and from Word, Excel, PowerPoint, Markdown and HTML, convert and resize images, make scans searchable with OCR, translate PDFs, redact, sign, watermark, password-protect and compress. There is no account and no server: your files are processed on your own device and are never uploaded.
+Strip hidden metadata from photos and documents, find what files hide (fake redactions, tracked changes, personal data, disguised programs, phishing links), compare two versions of a PDF, edit PDFs and fill in forms, merge and split, convert to and from Word, Excel, PowerPoint, Markdown and HTML, convert and resize images, make scans searchable with OCR, translate PDFs, redact, sign with a drawn signature or a certificate, watermark, password-protect and compress, convert, compress and trim audio and video, and run several tools over many files at once. The interface is in English, Arabic, Spanish, French and German. There is no account and no server: your files are processed on your own device and are never uploaded.
 
-**Live:** https://docsanitize.vercel.app · **Version:** 1.0.0
+**Live:** https://docsanitize.vercel.app · **Version:** 2.0.0
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2F4bdulllahh%2FDocSanitize&project-name=docsanitize&repository-name=docsanitize)
 [![CI](https://github.com/4bdulllahh/DocSanitize/actions/workflows/ci.yml/badge.svg)](https://github.com/4bdulllahh/DocSanitize/actions/workflows/ci.yml)
@@ -115,6 +115,10 @@ All of it works in light and dark themes, from a phone to a desktop, and offline
 | ![Organize Pages](docs/screenshots/organize-dark.webp) | ![Watermark](docs/screenshots/watermark-light.webp) |
 | **E-Sign, dark theme** | **Home** |
 | ![E-Sign](docs/screenshots/sign-dark.webp) | ![Home](docs/screenshots/home-light.webp) |
+| **Find Personal Data, ready to redact** | **Batch Process with a preset, dark theme** |
+| ![Find Personal Data: an email, phone number, card number and IBAN found in a form](docs/screenshots/find-pii-light.webp) | ![Batch Process: three steps over three open files](docs/screenshots/batch-dark.webp) |
+
+![Sanitize Metadata in Arabic: the whole interface mirrored right to left](docs/screenshots/arabic-light.webp)
 
 <p align="center"><img src="docs/screenshots/phone.webp" alt="DocSanitize on a phone: the home page and Sanitize Metadata" width="560" /></p>
 
@@ -407,7 +411,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M16** Audio and video: convert, compress, trim, video to GIF, and remove video and audio metadata
 - [x] **M17** Certificate-based digital signatures (sign, certify, create a certificate) and signature verification
 - [x] **M18** Batch processing
-- [x] **M19** Interface languages: Arabic (right to left), Spanish, French and German
+- [x] **M19** Interface languages: Arabic (right to left), Spanish, French and German (v2.0.0)
 
 Ideas for later: keep bookmarks when merging.
 

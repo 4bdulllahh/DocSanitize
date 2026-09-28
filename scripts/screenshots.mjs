@@ -84,7 +84,25 @@ async function reportPdf(pages) {
   }
   return doc.save();
 }
+async function peoplePdf() {
+  const doc = await PDFDocument.create();
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const page = doc.addPage([595, 842]);
+  page.drawText("New client form", { x: 56, y: 770, size: 24, font: bold, color: rgb(0.15, 0.23, 0.51) });
+  const lines = [
+    "Name: Jane Doe",
+    "Email: jane.doe@example.com",
+    "Phone: +1 415 555 0132",
+    "Card on file: 4111 1111 1111 1111",
+    "IBAN: GB82 WEST 1234 5698 7654 32",
+    "Order reference: 2026-0417",
+  ];
+  lines.forEach((line, i) => page.drawText(line, { x: 56, y: 710 - i * 30, size: 14, font: regular, color: rgb(0.15, 0.15, 0.15) }));
+  return doc.save();
+}
 writeFileSync(join(TMP, "IMG_2041.jpg"), jpeg);
+writeFileSync(join(TMP, "client-form.pdf"), await peoplePdf());
 writeFileSync(join(TMP, "agreement.pdf"), await reportPdf(3));
 writeFileSync(join(TMP, "handbook.pdf"), await reportPdf(10));
 const file = (name) => join(TMP, name);
@@ -103,7 +121,7 @@ async function save(png, name) {
 }
 
 async function open(colorScheme, viewport = { width: 1440, height: 900 }, extra = {}) {
-  const ctx = await browser.newContext({ viewport, colorScheme, deviceScaleFactor: 1, ...extra });
+  const ctx = await browser.newContext({ viewport, colorScheme, deviceScaleFactor: 1, locale: "en-US", ...extra });
   return ctx.newPage();
 }
 
@@ -167,7 +185,41 @@ async function open(colorScheme, viewport = { width: 1440, height: 900 }, extra 
   await page.context().close();
 }
 
-// 6. Phone: home and sanitize side by side.
+// 6. Find Personal Data: what a form gives away, ready to redact.
+{
+  const page = await open("light");
+  await page.goto(`${base}/tools/find-pii/`, { waitUntil: "networkidle" });
+  await page.locator("main").locator('input[type="file"]').first().setInputFiles([file("client-form.pdf")]);
+  await page.getByRole("region", { name: "Personal data found" }).waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(600);
+  await save(await page.screenshot(), "find-pii-light.webp");
+  await page.context().close();
+}
+
+// 7. Batch Process: a preset over several open files, dark theme.
+{
+  const page = await open("dark");
+  await page.goto(`${base}/tools/batch/`, { waitUntil: "networkidle" });
+  await page.locator("main").locator('input[type="file"]').first().setInputFiles([file("agreement.pdf"), file("handbook.pdf"), file("IMG_2041.jpg")]);
+  await page.getByRole("heading", { name: "Steps" }).waitFor();
+  await page.getByRole("button", { name: /^Numbered bundle/ }).click();
+  await page.waitForTimeout(500);
+  await save(await page.screenshot(), "batch-dark.webp");
+  await page.context().close();
+}
+
+// 8. The interface in Arabic, right to left.
+{
+  const page = await open("light", undefined, { locale: "ar-EG" });
+  await page.goto(`${base}/tools/sanitize/`, { waitUntil: "networkidle" });
+  await page.locator('input[type="file"]').setInputFiles([file("IMG_2041.jpg")]);
+  await page.getByText("يكشف هذا الملف موقعًا:").waitFor();
+  await page.waitForTimeout(500);
+  await save(await page.screenshot(), "arabic-light.webp");
+  await page.context().close();
+}
+
+// 9. Phone: home and sanitize side by side.
 {
   const shots = [];
   for (const [path, action] of [

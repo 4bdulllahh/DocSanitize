@@ -67,4 +67,19 @@ describe("personal data in a PDF page", () => {
     expect(findings[0].context).toBe("Email: [[jo@example.com]]");
     expect(findings[1].boxes).toHaveLength(1);
   });
+
+  it("keeps lines apart, so a match doesn't run into the next line", () => {
+    const line = (text: string, y: number) => ({ text, x: 56, y, width: text.length * 7, size: 14 });
+    const page: TextPage = {
+      width: 595,
+      height: 842,
+      items: [line("Email: jane.doe@example.com", 100), line("Phone: +1 415 555 0132", 130), line("IBAN: GB82 WEST 1234 5698 7654 32", 160)],
+    };
+    const findings = findPiiInPages([page], [[]]);
+    expect(findings.map((f) => [f.kind, f.value])).toEqual([
+      ["email", "jane.doe@example.com"],
+      ["phone", "+1 415 555 0132"],
+      ["iban", "GB82 WEST 1234 5698 7654 32"],
+    ]);
+  });
 });
