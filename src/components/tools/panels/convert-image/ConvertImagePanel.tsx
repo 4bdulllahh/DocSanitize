@@ -119,7 +119,7 @@ export default function ConvertImagePanel({ files }: ToolPanelProps) {
   );
 }
 
-function ImageRow({ file, working, error }: { file: WorkspaceFile; working: boolean; error?: string }) {
+export function ImageRow({ file, working, error }: { file: WorkspaceFile; working: boolean; error?: string }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [unreadable, setUnreadable] = useState(false);
   useImageSource(imgRef, file.file, () => setUnreadable(true));

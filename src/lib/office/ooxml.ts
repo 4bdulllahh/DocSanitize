@@ -18,13 +18,13 @@ export function xmlAttr(value: string): string {
 
 export const XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
-/** Zip a package. Parts are deflated (XML compresses well); `[Content_Types].xml` goes first. */
-export function zipPackage(parts: Record<string, string>): Uint8Array {
+/** Zip a package. XML parts are deflated; binary parts (pictures) are stored as they are. `[Content_Types].xml` goes first. */
+export function zipPackage(parts: Record<string, string | Uint8Array>): Uint8Array {
   const encoder = new TextEncoder();
-  const entries: Record<string, [Uint8Array, { level: 6; mtime: Date }]> = {};
+  const entries: Record<string, [Uint8Array, { level: 0 | 6; mtime: Date }]> = {};
   // A fixed timestamp: the archive shouldn't reveal when it was made.
   const mtime = new Date(1980, 0, 1);
-  for (const [path, xml] of Object.entries(parts)) entries[path] = [encoder.encode(xml), { level: 6, mtime }];
+  for (const [path, part] of Object.entries(parts)) entries[path] = typeof part === "string" ? [encoder.encode(part), { level: 6, mtime }] : [part, { level: 0, mtime }];
   return zipSync(entries);
 }
 

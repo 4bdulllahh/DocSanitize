@@ -39,6 +39,12 @@ import {
   QrCode,
   ScanEye,
   UserSearch,
+  FileCode,
+  GitCompareArrows,
+  ImageUpscale,
+  LetterText,
+  Presentation,
+  Projector,
   type LucideIcon,
 } from "lucide-react";
 import type { FileKind } from "./files";
@@ -145,7 +151,7 @@ export const TOOLS: Tool[] = [
     category: "inspect",
     icon: FileCheck2,
     keywords: ["file type", "extension", "virus", "malware", "exe", "hash", "checksum", "sha256", "sha-256", "md5", "verify download", "integrity", "magic bytes"],
-    accepts: ["pdf", "image", "word", "excel", "powerpoint", "unknown"],
+    accepts: ["pdf", "image", "word", "excel", "powerpoint", "text", "unknown"],
     status: "ready",
   },
   {
@@ -156,6 +162,17 @@ export const TOOLS: Tool[] = [
     icon: QrCode,
     keywords: ["phishing", "qr code", "url", "scam", "link checker", "quishing", "suspicious link", "fake website"],
     accepts: ["pdf", "image"],
+    status: "ready",
+  },
+  {
+    id: "compare-pdf",
+    name: "Compare PDFs",
+    description: "See what changed between two versions of a PDF: words added, removed and changed, or a picture-by-picture comparison.",
+    category: "inspect",
+    icon: GitCompareArrows,
+    keywords: ["diff", "difference", "changes", "versions", "revision", "redline", "track changes", "contract", "compare documents"],
+    accepts: ["pdf"],
+    multiFile: true,
     status: "ready",
   },
   {
@@ -357,7 +374,18 @@ export const TOOLS: Tool[] = [
     description: "Convert iPhone HEIC photos, and AVIF, WebP or PNG images, to JPG or PNG. Location and camera details aren't copied.",
     category: "convert",
     icon: ImageDown,
-    keywords: ["iphone", "photo", "convert image", "heif", "avif", "webp", "png", "jpeg", "image converter"],
+    keywords: ["iphone", "photo", "heif", "jpeg"],
+    accepts: ["image"],
+    multiFile: true,
+    status: "ready",
+  },
+  {
+    id: "convert-image",
+    name: "Convert & Resize Images",
+    description: "Convert images to JPG, PNG, WebP, BMP, TIFF, ICO or AVIF (where the browser can write it), and resize them. Location and camera details aren't copied.",
+    category: "convert",
+    icon: ImageUpscale,
+    keywords: ["image converter", "resize", "scale", "shrink photo", "webp", "avif", "bmp", "tiff", "ico", "favicon", "icon", "png to jpg", "jpg to png", "dimensions"],
     accepts: ["image"],
     multiFile: true,
     status: "ready",
@@ -430,6 +458,46 @@ export const TOOLS: Tool[] = [
     icon: Languages,
     keywords: ["translation", "language", "english", "spanish", "french", "german", "arabic", "chinese", "localize", "foreign"],
     accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "pdf-to-pptx",
+    name: "PDF to PowerPoint",
+    description: "Turn each page of a PDF into a slide, with its text in editable text boxes or as a picture of the page.",
+    category: "convert",
+    icon: Presentation,
+    keywords: ["pptx", "ppt", "slides", "presentation", "keynote", "google slides", "deck", "convert"],
+    accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "pptx-to-pdf",
+    name: "PowerPoint to PDF",
+    description: "Convert a .pptx presentation to PDF, one page per slide, with its text, shapes, pictures and tables.",
+    category: "convert",
+    icon: Projector,
+    keywords: ["pptx", "ppt", "slides", "presentation", "deck", "handout", "convert"],
+    accepts: ["powerpoint"],
+    status: "ready",
+  },
+  {
+    id: "pdf-to-text",
+    name: "PDF to Text & Markdown",
+    description: "Extract a PDF's text as plain text or Markdown, with headings, lists and tables rebuilt.",
+    category: "convert",
+    icon: LetterText,
+    keywords: ["txt", "md", "markdown", "extract text", "copy text", "plain text", "notes", "obsidian", "llm", "chatgpt"],
+    accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "text-to-pdf",
+    name: "Markdown & HTML to PDF",
+    description: "Turn Markdown, HTML or plain-text files into a clean, paginated PDF. Nothing is fetched from the web.",
+    category: "convert",
+    icon: FileCode,
+    keywords: ["md", "markdown", "html", "htm", "web page", "txt", "text to pdf", "readme", "notes", "print"],
+    accepts: ["text"],
     status: "ready",
   },
   {
@@ -515,6 +583,10 @@ export function searchTools(query: string): Tool[] {
     }
     // A phrase match ("pdf to word") beats the same words scattered around.
     if (name.includes(words.join(" "))) score += 4;
+    // …and "pptx to pdf" names the direction: prefer the tool whose id reads the same way.
+    if (tool.id.includes(words.join("-"))) score += 4;
+    const positions = words.map((word) => name.indexOf(word));
+    if (words.length > 1 && positions.every((p, i) => p >= 0 && (i === 0 || p > positions[i - 1]))) score += 2;
     return { tool, score };
   });
   return scored

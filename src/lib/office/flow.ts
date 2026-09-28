@@ -1,5 +1,5 @@
 import fontkit from "@cantoo/fontkit";
-import { PDFString, rgb, type PDFDocument, type PDFFont, type PDFPage, type RGB } from "@cantoo/pdf-lib";
+import { PDFString, rgb, StandardFonts, type PDFDocument, type PDFFont, type PDFPage, type RGB } from "@cantoo/pdf-lib";
 import { createPdf, savePdf } from "../pdf/load";
 
 /*
@@ -18,6 +18,10 @@ export interface InlineRun {
   script?: "super" | "sub";
   /** Makes the run a clickable link (http, https and mailto only). */
   href?: string;
+  /** Monospaced (code). */
+  mono?: boolean;
+  /** Text colour, "#rrggbb". */
+  color?: string;
 }
 
 export type Align = "left" | "center" | "right" | "justify";
@@ -36,6 +40,12 @@ export interface ParagraphBlock {
   spaceAfter?: number;
   /** Keep at least this many points of the following content on the same page (headings). */
   keepWithNext?: number;
+  /** Default text colour, "#rrggbb". */
+  color?: string;
+  /** Fill behind every line, "#rrggbb" (code blocks). */
+  shade?: string;
+  /** A bar down the left of the indent (quotes). */
+  quote?: boolean;
 }
 
 export interface TableCellBlock {
@@ -52,7 +62,7 @@ export interface TableBlock {
   /** Repeat the header rows at the top of every page the table continues on. */
   repeatHeader?: boolean;
   /** Fill for header rows. */
-  headerFill?: RGB;
+  headerFill?: RGB | string;
 }
 
 export interface ImageBlock {
@@ -66,7 +76,12 @@ export interface PageBreakBlock {
   type: "pageBreak";
 }
 
-export type Block = ParagraphBlock | TableBlock | ImageBlock | PageBreakBlock;
+/** A horizontal line across the column. */
+export interface RuleBlock {
+  type: "rule";
+}
+
+export type Block = ParagraphBlock | TableBlock | ImageBlock | PageBreakBlock | RuleBlock;
 
 export interface FontFiles {
   regular: Uint8Array;
@@ -94,23 +109,45 @@ export interface FlowResult {
 const TEXT = rgb(0.07, 0.07, 0.07);
 const LINK = rgb(0.06, 0.33, 0.8);
 const BORDER = rgb(0.72, 0.72, 0.72);
+const QUOTE_BAR = rgb(0.8, 0.8, 0.8);
+
+/** "#rrggbb" as a pdf-lib colour; null when it isn't one. */
+export function hexColor(hex: string | undefined): RGB | null {
+  const m = hex ? /^#?([0-9a-f]{6})$/i.exec(hex) : null;
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+}
 const LINE_HEIGHT = 1.25;
 
-interface Fonts {
+export interface Fonts {
   get(bold?: boolean, italic?: boolean): PDFFont;
+  /** Courier, for code; only for text `monoCan` accepts. */
+  mono(bold?: boolean, italic?: boolean): PDFFont;
+  /** Whether Courier (Latin-1 and a few symbols) has every character of the text. */
+  monoCan(text: string): boolean;
   /** Replace characters the font lacks with "?". */
   clean(text: string): string;
   missing: number;
 }
 
-async function embedFonts(doc: PDFDocument, files: FontFiles): Promise<Fonts> {
+export async function embedFonts(doc: PDFDocument, files: FontFiles): Promise<Fonts> {
   doc.registerFontkit(fontkit);
   const [regular, bold, italic, boldItalic] = await Promise.all(
     [files.regular, files.bold, files.italic, files.boldItalic].map((bytes) => doc.embedFont(bytes, { subset: true })),
   );
   const supported = new Set(regular.getCharacterSet());
+  // Standard fonts: nothing is embedded, and each is only added to the file when used.
+  const monoFonts = new Map<StandardFonts, PDFFont>();
+  const monoFont = (name: StandardFonts) => {
+    if (!monoFonts.has(name)) monoFonts.set(name, doc.embedStandardFont(name));
+    return monoFonts.get(name)!;
+  };
+  const monoSet = new Set(monoFont(StandardFonts.Courier).getCharacterSet());
   const fonts: Fonts = {
     get: (b, i) => (b ? (i ? boldItalic : bold) : i ? italic : regular),
+    mono: (b, i) => monoFont(b ? (i ? StandardFonts.CourierBoldOblique : StandardFonts.CourierBold) : i ? StandardFonts.CourierOblique : StandardFonts.Courier),
+    monoCan: (text) => Array.from(text.replace(/[\t\u00A0]/g, " ")).every((ch) => ch === " " || monoSet.has(ch.codePointAt(0)!)),
     missing: 0,
     clean: (text) =>
       Array.from(text.replace(/[\t\u00A0]/g, " "), (ch) => {
@@ -137,7 +174,7 @@ interface Entry {
   headers?: Entry[];
 }
 
-interface Token {
+export interface Token {
   text: string;
   space: boolean;
   run: InlineRun;
@@ -146,22 +183,22 @@ interface Token {
   width: number;
 }
 
-interface Line {
+export interface Line {
   tokens: Token[];
   width: number;
   height: number;
   ascent: number;
 }
 
-function tokenize(block: ParagraphBlock, fonts: Fonts, baseSize: number): Token[] {
+export function tokenize(block: ParagraphBlock, fonts: Fonts, baseSize: number): Token[] {
   const tokens: Token[] = [];
   for (const run of block.runs) {
-    const font = fonts.get(run.bold, run.italic);
+    const font = run.mono && fonts.monoCan(run.text) ? fonts.mono(run.bold, run.italic) : fonts.get(run.bold, run.italic);
     const nominal = run.size ?? block.size ?? baseSize;
     const size = run.script ? nominal * 0.65 : nominal;
     for (const part of fonts.clean(run.text).split(/( +)/)) {
       if (!part) continue;
-      tokens.push({ text: part, space: part.startsWith(" "), run: { ...run, size: nominal }, font, size, width: font.widthOfTextAtSize(part, size) });
+      tokens.push({ text: part, space: part.startsWith(" "), run: { ...run, size: nominal, color: run.color ?? block.color }, font, size, width: font.widthOfTextAtSize(part, size) });
     }
   }
   return tokens;
@@ -184,7 +221,7 @@ function splitToken(token: Token, maxWidth: number): Token[] {
   return pieces;
 }
 
-function wrap(tokens: Token[], width: number, baseSize: number): Line[] {
+export function wrap(tokens: Token[], width: number, baseSize: number): Line[] {
   const lines: Line[] = [];
   let current: Token[] = [];
   let used = 0;
@@ -228,13 +265,13 @@ function wrap(tokens: Token[], width: number, baseSize: number): Line[] {
   return lines;
 }
 
-interface Context {
+export interface Context {
   doc: PDFDocument;
   fonts: Fonts;
   size: number;
 }
 
-function drawLine(ctx: Context, page: PDFPage, line: Line, x: number, baseline: number, extraPerSpace: number) {
+export function drawLine(ctx: Context, page: PDFPage, line: Line, x: number, baseline: number, extraPerSpace: number) {
   let cursor = x;
   for (const token of line.tokens) {
     const advance = token.width + (token.space ? extraPerSpace * token.text.length : 0);
@@ -242,7 +279,7 @@ function drawLine(ctx: Context, page: PDFPage, line: Line, x: number, baseline: 
       const nominal = token.run.size ?? ctx.size;
       const shift = token.run.script === "super" ? nominal * 0.33 : token.run.script === "sub" ? -nominal * 0.15 : 0;
       const y = page.getHeight() - baseline + shift;
-      const color = token.run.href ? LINK : TEXT;
+      const color = token.run.href ? LINK : (hexColor(token.run.color) ?? TEXT);
       if (!token.space) page.drawText(token.text, { x: cursor, y, size: token.size, font: token.font, color });
       const thickness = Math.max(0.5, token.size / 18);
       if (token.run.underline || token.run.href) page.drawLine({ start: { x: cursor, y: y - token.size * 0.12 }, end: { x: cursor + advance, y: y - token.size * 0.12 }, thickness, color });
@@ -283,11 +320,15 @@ function paragraphEntries(ctx: Context, block: ParagraphBlock, width: number): E
       keep: index === lines.length - 1 ? block.keepWithNext : undefined,
       draw: (page, x, top) => {
         const baseline = top + line.ascent;
+        const bottom = page.getHeight() - top - line.height;
+        const shade = hexColor(block.shade);
+        if (shade) page.drawRectangle({ x: x + indent - size * 0.5, y: bottom, width: available + size * 0.5, height: line.height, color: shade });
+        if (block.quote) page.drawRectangle({ x: x + indent - size, y: bottom, width: 2.5, height: line.height, color: QUOTE_BAR });
         if (index === 0 && block.marker) {
           const marker = ctx.fonts.clean(block.marker);
           const font = ctx.fonts.get();
           const markerWidth = font.widthOfTextAtSize(marker, size);
-          page.drawText(marker, { x: x + indent - markerWidth - size * 0.5, y: page.getHeight() - baseline, size, font, color: TEXT });
+          page.drawText(marker, { x: x + indent - markerWidth - size * 0.5, y: page.getHeight() - baseline, size, font, color: hexColor(block.color) ?? TEXT });
         }
         drawLine(ctx, page, line, x + indent + offset, baseline, extra);
       },
@@ -391,7 +432,8 @@ function tableEntries(ctx: Context, table: TableBlock, width: number, pageConten
         headers: table.repeatHeader && !row.header ? [...headers] : undefined,
         draw: (page, x, top) => {
           const bottom = page.getHeight() - top - height;
-          if (row.header && table.headerFill) page.drawRectangle({ x, y: bottom, width: totalWidth, height, color: table.headerFill });
+          const fill = typeof table.headerFill === "string" ? hexColor(table.headerFill) : table.headerFill;
+          if (row.header && fill) page.drawRectangle({ x, y: bottom, width: totalWidth, height, color: fill });
           for (const cell of slice) {
             page.drawRectangle({ x: x + cell.x, y: bottom, width: cell.w, height, borderColor: BORDER, borderWidth: 0.5 });
             let y = top + pad;
@@ -423,7 +465,12 @@ export async function renderFlow(blocks: Block[], options: FlowOptions): Promise
     if (block.type === "paragraph") entries.push(...paragraphEntries(ctx, block, contentWidth));
     else if (block.type === "table") entries.push(...tableEntries(ctx, block, contentWidth, contentHeight));
     else if (block.type === "image") entries.push(...(await imageEntries(ctx, block, contentWidth, contentHeight - 6)));
-    else entries.push({ height: 0, draw: () => {}, pageBreak: true });
+    else if (block.type === "rule") {
+      entries.push({
+        height: 16,
+        draw: (page, x, top) => page.drawLine({ start: { x, y: page.getHeight() - top - 8 }, end: { x: x + contentWidth, y: page.getHeight() - top - 8 }, thickness: 0.75, color: BORDER }),
+      });
+    } else entries.push({ height: 0, draw: () => {}, pageBreak: true });
   }
 
   let page = doc.addPage([pageWidth, pageHeight]);

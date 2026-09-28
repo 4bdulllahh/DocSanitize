@@ -1,4 +1,4 @@
-export type FileKind = "pdf" | "image" | "word" | "excel" | "powerpoint" | "unknown";
+export type FileKind = "pdf" | "image" | "word" | "excel" | "powerpoint" | "text" | "unknown";
 
 const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   pdf: [".pdf"],
@@ -6,6 +6,7 @@ const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   word: [".docx"],
   excel: [".xlsx", ".xls", ".ods", ".csv"],
   powerpoint: [".pptx"],
+  text: [".txt", ".md", ".markdown", ".html", ".htm"],
 };
 
 const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
@@ -19,6 +20,7 @@ const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
     "text/csv",
   ],
   powerpoint: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+  text: ["text/plain", "text/markdown", "text/x-markdown", "text/html"],
 };
 
 export const KIND_LABELS: Record<FileKind, string> = {
@@ -27,6 +29,7 @@ export const KIND_LABELS: Record<FileKind, string> = {
   word: "Word",
   excel: "Excel",
   powerpoint: "PowerPoint",
+  text: "Text",
   unknown: "File",
 };
 

@@ -3,7 +3,9 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { FileSpreadsheet, FileText, LoaderCircle } from "lucide-react";
+import { Copy, FileSpreadsheet, FileText, LetterText, LoaderCircle, Presentation } from "lucide-react";
+import { pdfToPowerPoint, pdfToText, type SlideMode } from "@/lib/convert/client";
+import type { PdfToTextOptions } from "@/lib/convert/pdf-to-text";
 import { PageThumbnail } from "@/components/pdf/PageThumbnail";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
 import { errorMessage } from "@/lib/errors";
@@ -286,5 +288,199 @@ function SheetPreview({ rows }: { rows: CellValue[][] }) {
         </table>
       </div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------- PDF to PowerPoint
+
+export function PdfToPowerPointPanel({ file }: ToolPanelProps) {
+  const pdf = usePdfDocument(file.file);
+  if (pdf.status === "loading") return <PdfLoading />;
+  if (pdf.status === "error") return <PdfLoadError message={pdf.message} code={pdf.code} />;
+  return <ToPowerPoint file={file} doc={pdf.doc} />;
+}
+
+interface SlidesResult {
+  blob: Blob;
+  slides: number;
+  textBoxes: number;
+}
+
+function ToPowerPoint({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const [mode, setMode] = useState<SlideMode>("editable");
+  const conversion = useConversion<SlidesResult>(file, doc);
+  const { result } = conversion;
+  const progress = conversion.progress && { ...conversion.progress, done: Math.floor(conversion.progress.done) };
+
+  return (
+    <Layout
+      preview={<SourcePreview doc={doc} />}
+      actions={
+        <>
+          <section className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="flex items-center gap-2 font-semibold text-fg">
+              <Presentation className="size-4 text-brand-text" aria-hidden="true" />
+              Convert to PowerPoint
+            </h2>
+            <Segmented
+              label="Slides"
+              value={mode}
+              onChange={(v) => {
+                setMode(v);
+                conversion.setResult(null);
+              }}
+              options={[
+                { id: "editable", label: "Editable text" },
+                { id: "pictures", label: "Pictures of pages" },
+              ]}
+            />
+            <FidelityNote>
+              {mode === "editable"
+                ? "Each page's text becomes text boxes in the same place, over a picture of the rest of the page (drawings, photos, backgrounds). Fonts are replaced by standard ones, so line lengths can differ a little."
+                : "Each slide is an exact picture of the page. Nothing on it can be edited, but it looks just like the PDF."}
+            </FidelityNote>
+            {conversion.rangeField}
+            <ConvertButton
+              label="Convert to .pptx"
+              icon={<Presentation className="size-4" aria-hidden="true" />}
+              progress={progress}
+              disabled={!conversion.valid}
+              onClick={() => conversion.run((pages, onPage) => pdfToPowerPoint(file.file, doc, pages, mode, onPage))}
+            />
+          </section>
+          {result && (
+            <OutputCard
+              title="Presentation ready"
+              outputs={[
+                {
+                  name: replaceExtension(file.name, ".pptx"),
+                  blob: result.blob,
+                  detail: `${result.slides} slide${result.slides === 1 ? "" : "s"}${mode === "editable" ? `, ${result.textBoxes} text box${result.textBoxes === 1 ? "" : "es"}` : ""}`,
+                },
+              ]}
+            />
+          )}
+        </>
+      }
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------- PDF to Text & Markdown
+
+export function PdfToTextPanel({ file }: ToolPanelProps) {
+  const pdf = usePdfDocument(file.file);
+  if (pdf.status === "loading") return <PdfLoading />;
+  if (pdf.status === "error") return <PdfLoadError message={pdf.message} code={pdf.code} />;
+  return <ToText file={file} doc={pdf.doc} />;
+}
+
+interface TextResult {
+  text: string;
+  format: PdfToTextOptions["format"];
+  paragraphs: number;
+  headings: number;
+  words: number;
+}
+
+function ToText({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
+  const [format, setFormat] = useState<PdfToTextOptions["format"]>("markdown");
+  const [pageMarkers, setPageMarkers] = useState(false);
+  const conversion = useConversion<TextResult>(file, doc);
+  const { result } = conversion;
+  const extension = result?.format === "markdown" ? ".md" : ".txt";
+
+  const copy = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.text);
+      toast({ tone: "success", title: "Text copied" });
+    } catch {
+      toast({ tone: "error", title: "Couldn't copy", description: "Your browser blocked the clipboard. Download the file instead." });
+    }
+  };
+
+  return (
+    <Layout
+      preview={
+        result ? (
+          <section className="min-w-0 rounded-xl border border-line bg-surface" aria-label="Extracted text">
+            <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
+              <span className="text-xs font-medium tracking-wider text-fg-subtle uppercase">{result.format === "markdown" ? "Markdown" : "Text"}</span>
+              <button type="button" onClick={copy} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg">
+                <Copy className="size-3.5" aria-hidden="true" />
+                Copy
+              </button>
+            </div>
+            <pre className="max-h-[36rem] overflow-auto px-5 py-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-fg">{result.text}</pre>
+          </section>
+        ) : (
+          <SourcePreview doc={doc} />
+        )
+      }
+      actions={
+        <>
+          <section className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="flex items-center gap-2 font-semibold text-fg">
+              <LetterText className="size-4 text-brand-text" aria-hidden="true" />
+              Extract text
+            </h2>
+            <Segmented
+              label="Format"
+              value={format}
+              onChange={(v) => {
+                setFormat(v);
+                conversion.setResult(null);
+              }}
+              options={[
+                { id: "markdown", label: "Markdown" },
+                { id: "text", label: "Plain text" },
+              ]}
+            />
+            <FidelityNote>
+              {format === "markdown"
+                ? "Headings, bold and italic, lists and simple tables become Markdown."
+                : "Paragraphs are rejoined and separated by blank lines."}{" "}
+              Columns are read one after the other and running headers and footers are left out. Scanned pages need OCR PDF first.
+            </FidelityNote>
+            {conversion.rangeField}
+            <label className="mt-4 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={pageMarkers}
+                onChange={(e) => {
+                  setPageMarkers(e.target.checked);
+                  conversion.setResult(null);
+                }}
+                className="mt-0.5 size-4 shrink-0 accent-brand"
+              />
+              <span>
+                <span className="block text-sm font-medium text-fg">Mark where pages start</span>
+                <span className="block text-xs text-fg-muted">Off: paragraphs split by a page break are rejoined.</span>
+              </span>
+            </label>
+            <ConvertButton
+              label={format === "markdown" ? "Extract as .md" : "Extract as .txt"}
+              icon={<LetterText className="size-4" aria-hidden="true" />}
+              progress={conversion.progress}
+              disabled={!conversion.valid}
+              onClick={() => conversion.run(async (pages, onPage) => ({ ...(await pdfToText(doc, pages, { format, pageMarkers }, onPage)), format }))}
+            />
+          </section>
+          {result && (
+            <OutputCard
+              title="Text ready"
+              outputs={[
+                {
+                  name: replaceExtension(file.name, extension),
+                  blob: new Blob([result.text], { type: result.format === "markdown" ? "text/markdown" : "text/plain" }),
+                  detail: `${result.words.toLocaleString()} words, ${result.paragraphs} paragraphs`,
+                },
+              ]}
+            />
+          )}
+        </>
+      }
+    />
   );
 }

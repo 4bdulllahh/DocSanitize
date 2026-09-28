@@ -88,3 +88,22 @@ export async function jpegToGray(jpeg: Uint8Array): Promise<Uint8Array | null> {
     bitmap.close();
   }
 }
+
+/** Any picture the browser can decode (GIF, BMP, WebP, TIFF in some browsers) as PNG; null if it can't. */
+export async function pictureToPng(bytes: Uint8Array): Promise<Uint8Array | null> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(new Blob([bytes as BlobPart]));
+  } catch {
+    return null;
+  }
+  try {
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+    return new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
+  } catch {
+    return null;
+  } finally {
+    bitmap.close();
+  }
+}

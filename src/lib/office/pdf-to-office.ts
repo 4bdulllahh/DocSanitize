@@ -13,7 +13,7 @@ import {
 } from "./text-layout";
 import { writeXlsx, type CellValue } from "./xlsx";
 
-const NO_TEXT = "This PDF has no selectable text — it's probably a scan or made of images. Text recognition (OCR) isn't supported yet.";
+export const NO_TEXT = "This PDF has no selectable text — it's probably a scan or made of images. Run OCR PDF on it first to make its text readable.";
 
 export type PreviewBlock = { kind: "h1" | "h2" | "h3" | "li" | "p"; text: string };
 
@@ -31,7 +31,7 @@ export interface WordResult {
 }
 
 const PREVIEW_BLOCKS = 40;
-const LIST_MARKER = /^(\s*)([•●○◦▪▫■□‣⁃∙·*–-]|\(?(?:\d{1,3}|[a-z]|[ivxlcdm]{1,5})[.)])\s+/i;
+export const LIST_MARKER = /^(\s*)([•●○◦▪▫■□‣⁃∙·*–-]|\(?(?:\d{1,3}|[a-z]|[ivxlcdm]{1,5})[.)])\s+/i;
 
 const textOf = (p: Paragraph) => p.segments.map((s) => s.text).join("");
 
@@ -83,7 +83,7 @@ export function textPagesToDocx(pages: TextPage[], options: PdfToWordOptions): W
 }
 
 /** Merge a paragraph split by a page break: no closing punctuation, next page starts in lower case. */
-function joinAcrossPages(paragraphs: Paragraph[]): Paragraph[] {
+export function joinAcrossPages(paragraphs: Paragraph[]): Paragraph[] {
   const out: Paragraph[] = [];
   for (const p of paragraphs) {
     const prev = out.at(-1);

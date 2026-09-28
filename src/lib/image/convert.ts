@@ -1,5 +1,7 @@
+import { ProcessingError } from "../errors";
 import { heifIccProfile, isHeif } from "../metadata/heif";
 import { decodeImage, encodeBitmap } from "./canvas";
+import { encodeBmp, encodeIco, encodeTiff, targetSize, type ResizeMode } from "./formats";
 import { needsHeicDecoder } from "./heic";
 
 /*
@@ -26,6 +28,118 @@ export async function convertImage(bytes: Uint8Array, mimeType: string, format: 
   } finally {
     bitmap.close();
   }
+}
+
+// ---------------------------------------------------------------------------- Convert Image
+
+export type TargetFormat = "jpeg" | "png" | "webp" | "avif" | "bmp" | "tiff" | "ico";
+
+export const TARGET_TYPES: Record<TargetFormat, { mime: string; extension: string; label: string }> = {
+  jpeg: { mime: "image/jpeg", extension: ".jpg", label: "JPG" },
+  png: { mime: "image/png", extension: ".png", label: "PNG" },
+  webp: { mime: "image/webp", extension: ".webp", label: "WebP" },
+  avif: { mime: "image/avif", extension: ".avif", label: "AVIF" },
+  bmp: { mime: "image/bmp", extension: ".bmp", label: "BMP" },
+  tiff: { mime: "image/tiff", extension: ".tiff", label: "TIFF" },
+  ico: { mime: "image/x-icon", extension: ".ico", label: "ICO" },
+};
+
+/** Formats without transparency: the background shows through instead. */
+export const OPAQUE_FORMATS = new Set<TargetFormat>(["jpeg", "bmp"]);
+export const ICON_SIZES = [16, 24, 32, 48, 64, 128, 256];
+
+const encodable = new Map<string, Promise<boolean>>();
+/** Whether this browser's canvas can write the format (WebP and AVIF vary by browser). */
+export function canEncode(mime: string): Promise<boolean> {
+  if (!encodable.has(mime)) {
+    const canvas = new OffscreenCanvas(2, 2);
+    // convertToBlob needs a rendering context.
+    canvas.getContext("2d")?.fillRect(0, 0, 2, 2);
+    encodable.set(
+      mime,
+      canvas
+        .convertToBlob({ type: mime })
+        .then((blob) => blob.type === mime)
+        .catch(() => false),
+    );
+  }
+  return encodable.get(mime)!;
+}
+
+export interface ConvertOptions {
+  format: TargetFormat;
+  /** 0-1, for JPG, WebP and AVIF. */
+  quality: number;
+  resize: ResizeMode;
+  /** Fill behind transparent parts ("#rrggbb"); null keeps transparency where the format allows. */
+  background: string | null;
+  /** ICO only: the sizes to include. */
+  iconSizes: number[];
+}
+
+const rgbOf = (hex: string): [number, number, number] => {
+  const n = parseInt(hex.replace("#", ""), 16) || 0;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+/** Decode any supported image (rotation applied), resize it, and write it in another format. */
+export async function convertImageTo(bytes: Uint8Array, mimeType: string, options: ConvertOptions): Promise<ConvertedImage> {
+  const { format } = options;
+  const { mime } = TARGET_TYPES[format];
+  if (["webp", "avif"].includes(format) && !(await canEncode(mime))) {
+    throw new ProcessingError(`This browser can't write ${TARGET_TYPES[format].label} images. Try Chrome or Edge, or choose another format.`, "unsupported");
+  }
+  const bitmap = await decodeImage(bytes, mimeType);
+  try {
+    if (format === "ico") return await iconFrom(bitmap, options);
+    const { width, height } = targetSize(bitmap.width, bitmap.height, options.resize);
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext("2d", { willReadFrequently: format === "bmp" || format === "tiff" });
+    if (!ctx) throw new ProcessingError("Your browser couldn't create an image canvas.", "unsupported");
+    const background = options.background ?? (OPAQUE_FORMATS.has(format) ? "#ffffff" : null);
+    if (background) {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, width, height);
+    }
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    let out: Uint8Array;
+    if (format === "bmp" || format === "tiff") {
+      const { data } = ctx.getImageData(0, 0, width, height);
+      out = format === "bmp" ? encodeBmp(data, width, height, rgbOf(background ?? "#ffffff")) : encodeTiff(data, width, height);
+    } else {
+      const blob = await canvas.convertToBlob({ type: mime, quality: options.quality });
+      out = new Uint8Array(await blob.arrayBuffer());
+      // Keep the colour profile of HEIC photos, as HEIC to JPG does.
+      const icc = (format === "jpeg" || format === "png") && isHeif(bytes) ? heifIccProfile(bytes) : null;
+      if (icc) out = await withIccProfile(out, format as ImageFormat, icc);
+    }
+    return { bytes: out, width, height };
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Square PNGs at each chosen size (the picture centred, transparent around it), in one .ico. */
+async function iconFrom(bitmap: ImageBitmap, options: ConvertOptions): Promise<ConvertedImage> {
+  const sizes = [...new Set(options.iconSizes)].filter((s) => ICON_SIZES.includes(s)).sort((a, b) => a - b);
+  if (!sizes.length) throw new ProcessingError("Choose at least one icon size.", "unsupported");
+  const images: { size: number; png: Uint8Array }[] = [];
+  for (const size of sizes) {
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext("2d")!;
+    if (options.background) {
+      ctx.fillStyle = options.background;
+      ctx.fillRect(0, 0, size, size);
+    }
+    const scale = Math.min(size / bitmap.width, size / bitmap.height);
+    const [w, h] = [bitmap.width * scale, bitmap.height * scale];
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bitmap, (size - w) / 2, (size - h) / 2, w, h);
+    images.push({ size, png: new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer()) });
+  }
+  const largest = sizes[sizes.length - 1];
+  return { bytes: encodeIco(images), width: largest, height: largest };
 }
 
 /** A blob an <img> can show: the file itself, or a JPEG copy for HEIC, which most browsers can't display. */

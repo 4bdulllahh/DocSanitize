@@ -6,7 +6,7 @@ const top = (query: string) => searchTools(query)[0]?.id;
 describe("tool search", () => {
   it("finds tools by name, including partial words", () => {
     expect(top("merge")).toBe("merge");
-    expect(top("comp")).toBe("compress");
+    expect(top("compr")).toBe("compress");
     expect(top("pdf to word")).toBe("pdf-to-word");
     expect(top("HEIC")).toBe("heic-to-jpg");
   });
@@ -52,6 +52,20 @@ describe("tool search", () => {
     expect(top("md5")).toBe("check-file");
     expect(top("phishing")).toBe("check-links");
     expect(top("qr code")).toBe("check-links");
+  });
+
+  it("finds the conversion and compare tools", () => {
+    expect(top("pdf to powerpoint")).toBe("pdf-to-pptx");
+    expect(top("pptx to pdf")).toBe("pptx-to-pdf");
+    expect(top("markdown to pdf")).toBe("text-to-pdf");
+    expect(top("html to pdf")).toBe("text-to-pdf");
+    expect(top("pdf to txt")).toBe("pdf-to-text");
+    expect(top("pdf to markdown")).toBe("pdf-to-text");
+    expect(top("resize image")).toBe("convert-image");
+    expect(top("webp")).toBe("convert-image");
+    expect(top("favicon")).toBe("convert-image");
+    expect(top("compare")).toBe("compare-pdf");
+    expect(top("diff")).toBe("compare-pdf");
   });
 
   it("needs every word to match, and lists all tools for an empty query", () => {

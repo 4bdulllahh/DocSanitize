@@ -462,23 +462,27 @@ function pageContent(page: PDFPage): Uint8Array | null {
   return out;
 }
 
-/** Remove the original text of replaced lines from the page content. Returns the lines it couldn't find. */
-function removeReplacedText(page: PDFPage, replaced: ReplaceObject[]): ReplaceObject[] {
+/**
+ * Remove the text of each group of runs (a line) from the page content. Returns, per group,
+ * whether all of its runs were found and removed.
+ */
+export function removePageText(page: PDFPage, groups: ReplaceObject["sources"][]): boolean[] {
   const content = pageContent(page);
-  if (!content) return replaced;
-  const regions = replaced.flatMap((r) => r.sources);
-  const result = removeTextInRegions(content, regions, pageFontMetrics(page));
+  if (!content) return groups.map(() => false);
+  const result = removeTextInRegions(content, groups.flat(), pageFontMetrics(page));
   if (result.removed.some((n) => n > 0)) {
     const { context } = page.doc;
     // An array, as pdf-lib expects once a page is normalised (drawing appends to it).
     page.node.set(PDFName.of("Contents"), context.obj([context.register(context.flateStream(result.bytes))]));
   }
-  // A line counts as missed if any of its runs couldn't be removed.
   let at = 0;
-  return replaced.filter((r) => {
-    const counts = result.removed.slice(at, (at += r.sources.length));
-    return counts.some((n) => n === 0);
-  });
+  return groups.map((g) => result.removed.slice(at, (at += g.length)).every((n) => n > 0));
+}
+
+/** Remove the original text of replaced lines from the page content. Returns the lines it couldn't find. */
+function removeReplacedText(page: PDFPage, replaced: ReplaceObject[]): ReplaceObject[] {
+  const removed = removePageText(page, replaced.map((r) => r.sources));
+  return replaced.filter((_, i) => !removed[i]);
 }
 
 // ---------------------------------------------------------------------------- Entry point

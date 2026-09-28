@@ -1,4 +1,4 @@
-import { File, FileImage, FileSpreadsheet, FileText, FileType, Presentation, type LucideProps } from "lucide-react";
+import { File, FileCode, FileImage, FileSpreadsheet, FileText, FileType, Presentation, type LucideProps } from "lucide-react";
 import type { FileKind } from "@/lib/files";
 
 const ICONS = {
@@ -7,6 +7,7 @@ const ICONS = {
   word: FileType,
   excel: FileSpreadsheet,
   powerpoint: Presentation,
+  text: FileCode,
   unknown: File,
 } satisfies Record<FileKind, unknown>;
 

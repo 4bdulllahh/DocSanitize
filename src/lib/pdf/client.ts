@@ -2,7 +2,7 @@ import type { PdfWorkerApi } from "@/workers/pdf.worker";
 import { createWorkerClient } from "../worker-rpc";
 import type { PageEdit } from "./assemble";
 import type { CompressOptions, CompressResult } from "./compress";
-import type { Box, EditRequest } from "./edit/types";
+import type { Box, EditRequest, ReplaceObject } from "./edit/types";
 import type { FlattenOptions } from "./flatten";
 import type { FieldValues, FillOptions, FormInfo } from "./forms";
 import type { Bookmark, DocumentInfo } from "./info";
@@ -128,4 +128,10 @@ export const addOcrTextToFile = async (file: Blob, pages: OcrPageText[]) => asPd
 export async function translateFile(file: Blob, blocks: TranslatedBlock[]): Promise<{ blob: Blob; warnings: string[] }> {
   const { bytes, warnings } = await worker.translate(await bytesOf(file), blocks);
   return { blob: asPdf(bytes), warnings };
+}
+
+/** PDF to PowerPoint: a copy without the lines that become text boxes (for the slide pictures). */
+export async function stripTextFromFile(file: Blob, pages: ReplaceObject["sources"][][]): Promise<{ blob: Blob; removed: boolean[][] }> {
+  const { bytes, removed } = await worker.stripText(await bytesOf(file), pages);
+  return { blob: asPdf(bytes), removed };
 }

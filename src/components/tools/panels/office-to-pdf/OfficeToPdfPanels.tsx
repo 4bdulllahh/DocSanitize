@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import clsx from "clsx";
-import { FileType, LoaderCircle, Sheet } from "lucide-react";
+import { FileCode, FileType, LoaderCircle, Projector, Sheet } from "lucide-react";
+import { powerPointToPdf, textFileToPdf } from "@/lib/convert/client";
+import { textFormatOf } from "@/lib/convert/text-document";
 import { errorMessage, ProcessingError, type ProcessingErrorCode } from "@/lib/errors";
 import { inspectSpreadsheet, spreadsheetToPdf, wordToPdf } from "@/lib/office/client";
 import type { SheetSummary, SheetToPdfOptions } from "@/lib/office/sheet";
@@ -264,6 +266,120 @@ function SheetConverter({ file, sheets }: { file: WorkspaceFile; sheets: SheetSu
             onClick={() => run(() => spreadsheetToPdf(file.file, file.name, options))}
           />
           {options.sheets.length === 0 && <p className="mt-2 text-xs text-fg-subtle">Choose at least one sheet.</p>}
+        </section>
+      }
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------- PowerPoint to PDF
+
+export function PowerPointToPdfPanel({ file }: ToolPanelProps) {
+  const [hiddenSlides, setHiddenSlides] = useState(false);
+  const { busy, result, setResult, run } = useConvert(file);
+
+  return (
+    <Layout
+      file={file}
+      result={result}
+      placeholder={
+        <Placeholder>
+          <Projector className="size-8 text-fg-subtle" aria-hidden="true" />
+          <p className="font-medium text-fg">Your PDF preview appears here</p>
+          <p className="max-w-sm">Each slide becomes one page, the slide&apos;s size. The presentation is converted in your browser; nothing is uploaded.</p>
+        </Placeholder>
+      }
+      actions={
+        <section className="rounded-xl border border-line bg-surface p-5">
+          <h2 className="flex items-center gap-2 font-semibold text-fg">
+            <Projector className="size-4 text-brand-text" aria-hidden="true" />
+            PowerPoint to PDF
+          </h2>
+          <FidelityNote>
+            Keeps slide backgrounds, the master&apos;s design, text with its colours, bullets and alignment, pictures, common shapes and tables, in a
+            standard font. Charts, SmartArt, animations, videos and complex shapes aren&apos;t reproduced exactly.
+          </FidelityNote>
+          <label className="mt-4 flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={hiddenSlides}
+              onChange={(e) => {
+                setHiddenSlides(e.target.checked);
+                setResult(null);
+              }}
+              className="mt-0.5 size-4 shrink-0 accent-brand"
+            />
+            <span>
+              <span className="block text-sm font-medium text-fg">Include hidden slides</span>
+              <span className="block text-xs text-fg-muted">Slides hidden in the slide show are left out unless this is on.</span>
+            </span>
+          </label>
+          <ConvertButton busy={busy} icon={<Projector className="size-4" aria-hidden="true" />} onClick={() => run(() => powerPointToPdf(file.file, file.name, { hiddenSlides }))} />
+        </section>
+      }
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------- Markdown, HTML & text to PDF
+
+const FORMAT_NAMES = { markdown: "Markdown", html: "HTML", text: "Plain text" };
+
+export function TextToPdfPanel({ file }: ToolPanelProps) {
+  const [pageSize, setPageSize] = useState<PageSize>("a4");
+  const [margins, setMargins] = useState<"normal" | "narrow">("normal");
+  const [mono, setMono] = useState(false);
+  const { busy, result, setResult, run } = useConvert(file);
+  const format = textFormatOf(file.name);
+  const reset =
+    <T,>(setter: (v: T) => void) =>
+    (v: T) => {
+      setter(v);
+      setResult(null);
+    };
+
+  return (
+    <Layout
+      file={file}
+      result={result}
+      placeholder={
+        <Placeholder>
+          <FileCode className="size-8 text-fg-subtle" aria-hidden="true" />
+          <p className="font-medium text-fg">Your PDF preview appears here</p>
+          <p className="max-w-sm">The file is read as {FORMAT_NAMES[format]} and typeset in your browser. Nothing is uploaded, and nothing it links to is downloaded.</p>
+        </Placeholder>
+      }
+      actions={
+        <section className="rounded-xl border border-line bg-surface p-5">
+          <h2 className="flex items-center gap-2 font-semibold text-fg">
+            <FileCode className="size-4 text-brand-text" aria-hidden="true" />
+            {FORMAT_NAMES[format]} to PDF
+          </h2>
+          <FidelityNote>
+            {format === "text"
+              ? "Every line is kept as it is; long lines wrap."
+              : "Keeps headings, paragraphs, bold/italic, links, lists, quotes, code blocks, tables and pictures stored in the file. Web styles (CSS), scripts and pictures from the web aren't used."}
+          </FidelityNote>
+          <Segmented label="Page size" value={pageSize} onChange={reset(setPageSize)} options={PAGE_SIZES} />
+          <Segmented
+            label="Margins"
+            value={margins}
+            onChange={reset(setMargins)}
+            options={[
+              { id: "normal", label: "Normal" },
+              { id: "narrow", label: "Narrow" },
+            ]}
+          />
+          {format === "text" && (
+            <label className="mt-4 flex cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={mono} onChange={(e) => reset(setMono)(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-brand" />
+              <span>
+                <span className="block text-sm font-medium text-fg">Fixed-width font</span>
+                <span className="block text-xs text-fg-muted">Keeps columns and ASCII art lined up (for logs, code and tables made with spaces).</span>
+              </span>
+            </label>
+          )}
+          <ConvertButton busy={busy} icon={<FileCode className="size-4" aria-hidden="true" />} onClick={() => run(() => textFileToPdf(file.file, file.name, { pageSize, margins, mono }))} />
         </section>
       }
     />

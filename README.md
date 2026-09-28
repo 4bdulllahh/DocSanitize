@@ -2,7 +2,7 @@
 
 Free, private PDF and image tools that run entirely in your browser.
 
-Strip hidden metadata from photos and documents, find what files hide (fake redactions, tracked changes, personal data, disguised programs, phishing links), merge and split PDFs, convert to and from Word and Excel, make scans searchable with OCR, translate PDFs, redact, sign, watermark, password-protect and compress. There is no account and no server: your files are processed on your own device and are never uploaded.
+Strip hidden metadata from photos and documents, find what files hide (fake redactions, tracked changes, personal data, disguised programs, phishing links), compare two versions of a PDF, merge and split PDFs, convert to and from Word, Excel, PowerPoint, Markdown and HTML, convert and resize images, make scans searchable with OCR, translate PDFs, redact, sign, watermark, password-protect and compress. There is no account and no server: your files are processed on your own device and are never uploaded.
 
 **Live:** https://docsanitize.vercel.app · **Version:** 1.0.0
 
@@ -14,7 +14,7 @@ Strip hidden metadata from photos and documents, find what files hide (fake reda
 
 ## Features
 
-40 tools in seven groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+46 tools in seven groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
@@ -33,6 +33,7 @@ Tools that show what a file carries besides what's on screen, and what it really
 - **Image Forensics.** Shows what a photo's file says about how it was made: editing apps and editing history, labels AI generators write (IPTC "digital source type", Stable Diffusion and ComfyUI settings, tool names), Content Credentials (C2PA), the camera, dates that disagree, a GPS position and the JPEG quality. It compares the thumbnail stored inside the file with the picture (a mismatch means the picture was cropped or changed later) and draws an **error level analysis**. It explains that none of this proves a picture genuine or fake.
 - **Check File & Hashes.** Opens any file and identifies it from its first bytes (about 60 formats), then warns about a program with a document's extension, double extensions (`invoice.pdf.exe`), names padded with spaces, hidden right-to-left characters that reverse a name, macros, programs inside ZIP files and scripts in SVG or HTML. Shows the SHA-256, SHA-512, SHA-1 and MD5 hashes, and checks a hash pasted from a download page.
 - **Check Links & QR Codes.** Collects a PDF's links, the web addresses written in its text and every QR code on its pages (or in a picture), and checks each address for phishing tricks: link text showing a different site, brand names on other domains, look-alike international characters, a real destination hidden after "@", bare IP addresses, link shorteners, redirects to another site, unencrypted http and file-like endings such as `.zip`. QR codes for Wi-Fi, payments, authenticator setup, texts and calls are explained too.
+- **Compare PDFs.** Open two versions and see what changed. **Text** compares the words in reading order, ignoring how lines wrap, ligatures and curly-versus-straight quotes, and lists every addition, removal and change with its page; click one to see both pages side by side with the changes highlighted. **Mark changes** gives you both files with highlight annotations (red on the original, green and amber on the new version, with a note wherever text was removed) and the list as a `.txt`. **Pictures** draws each page pair and shows every pixel that differs in red, for drawings, stamps and layout changes.
 
 ### Edit and sign
 
@@ -74,11 +75,16 @@ Tools that show what a file carries besides what's on screen, and what it really
 
 - **Images to PDF.** JPG, PNG, WebP, HEIC and AVIF to one PDF: fit each page to its image or use A4 or Letter, and choose the orientation, margins, and whether images fit or fill the page. Photos appear the right way up and their EXIF and GPS data is removed first.
 - **HEIC to JPG.** Converts iPhone HEIC photos, and AVIF, WebP or PNG images, to JPG (with a quality setting) or PNG, several at once as a ZIP. Photos are turned upright and keep their colour profile; location, camera and date details aren't copied.
+- **Convert & Resize Images.** JPG, PNG, WebP, HEIC and AVIF to JPG, PNG, WebP, BMP, TIFF or ICO, and AVIF where the browser can write it. Resize by percentage, to fit inside a box (never enlarging) or to an exact size. Choose the quality and whether to keep transparency or fill it with a colour. ICO files hold the sizes you tick, from 16 to 256 pixels. Location, camera and date details aren't copied.
 - **PDF to Images.** Every page or a selection, as JPG, PNG or WebP at 72 to 300 DPI. Several images download as a ZIP.
 - **PDF to Word.** Rebuilds headings, paragraphs and page breaks in an editable `.docx`, dropping running headers and page numbers. Previewed in the app before you download.
 - **PDF to Excel.** Detects table columns from the page layout and puts each page's table on its own sheet, with numbers stored as numbers. Previewed as a table first.
 - **Word to PDF.** Headings, bold, italic and underlined text, numbered and bulleted lists, tables, links, footnotes and images from a `.docx`, laid out on A4 or Letter pages.
 - **Excel to PDF.** `.xlsx`, `.xls`, `.ods` and `.csv`. Pick the sheets, page size and orientation. Hidden rows, columns and sheets are left out, merged cells and number formats are kept, and the header row repeats on every page.
+- **PDF to PowerPoint.** One slide per page, at the page's size. **Editable text** puts each paragraph in a text box in the same place, size, style and colour, over a picture of the rest of the page (the text is taken out of that picture, so it isn't doubled). **Pictures of pages** makes slides that look exactly like the PDF.
+- **PowerPoint to PDF.** One page per slide, at the slide's size, drawn from the `.pptx` itself: backgrounds, the master and layout design, placeholders with their inherited positions and text styles, theme colours, bullets and numbering, alignment and line spacing, pictures (cropped as on the slide), common shapes, groups, rotation and tables. Hidden slides are left out unless you include them.
+- **PDF to Text & Markdown.** Extracts the text as `.txt` or `.md`: paragraphs are rejoined across lines and pages, headings get `#` marks by size, lists become Markdown lists, bold and italic are kept, and rows with column gaps become Markdown tables. Preview it, copy it or download it.
+- **Markdown & HTML to PDF.** Typesets `.md`, `.html` and `.txt` files into a paginated PDF: headings, paragraphs, bold/italic/strikethrough, links, nested and numbered lists, task lists, quotes, code blocks, tables and horizontal rules, on A4 or Letter. Pictures stored in the file are included; pictures on the web or in other files are left out with a note, because nothing is ever fetched. Plain text can use a fixed-width font to keep columns lined up.
 - **OCR PDF.** Reads the text in scanned PDFs and in photos or screenshots, in 24 languages (up to three at once), and adds it as an invisible layer over each word, so the file can be searched, selected and copied while it looks the same. Pages that already have text are skipped. The text is also available as a `.txt` file or to copy. Runs [Tesseract](https://github.com/tesseract-ocr/tesseract) in the browser; the engine and each language are downloaded from this site the first time (see [Works offline](#works-offline)).
 - **Translate PDF.** Translates a PDF with the translator built into Chrome and Edge on computers, which works on the device, and keeps the layout: each paragraph, heading or table cell is translated as a whole and written back in the same place and colour, smaller where the translation is longer, with the original text removed from the file. The language is detected automatically. Into languages the built-in font can't write (such as Arabic, Chinese or Hindi) you get the translated text as a `.txt` file. Other browsers are told to use Chrome or Edge; nothing is sent to an online service.
 
@@ -120,7 +126,7 @@ Documents DocSanitize creates carry no author, software or tracking metadata of 
 | State | Zustand (open files and tabs, toasts, signatures), all in memory |
 | PDF editing | [@cantoo/pdf-lib](https://github.com/cantoo-scribe/pdf-lib), a maintained pdf-lib fork with encryption, with @cantoo/fontkit for embedded fonts |
 | PDF rendering | [pdf.js](https://mozilla.github.io/pdf.js/) 6 in its own worker: previews, thumbnails, text extraction and rasterising |
-| Office files | [mammoth](https://github.com/mwilliamson/mammoth.js) reads `.docx`, [SheetJS](https://sheetjs.com) reads spreadsheets; our own writers produce `.docx` and `.xlsx` |
+| Office files | [mammoth](https://github.com/mwilliamson/mammoth.js) reads `.docx`, [SheetJS](https://sheetjs.com) reads spreadsheets, our own reader draws `.pptx`; our own writers produce `.docx`, `.xlsx` and `.pptx`; [marked](https://marked.js.org) reads Markdown |
 | OCR and translation | [tesseract.js](https://github.com/naptha/tesseract.js) 7 (WebAssembly) with Tesseract's `best_int` models, served as add-ons; the browser's built-in Translator and LanguageDetector APIs |
 | Inspection | Our own PDF, Office XML, file-signature and URL checks; [jsQR](https://github.com/cozmo/jsQR) for reading QR codes |
 | Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP/HEIF parsers, [libheif](https://github.com/strukturag/libheif) (WebAssembly, via libheif-js) for decoding HEIC, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
@@ -166,6 +172,16 @@ The `.docx` and `.xlsx` files are written by small hand-written writers ([`docx.
 ## How Word and Excel to PDF work
 
 Word documents are read with mammoth into a document tree; spreadsheets are read with SheetJS. Both are laid out by one small layout engine, [`flow.ts`](src/lib/office/flow.ts), which wraps and justifies text, keeps headings with the paragraph after them, numbers lists, adds clickable links, repeats table header rows on each page and splits tall rows across pages. Text is set in Liberation Sans, embedded as a subset. Characters it doesn't have are replaced with "?" and the app lists which ones were affected.
+
+## How PowerPoint conversion works
+
+**PowerPoint to PDF** reads the `.pptx` package itself ([`src/lib/convert/pptx-model.ts`](src/lib/convert/pptx-model.ts)). A slide only stores what differs from its layout and master, so each placeholder's position, text styles and bullets are looked up through the layout and master, and colours through the theme and colour map, including their tints and shades. Master and layout decorations are drawn behind the slide's own shapes. The drawing half ([`pptx-to-pdf.ts`](src/lib/convert/pptx-to-pdf.ts)) wraps text with the same layout engine as Word to PDF.
+
+**PDF to PowerPoint** groups the page's text into paragraphs (as Translate PDF does), removes exactly those text runs from a copy of the PDF with Edit PDF's content-stream remover, renders that copy as the slide picture, and puts the paragraphs back on top as text boxes. Lines that can't be removed stay in the picture and get no text box, so nothing appears twice.
+
+## How Compare PDFs works
+
+Both documents' words are read in reading order (columns and lines sorted) and compared with a patience diff: words that occur exactly once in both versions anchor the match, and the gaps between anchors are compared exactly (Myers' algorithm). That keeps long documents fast and stops a moved paragraph from matching unrelated words. Neighbouring removals and additions are shown as one change.
 
 ## Password protection
 
@@ -226,6 +242,7 @@ flowchart LR
 | `src/lib/metadata` | Metadata audit and removal for PDF, JPEG, PNG, WebP, HEIC and AVIF; sensitivity rules |
 | `src/lib/pdf` | Merge, split, organize, images, compress, security, redaction, watermarks, page numbers, signatures and the Edit PDF writer (`edit/`); pdf.js loading and rasterising |
 | `src/lib/office` | PDF text layout analysis, `.docx`/`.xlsx` writers, the PDF layout engine, Word and spreadsheet readers |
+| `src/lib/convert` | PowerPoint reading, drawing and writing, Markdown/HTML to layout blocks, PDF to Text/Markdown, Compare PDFs (word diff and pixel diff) |
 | `src/lib/scan` | The Inspect tools: personal data patterns, PDF and Office inspection and cleaning, hidden-text rendering check, file types and hashes, link and QR checks, image forensics |
 | `src/lib/ocr`, `src/lib/translate` | The OCR engine client, Tesseract result reading and languages; block grouping, text fitting and the browser translator |
 | `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
@@ -302,7 +319,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 
 ## Limitations
 
-- **Scanned PDFs** have no text layer, so PDF to Word, PDF to Excel and Translate PDF have nothing to read. Run OCR PDF on them first.
+- **Scanned PDFs** have no text layer, so PDF to Word, Excel, PowerPoint (editable) and Text, Translate PDF and the text comparison have nothing to read. Run OCR PDF on them first.
 - **OCR** reads printed text; handwriting, very small or blurred text and pages scanned sideways come out poorly. It doesn't turn pages upright or straighten them.
 - **Translate PDF** needs Chrome or Edge on a computer. Translated PDFs can be written in Latin, Greek and Cyrillic scripts; other languages come as text. Text in images isn't translated, and text drawn inside nested forms is covered by its translation rather than removed (you're warned).
 - **Redacted pages become images.** That guarantees nothing survives underneath, but their text can no longer be selected.
@@ -312,6 +329,9 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **Grayscale** rewrites colours directly. Where it can't (gradients, spot colours, patterns, unusual images) the page gets a "saturation" blend layer that current readers and printers show in gray, but the original colour data stays in the file.
 - **Dynamic XFA forms** (Adobe LiveCycle) aren't supported; standard fields in them are filled and the XFA part is removed.
 - **Word and Excel to PDF are best effort.** Complex layouts, text boxes, shapes and charts aren't reproduced. Text covers Latin, Greek and Cyrillic; other scripts show as "?" with a warning.
+- **PowerPoint to PDF is best effort.** Charts, SmartArt, animations, videos, 3D models, EMF/WMF pictures, gradients (drawn in their middle colour), shadows and rare shapes aren't reproduced exactly, and text is set in Liberation Sans, so it can wrap differently. Older `.ppt` files aren't supported.
+- **PDF to PowerPoint** replaces the PDF's fonts with standard ones and only turns horizontal text into text boxes; everything else is part of the slide picture.
+- **Markdown & HTML to PDF** don't apply CSS stylesheets or run scripts, and only use pictures stored inside the file.
 - **Merge and Split** don't carry over bookmarks or links between pages. Organize keeps them.
 - **HEIC photos** need a one-time download of the decoder (about 1.5 MB) the first time you preview or convert one; auditing and stripping don't. **AVIF** uses the browser's own decoder, so it needs a current browser.
 - **The Inspect tools** find what they're built to recognise. Find Personal Data can't recognise names or postal addresses; Check Links judges addresses without visiting them; Image Forensics reads what a file says about itself, which can be faked or removed. Inspect Office reads `.docx`, `.xlsx` and `.pptx`, not older `.doc`/`.xls`/`.ppt` or OpenDocument files.
@@ -333,7 +353,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M12** Fill PDF forms, and page tools (rotate, delete, insert, crop, resize, remove blank pages, headers and footers, Bates numbering, flatten, grayscale, bookmarks, metadata editor)
 - [x] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
 - [x] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker
-- [ ] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
+- [x] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
 - [ ] **M16** Local media converter (video and audio to MP3, MP4, WebM or GIF)
 - [ ] **M17** Certificate-based digital signatures and signature verification
 - [ ] **M18** Batch processing
