@@ -10,8 +10,10 @@ import type { BatesOptions, HeaderFooterOptions } from "./markup";
 import type { InsertOptions, ResizeOptions } from "./pages";
 import type { ImagesToPdfOptions } from "./images";
 import type { LabelStyle, PageNumberOptions, Placement, WatermarkOptions } from "./markup";
+import type { OcrPageText } from "./ocr-layer";
 import type { RedactedPage, RedactOptions } from "./redact";
 import type { EncryptionInfo, ProtectOptions } from "./security";
+import type { TranslatedBlock } from "./translate";
 
 const worker = createWorkerClient<PdfWorkerApi>(
   () => new Worker(new URL("../../workers/pdf.worker.ts", import.meta.url), { type: "module" }),
@@ -119,3 +121,11 @@ export const readFileBookmarks = async (file: Blob): Promise<Bookmark[]> => work
 export const writeFileBookmarks = async (file: Blob, bookmarks: Bookmark[]) => asPdf(await worker.writeBookmarks(await bytesOf(file), bookmarks));
 export const readFileForm = async (file: Blob): Promise<FormInfo> => worker.readForm(await bytesOf(file));
 export const fillFileForm = async (file: Blob, values: FieldValues, options: FillOptions) => asPdf(await worker.fillForm(await bytesOf(file), values, options));
+
+// ---------------------------------------------------------------------------- OCR and translation
+
+export const addOcrTextToFile = async (file: Blob, pages: OcrPageText[]) => asPdf(await worker.ocrLayer(await bytesOf(file), pages));
+export async function translateFile(file: Blob, blocks: TranslatedBlock[]): Promise<{ blob: Blob; warnings: string[] }> {
+  const { bytes, warnings } = await worker.translate(await bytesOf(file), blocks);
+  return { blob: asPdf(bytes), warnings };
+}

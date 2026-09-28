@@ -1,0 +1,30 @@
+{
+  "$comment": "OCR language models shipped as add-ons; read by src/lib/ocr/languages.ts and scripts/copy-addons.mjs. mb = download size, checked by a test.",
+  "dir": "/addons/tessdata-4.0.0-best-int",
+  "languages": [
+    { "code": "eng", "name": "English", "mb": 2.8, "bcp47": "en" },
+    { "code": "ara", "name": "Arabic", "mb": 1.6, "bcp47": "ar" },
+    { "code": "ben", "name": "Bengali", "mb": 1.3, "bcp47": "bn" },
+    { "code": "chi_sim", "name": "Chinese (Simplified)", "mb": 1.6, "bcp47": "zh" },
+    { "code": "chi_tra", "name": "Chinese (Traditional)", "mb": 1.6, "bcp47": "zh-Hant" },
+    { "code": "nld", "name": "Dutch", "mb": 2.9, "bcp47": "nl" },
+    { "code": "fra", "name": "French", "mb": 0.7, "bcp47": "fr" },
+    { "code": "deu", "name": "German", "mb": 1.3, "bcp47": "de" },
+    { "code": "ell", "name": "Greek", "mb": 1.3, "bcp47": "el" },
+    { "code": "heb", "name": "Hebrew", "mb": 0.6, "bcp47": "he" },
+    { "code": "hin", "name": "Hindi", "mb": 1.3, "bcp47": "hi" },
+    { "code": "ind", "name": "Indonesian", "mb": 1.1, "bcp47": "id" },
+    { "code": "ita", "name": "Italian", "mb": 1.6, "bcp47": "it" },
+    { "code": "jpn", "name": "Japanese", "mb": 1.9, "bcp47": "ja" },
+    { "code": "kor", "name": "Korean", "mb": 1.5, "bcp47": "ko" },
+    { "code": "fas", "name": "Persian", "mb": 0.4, "bcp47": "fa" },
+    { "code": "pol", "name": "Polish", "mb": 2.5, "bcp47": "pl" },
+    { "code": "por", "name": "Portuguese", "mb": 1.3, "bcp47": "pt" },
+    { "code": "rus", "name": "Russian", "mb": 2.6, "bcp47": "ru" },
+    { "code": "spa", "name": "Spanish", "mb": 2, "bcp47": "es" },
+    { "code": "tur", "name": "Turkish", "mb": 2, "bcp47": "tr" },
+    { "code": "ukr", "name": "Ukrainian", "mb": 2, "bcp47": "uk" },
+    { "code": "urd", "name": "Urdu", "mb": 1, "bcp47": "ur" },
+    { "code": "vie", "name": "Vietnamese", "mb": 1.4, "bcp47": "vi" }
+  ]
+}

@@ -146,12 +146,12 @@ function formResources(doc: PDFDocument) {
 
 // ---------------------------------------------------------------------------- Fonts
 
-interface FontSet {
+export interface FontSet {
   /** The font to draw `text` with, and whether it had to fall back to the sans font. */
-  pick(object: TextObject | ReplaceObject): Promise<{ font: PDFFont; text: string; fellBack: boolean; missing: boolean }>;
+  pick(object: Pick<TextObject, "font" | "bold" | "italic" | "text">): Promise<{ font: PDFFont; text: string; fellBack: boolean; missing: boolean }>;
 }
 
-function fontSet(doc: PDFDocument, files: FontFiles): FontSet {
+export function fontSet(doc: PDFDocument, files: FontFiles): FontSet {
   const cache = new Map<string, Promise<PDFFont>>();
   const load = (key: string, make: () => Promise<PDFFont>) => cache.get(key) ?? cache.set(key, make()).get(key)!;
   const sans = (bold: boolean, italic: boolean) =>

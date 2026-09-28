@@ -59,3 +59,22 @@ export function PdfResultPreview({ blob, pages: knownPages }: { blob: Blob; page
     </section>
   );
 }
+
+/** A labelled progress bar; `fraction` null shows an indeterminate bar. */
+export function ProgressBar({ label, fraction }: { label: string; fraction: number | null }) {
+  return (
+    <div className="mt-4" role="status">
+      <p className="text-sm text-fg-muted">{label}</p>
+      <div
+        className="mt-2 h-2 overflow-hidden rounded-full bg-surface-muted"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={fraction === null ? undefined : Math.round(fraction * 100)}
+      >
+        <div className={fraction === null ? "h-full w-1/3 animate-pulse rounded-full bg-brand" : "h-full rounded-full bg-brand transition-[width]"} style={fraction === null ? undefined : { width: `${Math.max(2, fraction * 100)}%` }} />
+      </div>
+    </div>
+  );
+}

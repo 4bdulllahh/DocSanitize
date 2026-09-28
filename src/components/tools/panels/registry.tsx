@@ -42,6 +42,8 @@ export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>>
   "images-to-pdf": dynamic(() => import("./images-to-pdf/ImagesToPdfPanel"), { ssr: false, loading: PanelSkeleton }),
   "heic-to-jpg": dynamic(() => import("./convert-image/ConvertImagePanel"), { ssr: false, loading: PanelSkeleton }),
   "pdf-to-images": dynamic(() => import("./pdf-to-images/PdfToImagesPanel"), { ssr: false, loading: PanelSkeleton }),
+  ocr: dynamic(() => import("./ocr/OcrPanel"), { ssr: false, loading: PanelSkeleton }),
+  translate: dynamic(() => import("./translate/TranslatePanel"), { ssr: false, loading: PanelSkeleton }),
   compress: dynamic(() => import("./compress/CompressPanel"), { ssr: false, loading: PanelSkeleton }),
   "pdf-to-word": dynamic(() => import("./pdf-to-office/PdfToOfficePanels").then((m) => m.PdfToWordPanel), { ssr: false, loading: PanelSkeleton }),
   "pdf-to-excel": dynamic(() => import("./pdf-to-office/PdfToOfficePanels").then((m) => m.PdfToExcelPanel), { ssr: false, loading: PanelSkeleton }),

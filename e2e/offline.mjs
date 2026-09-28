@@ -143,6 +143,34 @@ assert.deepEqual(withAddon.paths, [...precache].sort(), "the app cache is unchan
 assert.ok(withAddon.addons.some((p) => p.endsWith("/libheif.wasm")) && withAddon.addons.every((p) => addons.includes(p)), withAddon.addons.join());
 step("HEIC decoder add-on downloaded on first use and kept in its own cache");
 
+// The OCR engine and the English model are add-ons too.
+const textPng = Buffer.from(
+  (
+    await page.evaluate(() => {
+      const c = document.createElement("canvas");
+      [c.width, c.height] = [800, 300];
+      const g = c.getContext("2d");
+      g.fillStyle = "#fff";
+      g.fillRect(0, 0, c.width, c.height);
+      g.fillStyle = "#000";
+      g.font = "bold 48px Arial";
+      g.fillText("OFFLINE READY", 60, 160);
+      return c.toDataURL("image/png");
+    })
+  ).split(",")[1],
+  "base64",
+);
+writeFileSync("m9/words.png", textPng);
+await page.goto(base + "/tools/ocr/");
+await page.locator('input[type="file"]').setInputFiles(["m9/words.png"]);
+await page.getByRole("button", { name: "Recognise text on 1 page" }).click();
+await page.getByText("Searchable PDF ready").waitFor({ timeout: 180_000 });
+const withOcr = await cached();
+assert.deepEqual(withOcr.paths, [...precache].sort(), "the app cache is unchanged");
+for (const pattern of [/\/worker\.min\.js$/, /lstm\.wasm\.js$/, /\/eng\.traineddata\.gz$/]) assert.ok(withOcr.addons.some((p) => pattern.test(p)), `${pattern} in ${withOcr.addons.join()}`);
+assert.ok(withOcr.addons.every((p) => addons.includes(p)));
+step("OCR engine and English model downloaded on first use and kept in the add-on cache");
+
 // ---------------------------------------------------------------- Offline
 await ctx.setOffline(true);
 const failed = [];
@@ -168,6 +196,13 @@ await page.locator('input[type="file"]').setInputFiles(["m9/photo.heic"]);
 await page.getByRole("button", { name: "Convert to JPG" }).click();
 await page.getByText("1 image converted to JPG").waitFor();
 step("offline: a HEIC photo converts, with the decoder add-on from its cache");
+
+await page.goto(base + "/tools/ocr/");
+await page.locator('input[type="file"]').setInputFiles(["m9/words.png"]);
+await page.getByRole("button", { name: "Recognise text on 1 page" }).click();
+await page.getByText("Searchable PDF ready").waitFor({ timeout: 180_000 });
+assert.match(await page.getByRole("region", { name: "Recognised text" }).innerText(), /OFFLINE READY/);
+step("offline: OCR runs with the engine and model from the add-on cache");
 
 // Client-side navigation from the sidebar, then a PDF tool with thumbnails (pdf.js + its worker).
 await page.locator('aside a[href="/tools/merge/"]').click();

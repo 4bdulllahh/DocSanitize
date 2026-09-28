@@ -31,6 +31,8 @@ import {
   Scaling,
   FileType,
   ImageDown,
+  Languages,
+  ScanText,
   type LucideIcon,
 } from "lucide-react";
 import type { FileKind } from "./files";
@@ -341,6 +343,26 @@ export const TOOLS: Tool[] = [
     icon: Sheet,
     keywords: ["xlsx", "csv", "spreadsheet", "ods", "convert"],
     accepts: ["excel"],
+    status: "ready",
+  },
+  {
+    id: "ocr",
+    name: "OCR PDF",
+    description: "Recognise the text in scanned PDFs and photos, in 24 languages, to make them searchable and copyable or save it as text.",
+    category: "convert",
+    icon: ScanText,
+    keywords: ["scan", "scanned", "searchable", "recognize text", "recognise", "image to text", "extract text", "copy text", "photo to text", "tesseract", "txt"],
+    accepts: ["pdf", "image"],
+    status: "ready",
+  },
+  {
+    id: "translate",
+    name: "Translate PDF",
+    description: "Translate a PDF into another language with your browser's built-in translator, keeping its layout. Nothing is sent online.",
+    category: "convert",
+    icon: Languages,
+    keywords: ["translation", "language", "english", "spanish", "french", "german", "arabic", "chinese", "localize", "foreign"],
+    accepts: ["pdf"],
     status: "ready",
   },
   {

@@ -34,6 +34,14 @@ describe("tool search", () => {
     expect(top("trim margins")).toBe("crop");
   });
 
+  it("finds OCR and translation", () => {
+    expect(top("ocr")).toBe("ocr");
+    expect(top("searchable")).toBe("ocr");
+    expect(top("image to text")).toBe("ocr");
+    expect(top("translate")).toBe("translate");
+    expect(top("spanish")).toBe("translate");
+  });
+
   it("needs every word to match, and lists all tools for an empty query", () => {
     expect(searchTools("xyzzy")).toEqual([]);
     expect(searchTools("merge xyzzy")).toEqual([]);

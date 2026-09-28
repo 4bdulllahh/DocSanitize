@@ -2,7 +2,7 @@
 
 Free, private PDF and image tools that run entirely in your browser.
 
-Strip hidden metadata from photos and documents, merge and split PDFs, convert to and from Word and Excel, redact, sign, watermark, password-protect and compress. There is no account and no server: your files are processed on your own device and are never uploaded.
+Strip hidden metadata from photos and documents, merge and split PDFs, convert to and from Word and Excel, make scans searchable with OCR, translate PDFs, redact, sign, watermark, password-protect and compress. There is no account and no server: your files are processed on your own device and are never uploaded.
 
 **Live:** https://docsanitize.vercel.app · **Version:** 1.0.0
 
@@ -14,7 +14,7 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 
 ## Features
 
-32 tools in six groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+34 tools in six groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
@@ -68,6 +68,8 @@ Strip hidden metadata from photos and documents, merge and split PDFs, convert t
 - **PDF to Excel.** Detects table columns from the page layout and puts each page's table on its own sheet, with numbers stored as numbers. Previewed as a table first.
 - **Word to PDF.** Headings, bold, italic and underlined text, numbered and bulleted lists, tables, links, footnotes and images from a `.docx`, laid out on A4 or Letter pages.
 - **Excel to PDF.** `.xlsx`, `.xls`, `.ods` and `.csv`. Pick the sheets, page size and orientation. Hidden rows, columns and sheets are left out, merged cells and number formats are kept, and the header row repeats on every page.
+- **OCR PDF.** Reads the text in scanned PDFs and in photos or screenshots, in 24 languages (up to three at once), and adds it as an invisible layer over each word, so the file can be searched, selected and copied while it looks the same. Pages that already have text are skipped. The text is also available as a `.txt` file or to copy. Runs [Tesseract](https://github.com/tesseract-ocr/tesseract) in the browser; the engine and each language are downloaded from this site the first time (see [Works offline](#works-offline)).
+- **Translate PDF.** Translates a PDF with the translator built into Chrome and Edge on computers, which works on the device, and keeps the layout: each paragraph, heading or table cell is translated as a whole and written back in the same place and colour, smaller where the translation is longer, with the original text removed from the file. The language is detected automatically. Into languages the built-in font can't write (such as Arabic, Chinese or Hindi) you get the translated text as a `.txt` file. Other browsers are told to use Chrome or Edge; nothing is sent to an online service.
 
 ### Optimize
 
@@ -108,6 +110,7 @@ Documents DocSanitize creates carry no author, software or tracking metadata of 
 | PDF editing | [@cantoo/pdf-lib](https://github.com/cantoo-scribe/pdf-lib), a maintained pdf-lib fork with encryption, with @cantoo/fontkit for embedded fonts |
 | PDF rendering | [pdf.js](https://mozilla.github.io/pdf.js/) 6 in its own worker: previews, thumbnails, text extraction and rasterising |
 | Office files | [mammoth](https://github.com/mwilliamson/mammoth.js) reads `.docx`, [SheetJS](https://sheetjs.com) reads spreadsheets; our own writers produce `.docx` and `.xlsx` |
+| OCR and translation | [tesseract.js](https://github.com/naptha/tesseract.js) 7 (WebAssembly) with Tesseract's `best_int` models, served as add-ons; the browser's built-in Translator and LanguageDetector APIs |
 | Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP/HEIF parsers, [libheif](https://github.com/strukturag/libheif) (WebAssembly, via libheif-js) for decoding HEIC, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
 | Drag and drop | dnd-kit (mouse, touch and keyboard) |
 | Quality | ESLint, Vitest unit tests, Playwright browser tests, GitHub Actions CI |
@@ -162,15 +165,23 @@ Unlock opens RC4, AES-128 and AES-256 files, restores the document info and IDs 
 
 Covering old words with a white box and typing on top would leave the original in the file, where it can still be selected, searched and copied. Edit PDF instead reads the page's content stream, follows the text position through every font, matrix and spacing change, and removes the operators that drew the line you changed. Each is replaced with an invisible move of exactly the same width, so the rest of the line doesn't shift. Glyph widths come from each font's own tables (or the standard font metrics). Text the editor can't reach, such as text inside a nested form, is still covered, and you're told it remains in the file and pointed to Redact. The new text uses a standard font close to the original; embedded fonts usually contain only the letters the document already uses, so they can't be reused for new words.
 
+## How OCR works
+
+Each page is rendered at 300 DPI (photos at their own resolution, small ones enlarged) and read by Tesseract's LSTM engine in a worker. Every recognised word is written back as invisible text (render mode 3) in a tiny built-in font that has no visible glyphs, the approach Tesseract's own PDF output uses: each character is a two-byte code whose Unicode value is stated in the font's map, so text in any script, from Latin to Arabic and Chinese, can be searched and copied. Words are stretched to the exact width of the word in the picture, so selecting text highlights the right place. Right-to-left words are stored in visual order, as PDF readers expect. The page's content isn't touched, and no metadata is added.
+
+## How translation works
+
+Pages are read the same way Edit PDF reads them, and their lines are grouped into blocks (a paragraph's lines follow each other at a steady spacing, in the same column, size and weight), so the translator sees whole sentences. Hyphenated words split across lines are rejoined. Each block's translation is wrapped to the block's width and shrunk in 5% steps, to no less than 60% of the original size, until it fits the space the original used. It's then written through Edit PDF's text replacement, which removes the original text from the page rather than covering it. Blocks without words (numbers, dates, symbols) are left as they are.
+
 ## Placing stamps on rotated pages
 
 Signatures, watermarks and page numbers are positioned as you see the page, whatever its rotation or crop box. [`stamp.ts`](src/lib/pdf/stamp.ts) converts between the page as displayed and the PDF's own coordinates for pages rotated 0, 90, 180 or 270 degrees, and the conversion is tested against pdf.js on every rotation. A signature dragged to a spot on screen lands within 1% of that spot in the downloaded file.
 
 ## Works offline
 
-After your first visit, a service worker keeps a copy of the whole app (about 9 MB, including the PDF engine, fonts and decoders), so every tool works with no connection. It only caches the site's own files, never yours. When a new version is deployed it downloads in the background, and a small prompt offers to reload into it; nothing reloads while you're working.
+After your first visit, a service worker keeps a copy of the whole app (about 12 MB, including the PDF engine, fonts and decoders), so every tool works with no connection. It only caches the site's own files, never yours. When a new version is deployed it downloads in the background, and a small prompt offers to reload into it; nothing reloads while you're working.
 
-Two optional parts are kept out of that download: they're fetched from the site the first time a tool needs them, then cached for offline use too. So far that's the HEIC decoder (about 1.5 MB); OCR languages and the media converter will follow. They survive app updates and are only replaced when a new version of the add-on ships.
+Two optional parts are kept out of that download: they're fetched from the site the first time a tool needs them, then cached for offline use too. So far that's the HEIC decoder (about 1.5 MB) and OCR: the engine (about 3.8 MB) plus each language you use (0.4 to 2.9 MB). The media converter will follow. They survive app updates and are only replaced when a new version of the add-on ships.
 
 The service worker is generated at build time by [`scripts/build-service-worker.mjs`](scripts/build-service-worker.mjs) from the list of files in the build, with a version taken from their contents.
 
@@ -203,6 +214,7 @@ flowchart LR
 | `src/lib/metadata` | Metadata audit and removal for PDF, JPEG, PNG, WebP, HEIC and AVIF; sensitivity rules |
 | `src/lib/pdf` | Merge, split, organize, images, compress, security, redaction, watermarks, page numbers, signatures and the Edit PDF writer (`edit/`); pdf.js loading and rasterising |
 | `src/lib/office` | PDF text layout analysis, `.docx`/`.xlsx` writers, the PDF layout engine, Word and spreadsheet readers |
+| `src/lib/ocr`, `src/lib/translate` | The OCR engine client, Tesseract result reading and languages; block grouping, text fitting and the browser translator |
 | `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
 | `src/components/tools/panels` | One folder per tool, plus shared controls, previews and output cards |
@@ -277,7 +289,9 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 
 ## Limitations
 
-- **Scanned PDFs** have no text layer, so PDF to Word and PDF to Excel have nothing to extract. There is no OCR.
+- **Scanned PDFs** have no text layer, so PDF to Word, PDF to Excel and Translate PDF have nothing to read. Run OCR PDF on them first.
+- **OCR** reads printed text; handwriting, very small or blurred text and pages scanned sideways come out poorly. It doesn't turn pages upright or straighten them.
+- **Translate PDF** needs Chrome or Edge on a computer. Translated PDFs can be written in Latin, Greek and Cyrillic scripts; other languages come as text. Text in images isn't translated, and text drawn inside nested forms is covered by its translation rather than removed (you're warned).
 - **Redacted pages become images.** That guarantees nothing survives underneath, but their text can no longer be selected.
 - **E-Sign and Edit PDF add a visible signature**, not a certificate-based digital signature.
 - **Edited text uses a standard font** (a sans, serif or monospaced face close to the original), not the document's own embedded font. Only left-to-right horizontal text can be edited in place.
@@ -303,7 +317,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M10** HEIC and AVIF everywhere, HEIC to JPG, Sensitive/Revealing/Technical filters, "keep technical data", tool search, E-Sign crash fix
 - [x] **M11** Edit PDF: one editor for text, images, shapes, highlights, drawing, check marks, signatures and notes
 - [x] **M12** Fill PDF forms, and page tools (rotate, delete, insert, crop, resize, remove blank pages, headers and footers, Bates numbering, flatten, grayscale, bookmarks, metadata editor)
-- [ ] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
+- [x] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
 - [ ] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker
 - [ ] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
 - [ ] **M16** Local media converter (video and audio to MP3, MP4, WebM or GIF)
@@ -320,5 +334,7 @@ Issues and pull requests are welcome. Please run `npm run lint`, `npm test` and,
 ## License
 
 [MIT](LICENSE) © Abdullah
+
+The OCR add-on is [tesseract.js](https://github.com/naptha/tesseract.js) and [Tesseract](https://github.com/tesseract-ocr/tesseract) with its [tessdata_best](https://github.com/tesseract-ocr/tessdata_best) models, all Apache-2.0, served as separate files under `/addons/` with their licences.
 
 The HEIC decoder add-on is [libheif](https://github.com/strukturag/libheif) with libde265, both LGPL-3.0. It's served unmodified as separate files under `/addons/`, with its licence alongside.

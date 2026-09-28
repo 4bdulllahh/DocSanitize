@@ -12,7 +12,9 @@ import { grayscalePdf } from "@/lib/pdf/grayscale";
 import { readBookmarks, readInfo, writeBookmarks, writeInfo } from "@/lib/pdf/info";
 import { cropPages, deletePages, insertPages, resizePages, rotatePages } from "@/lib/pdf/pages";
 import type { EditRequest } from "@/lib/pdf/edit/types";
+import { addTextLayer } from "@/lib/pdf/ocr-layer";
 import { applyRedactions } from "@/lib/pdf/redact";
+import { translatePdf, type TranslatedBlock } from "@/lib/pdf/translate";
 import { inspectEncryption, protectPdf, unlockPdf } from "@/lib/pdf/security";
 import { loadFonts } from "@/lib/office/fonts";
 import { exposeWorkerApi } from "@/lib/worker-rpc";
@@ -53,6 +55,8 @@ const api = {
   readBookmarks,
   writeBookmarks,
   readForm,
+  ocrLayer: addTextLayer,
+  translate: async (bytes: Uint8Array, blocks: TranslatedBlock[]) => translatePdf(bytes, blocks, await loadFonts()),
   fillForm: async (bytes: Uint8Array, values: FieldValues, options: FillOptions) => fillForm(bytes, values, options, await loadFonts()),
 };
 export type PdfWorkerApi = typeof api;
