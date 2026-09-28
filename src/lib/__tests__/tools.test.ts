@@ -42,6 +42,18 @@ describe("tool search", () => {
     expect(top("spanish")).toBe("translate");
   });
 
+  it("finds the inspect tools", () => {
+    expect(top("personal data")).toBe("find-pii");
+    expect(top("gdpr")).toBe("find-pii");
+    expect(top("fake redaction")).toBe("inspect-pdf");
+    expect(top("tracked changes")).toBe("inspect-office");
+    expect(top("photoshopped")).toBe("image-forensics");
+    expect(top("sha256")).toBe("check-file");
+    expect(top("md5")).toBe("check-file");
+    expect(top("phishing")).toBe("check-links");
+    expect(top("qr code")).toBe("check-links");
+  });
+
   it("needs every word to match, and lists all tools for an empty query", () => {
     expect(searchTools("xyzzy")).toEqual([]);
     expect(searchTools("merge xyzzy")).toEqual([]);

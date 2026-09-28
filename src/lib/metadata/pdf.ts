@@ -69,7 +69,7 @@ function parsePdfDate(value: string): Date | null {
   return isNaN(date.getTime()) ? null : date;
 }
 
-function toValue(obj: PDFObject | undefined): unknown {
+export function toValue(obj: PDFObject | undefined): unknown {
   if (obj instanceof PDFString || obj instanceof PDFHexString) {
     const text = obj.decodeText();
     return parsePdfDate(text) ?? text;
@@ -92,7 +92,7 @@ function readStream(stream: PDFObject | undefined): string | null {
 }
 
 /** Collect the keys of a PDF name tree (e.g. embedded file names). */
-function nameTreeKeys(context: PDFContext, node: PDFObject | undefined, seen = new Set<PDFDict>()): string[] {
+export function nameTreeKeys(context: PDFContext, node: PDFObject | undefined, seen = new Set<PDFDict>()): string[] {
   const dict = node instanceof PDFRef ? context.lookup(node) : node;
   if (!(dict instanceof PDFDict) || seen.has(dict)) return [];
   seen.add(dict);
@@ -113,7 +113,7 @@ function isJavaScriptAction(obj: PDFObject | undefined): boolean {
 }
 
 /** Count saved revisions: each incremental update appends another %%EOF. */
-function countRevisions(bytes: Uint8Array): number {
+export function countRevisions(bytes: Uint8Array): number {
   const marker = [0x25, 0x25, 0x45, 0x4f, 0x46]; // %%EOF
   let count = 0;
   for (let i = bytes.indexOf(0x25); i !== -1 && i < bytes.length; i = bytes.indexOf(0x25, i + 1)) {

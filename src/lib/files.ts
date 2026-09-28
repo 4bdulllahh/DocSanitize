@@ -1,10 +1,11 @@
-export type FileKind = "pdf" | "image" | "word" | "excel" | "unknown";
+export type FileKind = "pdf" | "image" | "word" | "excel" | "powerpoint" | "unknown";
 
 const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   pdf: [".pdf"],
   image: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".avif"],
   word: [".docx"],
   excel: [".xlsx", ".xls", ".ods", ".csv"],
+  powerpoint: [".pptx"],
 };
 
 const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
@@ -17,6 +18,7 @@ const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
     "application/vnd.oasis.opendocument.spreadsheet",
     "text/csv",
   ],
+  powerpoint: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
 };
 
 export const KIND_LABELS: Record<FileKind, string> = {
@@ -24,6 +26,7 @@ export const KIND_LABELS: Record<FileKind, string> = {
   image: "Image",
   word: "Word",
   excel: "Excel",
+  powerpoint: "PowerPoint",
   unknown: "File",
 };
 
@@ -43,14 +46,17 @@ export function detectFileKind(file: Pick<File, "name" | "type">): FileKind {
   return "unknown";
 }
 
-/** Build an `<input accept>` string for the given kinds. */
+/** Build an `<input accept>` string for the given kinds ("" — anything — when "unknown" is one). */
 export function acceptFor(kinds: readonly FileKind[]): string {
+  if (kinds.includes("unknown")) return "";
   return kinds
     .flatMap((kind) => (kind === "unknown" ? [] : [...MIME_TYPES[kind], ...EXTENSIONS[kind]]))
     .join(",");
 }
 
+/** Extensions to show for the given kinds; a tool that takes "unknown" files takes any file. */
 export function extensionsFor(kinds: readonly FileKind[]): string[] {
+  if (kinds.includes("unknown")) return ["Any file"];
   return kinds.flatMap((kind) => (kind === "unknown" ? [] : EXTENSIONS[kind]));
 }
 

@@ -22,6 +22,12 @@ function PanelSkeleton() {
  */
 export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>> = {
   sanitize: dynamic(() => import("./sanitize/SanitizePanel"), { ssr: false, loading: PanelSkeleton }),
+  "find-pii": dynamic(() => import("./inspect/FindPiiPanel"), { ssr: false, loading: PanelSkeleton }),
+  "inspect-pdf": dynamic(() => import("./inspect/InspectPdfPanel"), { ssr: false, loading: PanelSkeleton }),
+  "inspect-office": dynamic(() => import("./inspect/InspectOfficePanel"), { ssr: false, loading: PanelSkeleton }),
+  "image-forensics": dynamic(() => import("./inspect/ImageForensicsPanel"), { ssr: false, loading: PanelSkeleton }),
+  "check-file": dynamic(() => import("./inspect/CheckFilePanel"), { ssr: false, loading: PanelSkeleton }),
+  "check-links": dynamic(() => import("./inspect/CheckLinksPanel"), { ssr: false, loading: PanelSkeleton }),
   "edit-pdf": dynamic(() => import("./edit/EditPanel"), { ssr: false, loading: PanelSkeleton }),
   "fill-pdf": dynamic(() => import("./fill/FillPanel"), { ssr: false, loading: PanelSkeleton }),
   "edit-metadata": dynamic(() => import("./document/DocumentPanels").then((m) => m.PropertiesPanel), { ssr: false, loading: PanelSkeleton }),

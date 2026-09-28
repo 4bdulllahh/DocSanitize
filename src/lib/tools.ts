@@ -33,11 +33,17 @@ import {
   ImageDown,
   Languages,
   ScanText,
+  FileCheck2,
+  FileScan,
+  FileSearch,
+  QrCode,
+  ScanEye,
+  UserSearch,
   type LucideIcon,
 } from "lucide-react";
 import type { FileKind } from "./files";
 
-export type ToolCategoryId = "privacy" | "edit" | "organize" | "security" | "convert" | "optimize";
+export type ToolCategoryId = "privacy" | "inspect" | "edit" | "organize" | "security" | "convert" | "optimize";
 
 export interface ToolCategory {
   id: ToolCategoryId;
@@ -46,6 +52,7 @@ export interface ToolCategory {
 
 export const TOOL_CATEGORIES: ToolCategory[] = [
   { id: "privacy", name: "Sanitize & Privacy" },
+  { id: "inspect", name: "Inspect" },
   { id: "edit", name: "Edit & Sign" },
   { id: "organize", name: "Organize" },
   { id: "security", name: "Security" },
@@ -89,6 +96,66 @@ export const TOOLS: Tool[] = [
     icon: FileSliders,
     keywords: ["properties", "title", "author", "document info", "keywords", "change metadata"],
     accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "find-pii",
+    name: "Find Personal Data",
+    description: "Find email addresses, phone numbers, card and bank account numbers and ID numbers in a PDF, then redact them in one go.",
+    category: "inspect",
+    icon: UserSearch,
+    keywords: ["pii", "personal information", "gdpr", "email", "phone", "credit card", "iban", "ssn", "social security", "national insurance", "sensitive data", "data leak", "dlp"],
+    accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "inspect-pdf",
+    name: "Inspect PDF",
+    description: "Find what a PDF hides: fake redactions, invisible text, earlier versions, scripts, attachments, comments and hidden layers. Then clean it.",
+    category: "inspect",
+    icon: FileSearch,
+    keywords: ["hidden", "fake redaction", "redaction check", "black box", "invisible text", "white text", "versions", "javascript", "malware", "attachments", "layers", "forensic", "clean pdf"],
+    accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "inspect-office",
+    name: "Inspect Office File",
+    description: "Find names, comments, tracked changes, hidden sheets, speaker notes and file paths in Word, Excel and PowerPoint files, and remove them.",
+    category: "inspect",
+    icon: FileScan,
+    keywords: ["word", "excel", "powerpoint", "docx", "xlsx", "pptx", "tracked changes", "comments", "hidden sheets", "speaker notes", "document inspector", "remove personal information", "author"],
+    accepts: ["word", "excel", "powerpoint"],
+    status: "ready",
+  },
+  {
+    id: "image-forensics",
+    name: "Image Forensics",
+    description: "Look for signs a photo was edited or made with AI: editing apps, AI labels, Content Credentials, a mismatched thumbnail and error levels.",
+    category: "inspect",
+    icon: ScanEye,
+    keywords: ["fake photo", "photoshopped", "edited", "ai generated", "deepfake", "ela", "error level", "c2pa", "content credentials", "authenticity", "verify photo"],
+    accepts: ["image"],
+    status: "ready",
+  },
+  {
+    id: "check-file",
+    name: "Check File & Hashes",
+    description: "See what any file really is, whatever its name says, spot disguised programs, and get its SHA-256, SHA-1 and MD5 hashes.",
+    category: "inspect",
+    icon: FileCheck2,
+    keywords: ["file type", "extension", "virus", "malware", "exe", "hash", "checksum", "sha256", "sha-256", "md5", "verify download", "integrity", "magic bytes"],
+    accepts: ["pdf", "image", "word", "excel", "powerpoint", "unknown"],
+    status: "ready",
+  },
+  {
+    id: "check-links",
+    name: "Check Links & QR Codes",
+    description: "Check every link and QR code in a PDF or picture for phishing tricks, without visiting them.",
+    category: "inspect",
+    icon: QrCode,
+    keywords: ["phishing", "qr code", "url", "scam", "link checker", "quishing", "suspicious link", "fake website"],
+    accepts: ["pdf", "image"],
     status: "ready",
   },
   {

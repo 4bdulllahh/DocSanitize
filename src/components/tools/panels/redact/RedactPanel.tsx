@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import clsx from "clsx";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { ChevronLeft, ChevronRight, CircleCheck, EyeOff, LoaderCircle, Search, Square, Trash2, TriangleAlert, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleCheck, EyeOff, LoaderCircle, Search, Square, Trash2, TriangleAlert, UserSearch, X } from "lucide-react";
 import { PageStage } from "@/components/pdf/PageStage";
 import { PageStrip } from "@/components/pdf/PageStrip";
 import { usePdfDocument } from "@/components/pdf/usePdfDocument";
@@ -17,6 +17,8 @@ import { renderPageToImage } from "@/lib/pdf/rasterize";
 import type { RedactedPage } from "@/lib/pdf/redact";
 import { annotationTexts } from "@/lib/pdf/annotations";
 import { findAnnotationBoxes, findTextBoxes, type AnnotationText, type Box } from "@/lib/pdf/redact-search";
+import { findPiiInPages } from "@/lib/scan/pii-pdf";
+import { clearRedactHandoff, peekRedactHandoff } from "@/store/handoff";
 import { withSuffix } from "@/lib/zip";
 import { toast } from "@/store/toast";
 import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspace";
@@ -44,13 +46,24 @@ export default function RedactPanel({ file }: ToolPanelProps) {
 
 const allPages = (doc: PDFDocumentProxy) => Array.from({ length: doc.numPages }, (_, i) => i + 1);
 
+/** Boxes another tool asked us to mark (Find Personal Data, Inspect PDF). */
+function handedOff(file: WorkspaceFile): { boxes: Boxes; note: string | null } {
+  const handoff = peekRedactHandoff(file.id, file.revision);
+  if (!handoff) return { boxes: {}, note: null };
+  const boxes = Object.fromEntries(Object.entries(handoff.boxes).map(([page, list]) => [page, list.map((b) => ({ ...b, id: createId() }))]));
+  return { boxes, note: handoff.note };
+}
+
 function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
   const pageCount = doc.numPages;
-  const [boxes, setBoxes] = useState<Boxes>({});
-  const [current, setCurrent] = useState(0);
+  const [initial] = useState(() => handedOff(file));
+  const [boxes, setBoxes] = useState<Boxes>(initial.boxes);
+  // Integer keys enumerate in ascending order: start on the first marked page.
+  const [current, setCurrent] = useState(() => Number(Object.keys(initial.boxes)[0] ?? 0));
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [searchNote, setSearchNote] = useState<string | null>(null);
+  const [searchNote, setSearchNote] = useState<string | null>(initial.note);
+  useEffect(() => clearRedactHandoff(file.id), [file.id]);
   const [searching, setSearching] = useState(false);
   const pageText = useRef<{ text: TextPage[]; annotations: AnnotationText[][] } | null>(null);
   const [dpi, setDpi] = useState<"150" | "200" | "300">("200");
@@ -74,15 +87,14 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
     setSelected(null);
   };
 
-  const search = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!query.trim()) return;
+  const readText = async () => (pageText.current ??= { text: await extractText(doc, allPages(doc), undefined, false), annotations: await annotationTexts(doc, allPages(doc)) });
+
+  /** Mark every box `find` returns per page, and say what was found. */
+  const markAll = async (find: (text: TextPage[], annotations: AnnotationText[][]) => Box[][], describe: (count: number, pages: number[]) => string) => {
     setSearching(true);
     try {
-      pageText.current ??= { text: await extractText(doc, allPages(doc), undefined, false), annotations: await annotationTexts(doc, allPages(doc)) };
-      const { text, annotations } = pageText.current;
-      // Page text, plus form fields and comments, which are drawn on the page too.
-      const found = text.map((page, i) => [...findTextBoxes(page, query), ...findAnnotationBoxes(annotations[i], query, page.width, page.height)]);
+      const { text, annotations } = await readText();
+      const found = find(text, annotations);
       const count = found.reduce((n, b) => n + b.length, 0);
       const pages = found.map((b, i) => (b.length ? i : -1)).filter((i) => i >= 0);
       if (count > 0) {
@@ -93,13 +105,32 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
         });
         setCurrent(pages[0]);
       }
-      setSearchNote(count ? `Marked ${count} match${count === 1 ? "" : "es"} on ${pages.length === 1 ? "page" : "pages"} ${formatPageRanges(pages)}.` : `No selectable text matches “${query.trim()}”.`);
+      setSearchNote(describe(count, pages));
     } catch (error) {
       toast({ tone: "error", title: "Search failed", description: errorMessage(error) });
     } finally {
       setSearching(false);
     }
   };
+
+  const search = (event: FormEvent) => {
+    event.preventDefault();
+    if (!query.trim()) return;
+    void markAll(
+      // Page text, plus form fields and comments, which are drawn on the page too.
+      (text, annotations) => text.map((page, i) => [...findTextBoxes(page, query), ...findAnnotationBoxes(annotations[i], query, page.width, page.height)]),
+      (count, pages) => (count ? `Marked ${count} match${count === 1 ? "" : "es"} on ${pages.length === 1 ? "page" : "pages"} ${formatPageRanges(pages)}.` : `No selectable text matches “${query.trim()}”.`),
+    );
+  };
+
+  const markPersonalData = () =>
+    markAll(
+      (text, annotations) => {
+        const findings = findPiiInPages(text, annotations);
+        return text.map((_, i) => findings.filter((f) => f.page === i).flatMap((f) => f.boxes));
+      },
+      (count, pages) => (count ? `Marked ${count} piece${count === 1 ? "" : "s"} of personal data on ${pages.length === 1 ? "page" : "pages"} ${formatPageRanges(pages)}. Check each one.` : "No emails, phone numbers, card or account numbers found in the selectable text."),
+    );
 
   const apply = async () => {
     const { updateFile } = useWorkspaceStore.getState();
@@ -202,6 +233,10 @@ function Redactor({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy })
                 Mark all
               </button>
             </div>
+            <button type="button" onClick={markPersonalData} disabled={searching} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline disabled:opacity-50">
+              <UserSearch className="size-4" aria-hidden="true" />
+              Mark personal data (emails, phone and card numbers…)
+            </button>
             {searchNote && (
               <p className="mt-1.5 text-xs text-fg-muted" aria-live="polite">
                 {searchNote}

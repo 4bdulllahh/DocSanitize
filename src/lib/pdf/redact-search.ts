@@ -32,22 +32,20 @@ export function findAnnotationBoxes(annotations: AnnotationText[], query: string
     });
 }
 
-/**
- * Boxes covering every case-insensitive occurrence of `query` on a page. A match that spans
- * several text items (e.g. "Jane" + "Doe") gets one box per item.
- */
-export function findTextBoxes(page: TextPage, query: string): Box[] {
-  const needle = normalize(query);
-  if (!needle) return [];
+/** A page's text as one string (runs of whitespace collapsed), with where each character came from. */
+export interface PageTextIndex {
+  text: string;
+  origin: { item: number; char: number }[];
+}
 
-  // The page's text with runs of whitespace collapsed, remembering where each character came from.
+export function pageTextIndex(page: TextPage): PageTextIndex {
   let text = "";
-  const origin: { item: number; char: number }[] = [];
+  const origin: PageTextIndex["origin"] = [];
   page.items.forEach((item, i) => {
     for (let c = 0; c < item.text.length; c++) {
       const ch = /\s/.test(item.text[c]) ? " " : item.text[c];
       if (ch === " " && (text === "" || text.endsWith(" "))) continue;
-      text += ch.toLowerCase();
+      text += ch;
       origin.push({ item: i, char: c });
     }
     // Separate items that aren't touching, so words don't run together.
@@ -57,26 +55,42 @@ export function findTextBoxes(page: TextPage, query: string): Box[] {
       origin.push({ item: i, char: item.text.length });
     }
   });
+  return { text, origin };
+}
 
-  const boxes: Box[] = [];
-  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + needle.length)) {
-    // Characters of the match, grouped by the item they belong to.
-    const spans = new Map<number, [number, number]>();
-    for (const { item, char } of origin.slice(at, at + needle.length)) {
-      const span = spans.get(item);
-      spans.set(item, span ? [Math.min(span[0], char), Math.max(span[1], char + 1)] : [char, char + 1]);
-    }
-    for (const [index, [from, to]] of spans) {
-      const item = page.items[index];
-      const length = Math.max(1, item.text.length);
-      const x0 = item.x + (item.width * from) / length;
-      const x1 = item.x + (item.width * Math.min(to, length)) / length;
-      if (x1 - x0 <= 0) continue;
-      // Ascent ~0.9 em above the baseline, descent ~0.25 em below, plus a point of margin.
-      const top = item.y - item.size * 0.9 - 1;
-      const bottom = item.y + item.size * 0.25 + 1;
-      boxes.push({ x: (x0 - 1) / page.width, y: top / page.height, width: (x1 - x0 + 2) / page.width, height: (bottom - top) / page.height });
-    }
+/** Boxes over the characters `start`–`end` of the index's text: one per text item they span. */
+export function spanBoxes(page: TextPage, index: PageTextIndex, start: number, end: number): Box[] {
+  const spans = new Map<number, [number, number]>();
+  for (const { item, char } of index.origin.slice(start, end)) {
+    const span = spans.get(item);
+    spans.set(item, span ? [Math.min(span[0], char), Math.max(span[1], char + 1)] : [char, char + 1]);
   }
+  const boxes: Box[] = [];
+  for (const [i, [from, to]] of spans) {
+    const item = page.items[i];
+    const length = Math.max(1, item.text.length);
+    const x0 = item.x + (item.width * from) / length;
+    const x1 = item.x + (item.width * Math.min(to, length)) / length;
+    if (x1 - x0 <= 0) continue;
+    // Ascent ~0.9 em above the baseline, descent ~0.25 em below, plus a point of margin.
+    const top = item.y - item.size * 0.9 - 1;
+    const bottom = item.y + item.size * 0.25 + 1;
+    boxes.push({ x: (x0 - 1) / page.width, y: top / page.height, width: (x1 - x0 + 2) / page.width, height: (bottom - top) / page.height });
+  }
+  return boxes;
+}
+
+/**
+ * Boxes covering every case-insensitive occurrence of `query` on a page. A match that spans
+ * several text items (e.g. "Jane" + "Doe") gets one box per item.
+ */
+export function findTextBoxes(page: TextPage, query: string): Box[] {
+  const needle = normalize(query);
+  if (!needle) return [];
+  const index = pageTextIndex(page);
+  // Lower-case character by character, so positions still line up with the index.
+  const text = Array.from(index.text, (ch) => (ch.toLowerCase().length === ch.length ? ch.toLowerCase() : ch)).join("");
+  const boxes: Box[] = [];
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + needle.length)) boxes.push(...spanBoxes(page, index, at, at + needle.length));
   return boxes;
 }
