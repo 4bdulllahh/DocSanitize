@@ -68,6 +68,21 @@ describe("tool search", () => {
     expect(top("diff")).toBe("compare-pdf");
   });
 
+  it("finds the audio and video tools", () => {
+    expect(top("mov to mp4")).toBe("convert-video");
+    expect(top("mute")).toBe("convert-video");
+    expect(top("compress video")).toBe("compress-video");
+    expect(top("whatsapp")).toBe("compress-video");
+    expect(top("mp4 to mp3")).toBe("convert-audio");
+    expect(top("extract audio")).toBe("convert-audio");
+    expect(top("wav")).toBe("convert-audio");
+    expect(top("cut video")).toBe("trim-media");
+    expect(top("gif")).toBe("video-to-gif");
+    expect(top("video metadata")).toBe("clean-media");
+    expect(top("mp3 tags")).toBe("clean-media");
+    expect(top("compress")).toBe("compress");
+  });
+
   it("needs every word to match, and lists all tools for an empty query", () => {
     expect(searchTools("xyzzy")).toEqual([]);
     expect(searchTools("merge xyzzy")).toEqual([]);

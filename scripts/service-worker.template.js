@@ -69,15 +69,16 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" && request.method !== "HEAD") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  event.respondWith(ADDONS.includes(url.pathname) ? addon(request, url) : respond(request, url));
+  event.respondWith(ADDONS.includes(url.pathname) ? addon(event, request, url) : respond(request, url));
 });
 
-async function addon(request, url) {
+async function addon(event, request, url) {
   const cache = await caches.open(ADDON_CACHE);
   const cached = await cache.match(url.pathname, { ignoreVary: true, ignoreMethod: true });
   if (cached) return request.method === "HEAD" ? new Response(null, { status: cached.status, headers: cached.headers }) : cached;
   const response = await fetch(request);
-  if (request.method === "GET" && response.ok && response.type === "basic") await cache.put(url.pathname, response.clone());
+  // Stored in the background, so a large add-on streams to the page (which shows its progress).
+  if (request.method === "GET" && response.ok && response.type === "basic") event.waitUntil(cache.put(url.pathname, response.clone()));
   return response;
 }
 

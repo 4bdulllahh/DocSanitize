@@ -18,6 +18,25 @@ const swPath = `${repo}/out/sw.js`;
 mkdirSync("m9", { recursive: true });
 writeFileSync("m9/plan.docx", officeFx.sampleDocx(metaFx.TINY_JPEG));
 copyFileSync(`${repo}/src/lib/metadata/__tests__/heif/photo.heic`, "m9/photo.heic");
+{
+  // One second of a 440 Hz tone as 16-bit mono WAV, for the media engine.
+  const rate = 8000;
+  const wav = Buffer.alloc(44 + rate * 2);
+  wav.write("RIFF", 0);
+  wav.writeUInt32LE(36 + rate * 2, 4);
+  wav.write("WAVEfmt ", 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24);
+  wav.writeUInt32LE(rate * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write("data", 36);
+  wav.writeUInt32LE(rate * 2, 40);
+  for (let i = 0; i < rate; i++) wav.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 440 * i) / rate) * 12000), 44 + i * 2);
+  writeFileSync("m9/tone.wav", wav);
+}
 
 // ---------------------------------------------------------------- Headers, as a host sends them
 {
@@ -143,6 +162,16 @@ assert.deepEqual(withAddon.paths, [...precache].sort(), "the app cache is unchan
 assert.ok(withAddon.addons.some((p) => p.endsWith("/libheif.wasm")) && withAddon.addons.every((p) => addons.includes(p)), withAddon.addons.join());
 step("HEIC decoder add-on downloaded on first use and kept in its own cache");
 
+// The media engine (FFmpeg) is an add-on too.
+await page.goto(base + "/tools/convert-audio/");
+await page.locator('main input[type="file"]').setInputFiles(["m9/tone.wav"]);
+await page.getByRole("button", { name: "Convert to MP3" }).click();
+await page.getByText("Audio ready").waitFor({ timeout: 180_000 });
+const withMedia = await cached();
+assert.deepEqual(withMedia.paths, [...precache].sort(), "the app cache is unchanged");
+for (const pattern of [/\/ffmpeg\.worker\.js$/, /\/ffmpeg-core\.js$/, /\/ffmpeg-core\.wasm$/]) assert.ok(withMedia.addons.some((p) => pattern.test(p)), `${pattern} in ${withMedia.addons.join()}`);
+step("media engine downloaded on first use and kept in the add-on cache");
+
 // The OCR engine and the English model are add-ons too.
 const textPng = Buffer.from(
   (
@@ -170,6 +199,7 @@ assert.deepEqual(withOcr.paths, [...precache].sort(), "the app cache is unchange
 for (const pattern of [/\/worker\.min\.js$/, /lstm\.wasm\.js$/, /\/eng\.traineddata\.gz$/]) assert.ok(withOcr.addons.some((p) => pattern.test(p)), `${pattern} in ${withOcr.addons.join()}`);
 assert.ok(withOcr.addons.every((p) => addons.includes(p)));
 step("OCR engine and English model downloaded on first use and kept in the add-on cache");
+
 
 // ---------------------------------------------------------------- Offline
 await ctx.setOffline(true);
@@ -203,6 +233,12 @@ await page.getByRole("button", { name: "Recognise text on 1 page" }).click();
 await page.getByText("Searchable PDF ready").waitFor({ timeout: 180_000 });
 assert.match(await page.getByRole("region", { name: "Recognised text" }).innerText(), /OFFLINE READY/);
 step("offline: OCR runs with the engine and model from the add-on cache");
+
+await page.goto(base + "/tools/convert-audio/");
+await page.locator('main input[type="file"]').setInputFiles(["m9/tone.wav"]);
+await page.getByRole("button", { name: "Convert to MP3" }).click();
+await page.getByText("Audio ready").waitFor({ timeout: 180_000 });
+step("offline: audio converts with the media engine from the add-on cache");
 
 // Client-side navigation from the sidebar, then a PDF tool with thumbnails (pdf.js + its worker).
 await page.locator('aside a[href="/tools/merge/"]').click();

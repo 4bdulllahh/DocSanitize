@@ -45,11 +45,17 @@ import {
   LetterText,
   Presentation,
   Projector,
+  AudioLines,
+  Clapperboard,
+  Film,
+  ImagePlay,
+  MapPinOff,
+  Minimize2,
   type LucideIcon,
 } from "lucide-react";
 import type { FileKind } from "./files";
 
-export type ToolCategoryId = "privacy" | "inspect" | "edit" | "organize" | "security" | "convert" | "optimize";
+export type ToolCategoryId = "privacy" | "inspect" | "edit" | "organize" | "security" | "convert" | "media" | "optimize";
 
 export interface ToolCategory {
   id: ToolCategoryId;
@@ -63,6 +69,7 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
   { id: "organize", name: "Organize" },
   { id: "security", name: "Security" },
   { id: "convert", name: "Convert" },
+  { id: "media", name: "Audio & Video" },
   { id: "optimize", name: "Optimize" },
 ];
 
@@ -151,7 +158,7 @@ export const TOOLS: Tool[] = [
     category: "inspect",
     icon: FileCheck2,
     keywords: ["file type", "extension", "virus", "malware", "exe", "hash", "checksum", "sha256", "sha-256", "md5", "verify download", "integrity", "magic bytes"],
-    accepts: ["pdf", "image", "word", "excel", "powerpoint", "text", "unknown"],
+    accepts: ["pdf", "image", "word", "excel", "powerpoint", "text", "video", "audio", "unknown"],
     status: "ready",
   },
   {
@@ -548,6 +555,66 @@ export const TOOLS: Tool[] = [
     icon: ListOrdered,
     keywords: ["number pages", "footer", "header", "pagination", "page x of y"],
     accepts: ["pdf"],
+    status: "ready",
+  },
+  {
+    id: "clean-media",
+    name: "Remove Video & Audio Metadata",
+    description: "Find and remove the location, phone model, dates and names hidden in videos and recordings, without re-encoding them.",
+    category: "privacy",
+    icon: MapPinOff,
+    keywords: ["video metadata", "strip", "location", "gps video", "exif video", "mp4", "mov", "mp3 tags", "id3", "phone video", "anonymize", "clean"],
+    accepts: ["video", "audio"],
+    status: "ready",
+  },
+  {
+    id: "convert-video",
+    name: "Convert Video",
+    description: "Convert videos to MP4, WebM, MOV or MKV, with a smaller resolution or frame rate, or without the sound.",
+    category: "media",
+    icon: Film,
+    keywords: ["video converter", "mov to mp4", "mkv to mp4", "avi to mp4", "webm", "hevc", "h264", "720p", "1080p", "resolution", "mute", "remove sound"],
+    accepts: ["video"],
+    status: "ready",
+  },
+  {
+    id: "compress-video",
+    name: "Compress Video",
+    description: "Make a video smaller: choose a quality, or a target size for email and chat apps, and a resolution.",
+    category: "media",
+    icon: Minimize2,
+    keywords: ["reduce video size", "shrink video", "smaller video", "email", "whatsapp", "discord", "target size", "mb", "mp4"],
+    accepts: ["video"],
+    status: "ready",
+  },
+  {
+    id: "convert-audio",
+    name: "Convert Audio",
+    description: "Convert music and recordings to MP3, M4A, WAV, FLAC, OGG or Opus, or save the sound from a video.",
+    category: "media",
+    icon: AudioLines,
+    keywords: ["audio converter", "mp3", "wav to mp3", "m4a to mp3", "extract audio", "video to mp3", "mp4 to mp3", "flac", "voice memo", "normalize", "volume", "bitrate"],
+    accepts: ["audio", "video"],
+    status: "ready",
+  },
+  {
+    id: "trim-media",
+    name: "Trim Video & Audio",
+    description: "Cut a video or recording down to the part you want: instantly without re-encoding, or exactly to the frame.",
+    category: "media",
+    icon: Clapperboard,
+    keywords: ["cut video", "cut audio", "clip", "shorten", "start", "end", "ringtone", "split video"],
+    accepts: ["video", "audio"],
+    status: "ready",
+  },
+  {
+    id: "video-to-gif",
+    name: "Video to GIF",
+    description: "Turn a video clip into an animated GIF, or a much smaller animated WebP.",
+    category: "media",
+    icon: ImagePlay,
+    keywords: ["gif maker", "animated gif", "animation", "mp4 to gif", "webp", "meme"],
+    accepts: ["video"],
     status: "ready",
   },
 ];

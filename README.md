@@ -14,13 +14,14 @@ Strip hidden metadata from photos and documents, find what files hide (fake reda
 
 ## Features
 
-46 tools in seven groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+52 tools in eight groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
 - **Sanitize Metadata.** Opens PDFs, JPEGs, PNGs, WebPs and iPhone HEIC and AVIF photos and lists everything hidden inside, from the author, device and serial number to editing software, dates, XMP history and the GPS location a photo was taken at. Each item is marked **Sensitive**, **Revealing** or **Technical**, and you can filter the list to check one kind at a time. One click removes it all, or, for photos, everything except technical data. The file is then read again from scratch to confirm nothing is left.
   - **Photos** are cleaned without re-encoding, so the image stays pixel-for-pixel identical. You can choose to keep the colour profile, or to keep all technical data (exposure, aperture, ISO, focal length, resolution and colour profile) while removing who, where, when and which device. Rotated photos keep only their orientation flag so they still display upright.
   - **PDFs** lose their document info, XMP metadata, document IDs, application data (PieceInfo), comment authors and dates, attachments, JavaScript and auto-run actions, and earlier saved versions of the file. Photos embedded in the PDF have their own EXIF and GPS data stripped too.
+- **Remove Video & Audio Metadata.** Lists what videos and recordings carry about you: the location a phone video was shot at, the phone's make, model and software version, recording dates, titles, names and comments, chapter titles and timed metadata tracks. One click copies the picture and sound, untouched and without re-encoding, into a new file without them, then reads that file back to confirm nothing is left. Album art can stay.
 - **Edit Metadata.** Set a PDF's title, author, subject, keywords, creator, producer and dates to exactly what you choose; empty fields are removed, and so is the XMP copy that would contradict them.
 
 ### Inspect
@@ -88,6 +89,16 @@ Tools that show what a file carries besides what's on screen, and what it really
 - **OCR PDF.** Reads the text in scanned PDFs and in photos or screenshots, in 24 languages (up to three at once), and adds it as an invisible layer over each word, so the file can be searched, selected and copied while it looks the same. Pages that already have text are skipped. The text is also available as a `.txt` file or to copy. Runs [Tesseract](https://github.com/tesseract-ocr/tesseract) in the browser; the engine and each language are downloaded from this site the first time (see [Works offline](#works-offline)).
 - **Translate PDF.** Translates a PDF with the translator built into Chrome and Edge on computers, which works on the device, and keeps the layout: each paragraph, heading or table cell is translated as a whole and written back in the same place and colour, smaller where the translation is longer, with the original text removed from the file. The language is detected automatically. Into languages the built-in font can't write (such as Arabic, Chinese or Hindi) you get the translated text as a `.txt` file. Other browsers are told to use Chrome or Edge; nothing is sent to an online service.
 
+### Audio and video
+
+All of these run [FFmpeg](https://ffmpeg.org) in the browser (see [How the media tools work](#how-the-media-tools-work)). Nothing is uploaded, and none of them copy the location, device, date or name details of the original, or add any of their own.
+
+- **Convert Video.** MP4, MOV, WebM, MKV, AVI, WMV, 3GP and more to MP4, MOV or MKV (H.264 and AAC) or WebM (VP8 and Opus), at high, balanced or small-file quality. Lower the resolution (1080p to 360p) or frame rate, remove the sound, or keep only part of it. Portrait phone videos stay upright, and HDR iPhone videos are tone-mapped so they don't look washed out.
+- **Compress Video.** Pick light, medium or strong compression, or a target size such as 8, 10 or 25 MB for chat apps and email, plus a resolution and sound quality. Shows how much smaller the result is.
+- **Convert Audio.** MP3, WAV, M4A, AAC, FLAC, OGG, Opus, WMA, AIFF and more to MP3, M4A, WAV, FLAC, OGG or Opus, at the bitrate you choose; mix to mono or stereo; even out the loudness (to −16 LUFS). Also saves the sound from a video.
+- **Trim Video & Audio.** Play to the spot and press the target button, or type the times. **Fast** cuts instantly without re-encoding, starting at the nearest keyframe; **Exact** re-encodes to cut precisely. The file keeps its format.
+- **Video to GIF.** A clip as a looping GIF with its own colour palette, or as an animated WebP several times smaller, at the width and frame rate you choose.
+
 ### Optimize
 
 - **Grayscale PDF.** Rewrites colours in text, drawings, forms and comments as grays and converts photos and other images, which usually makes the file smaller too.
@@ -129,6 +140,7 @@ Documents DocSanitize creates carry no author, software or tracking metadata of 
 | Office files | [mammoth](https://github.com/mwilliamson/mammoth.js) reads `.docx`, [SheetJS](https://sheetjs.com) reads spreadsheets, our own reader draws `.pptx`; our own writers produce `.docx`, `.xlsx` and `.pptx`; [marked](https://marked.js.org) reads Markdown |
 | OCR and translation | [tesseract.js](https://github.com/naptha/tesseract.js) 7 (WebAssembly) with Tesseract's `best_int` models, served as add-ons; the browser's built-in Translator and LanguageDetector APIs |
 | Inspection | Our own PDF, Office XML, file-signature and URL checks; [jsQR](https://github.com/cozmo/jsQR) for reading QR codes |
+| Audio and video | [FFmpeg](https://ffmpeg.org) 5.1 compiled to WebAssembly by [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (single-threaded core, with x264, libvpx, LAME, Opus and Vorbis), served as an add-on and run in our own worker |
 | Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP/HEIF parsers, [libheif](https://github.com/strukturag/libheif) (WebAssembly, via libheif-js) for decoding HEIC, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
 | Drag and drop | dnd-kit (mouse, touch and keyboard) |
 | Quality | ESLint, Vitest unit tests, Playwright browser tests, GitHub Actions CI |
@@ -201,6 +213,10 @@ Each page is rendered at 300 DPI (photos at their own resolution, small ones enl
 
 Pages are read the same way Edit PDF reads them, and their lines are grouped into blocks (a paragraph's lines follow each other at a steady spacing, in the same column, size and weight), so the translator sees whole sentences. Hyphenated words split across lines are rejoined. Each block's translation is wrapped to the block's width and shrunk in 5% steps, to no less than 60% of the original size, until it fits the space the original used. It's then written through Edit PDF's text replacement, which removes the original text from the page rather than covering it. Blocks without words (numbers, dates, symbols) are left as they are.
 
+## How the media tools work
+
+The media tools share one engine: FFmpeg compiled to WebAssembly, run in a worker. Your file isn't copied into it: the worker reads it in place from the browser's File object (Emscripten's WORKERFS), and only the result is copied back. Every job runs FFmpeg with `-map_metadata -1` for the file and each track, drops chapters, data tracks and attachments, and sets FFmpeg's "bit-exact" flags so it writes no encoder version or creation time of its own. Remove Metadata copies the tracks with `-c copy`, so the picture and sound are bit-for-bit the same, and keeps a phone video's rotation (stored in the track header, not as metadata). The tools read the file with ffprobe first, to know its length (for progress), size, rotation and whether it's HDR. Cancel stops the worker immediately; the next job starts a fresh one.
+
 ## Placing stamps on rotated pages
 
 Signatures, watermarks and page numbers are positioned as you see the page, whatever its rotation or crop box. [`stamp.ts`](src/lib/pdf/stamp.ts) converts between the page as displayed and the PDF's own coordinates for pages rotated 0, 90, 180 or 270 degrees, and the conversion is tested against pdf.js on every rotation. A signature dragged to a spot on screen lands within 1% of that spot in the downloaded file.
@@ -209,7 +225,7 @@ Signatures, watermarks and page numbers are positioned as you see the page, what
 
 After your first visit, a service worker keeps a copy of the whole app (about 12 MB, including the PDF engine, fonts and decoders), so every tool works with no connection. It only caches the site's own files, never yours. When a new version is deployed it downloads in the background, and a small prompt offers to reload into it; nothing reloads while you're working.
 
-Two optional parts are kept out of that download: they're fetched from the site the first time a tool needs them, then cached for offline use too. So far that's the HEIC decoder (about 1.5 MB) and OCR: the engine (about 3.8 MB) plus each language you use (0.4 to 2.9 MB). The media converter will follow. They survive app updates and are only replaced when a new version of the add-on ships.
+Two optional parts are kept out of that download: they're fetched from the site the first time a tool needs them, then cached for offline use too. They are the HEIC decoder (about 1.5 MB), OCR (the engine, about 3.8 MB, plus each language you use, 0.4 to 2.9 MB) and the media engine for the audio and video tools (about 31 MB). They survive app updates and are only replaced when a new version of the add-on ships.
 
 The service worker is generated at build time by [`scripts/build-service-worker.mjs`](scripts/build-service-worker.mjs) from the list of files in the build, with a version taken from their contents.
 
@@ -218,7 +234,8 @@ The service worker is generated at build time by [`scripts/build-service-worker.
 The site is served with a strict Content-Security-Policy (see [`vercel.json`](vercel.json)):
 
 - **`connect-src 'self'`:** no connections to any other server.
-- **Scripts only from the site itself.** Every page also carries the policy as a `<meta>` tag in which inline scripts are allowed only by their exact SHA-256 hashes, added at build time by [`scripts/secure-export.mjs`](scripts/secure-export.mjs). The one extra permission is WebAssembly compilation, which pdf.js uses to decode some images.
+- **Scripts only from the site itself.** Every page also carries the policy as a `<meta>` tag in which inline scripts are allowed only by their exact SHA-256 hashes, added at build time by [`scripts/secure-export.mjs`](scripts/secure-export.mjs). The one extra permission is WebAssembly compilation, which pdf.js, OCR and the media engine need.
+- **`media-src 'self' blob:`:** audio and video play only from the site or from your own files.
 - No plugins (`object-src 'none'`), no form submissions, no `<base>` changes and no embedding in other sites (`frame-ancestors 'none'`, `X-Frame-Options: DENY`).
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin` and a `Permissions-Policy` that turns off the camera, microphone, location, payments and USB. Vercel adds HSTS.
 
@@ -245,6 +262,7 @@ flowchart LR
 | `src/lib/convert` | PowerPoint reading, drawing and writing, Markdown/HTML to layout blocks, PDF to Text/Markdown, Compare PDFs (word diff and pixel diff) |
 | `src/lib/scan` | The Inspect tools: personal data patterns, PDF and Office inspection and cleaning, hidden-text rendering check, file types and hashes, link and QR checks, image forensics |
 | `src/lib/ocr`, `src/lib/translate` | The OCR engine client, Tesseract result reading and languages; block grouping, text fitting and the browser translator |
+| `src/lib/media` | The media engine client, ffprobe reading (tracks, rotation, HDR, revealing details) and the FFmpeg command for each tool |
 | `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
 | `src/components/tools/panels` | One folder per tool, plus shared controls, previews and output cards |
@@ -335,6 +353,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **Merge and Split** don't carry over bookmarks or links between pages. Organize keeps them.
 - **HEIC photos** need a one-time download of the decoder (about 1.5 MB) the first time you preview or convert one; auditing and stripping don't. **AVIF** uses the browser's own decoder, so it needs a current browser.
 - **The Inspect tools** find what they're built to recognise. Find Personal Data can't recognise names or postal addresses; Check Links judges addresses without visiting them; Image Forensics reads what a file says about itself, which can be faked or removed. Inspect Office reads `.docx`, `.xlsx` and `.pptx`, not older `.doc`/`.xls`/`.ppt` or OpenDocument files.
+- **Audio and video** are converted by a single-threaded engine, so it's slower than desktop software: about 25 frames a second for 720p video on a laptop, slower for 1080p and on phones. WebM output uses VP8 (VP9 crashes this build of the engine). Very long or high-resolution videos can run out of memory in the browser; trim them first. Only the first sound track is converted, and subtitles are kept only by a fast Trim and by Remove Metadata.
 - **Very large files** are limited by your device's memory.
 
 ## Roadmap
@@ -354,7 +373,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M13** OCR for scanned PDFs, and Translate PDF with the browser's on-device translator
 - [x] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker
 - [x] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
-- [ ] **M16** Local media converter (video and audio to MP3, MP4, WebM or GIF)
+- [x] **M16** Audio and video: convert, compress, trim, video to GIF, and remove video and audio metadata
 - [ ] **M17** Certificate-based digital signatures and signature verification
 - [ ] **M18** Batch processing
 - [ ] **M19** Interface languages, including right-to-left
@@ -370,5 +389,7 @@ Issues and pull requests are welcome. Please run `npm run lint`, `npm test` and,
 [MIT](LICENSE) © Abdullah
 
 The OCR add-on is [tesseract.js](https://github.com/naptha/tesseract.js) and [Tesseract](https://github.com/tesseract-ocr/tesseract) with its [tessdata_best](https://github.com/tesseract-ocr/tessdata_best) models, all Apache-2.0, served as separate files under `/addons/` with their licences.
+
+The media add-on is [FFmpeg](https://ffmpeg.org) as compiled by [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (`@ffmpeg/core`), GPL-2.0-or-later. It's a separate program, served unmodified under `/addons/` with the GPL and a notice saying where to get its source; the app talks to it only by messages.
 
 The HEIC decoder add-on is [libheif](https://github.com/strukturag/libheif) with libde265, both LGPL-3.0. It's served unmodified as separate files under `/addons/`, with its licence alongside.

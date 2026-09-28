@@ -1,4 +1,4 @@
-export type FileKind = "pdf" | "image" | "word" | "excel" | "powerpoint" | "text" | "unknown";
+export type FileKind = "pdf" | "image" | "word" | "excel" | "powerpoint" | "text" | "video" | "audio" | "unknown";
 
 const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   pdf: [".pdf"],
@@ -7,6 +7,9 @@ const EXTENSIONS: Record<Exclude<FileKind, "unknown">, string[]> = {
   excel: [".xlsx", ".xls", ".ods", ".csv"],
   powerpoint: [".pptx"],
   text: [".txt", ".md", ".markdown", ".html", ".htm"],
+  // Not .ts: that's usually TypeScript, not an MPEG transport stream.
+  video: [".mp4", ".m4v", ".mov", ".webm", ".mkv", ".avi", ".3gp", ".3g2", ".wmv", ".flv", ".mpg", ".mpeg", ".mts", ".m2ts", ".ogv"],
+  audio: [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".flac", ".wma", ".aif", ".aiff", ".amr", ".weba"],
 };
 
 const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
@@ -21,6 +24,8 @@ const MIME_TYPES: Record<Exclude<FileKind, "unknown">, string[]> = {
   ],
   powerpoint: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
   text: ["text/plain", "text/markdown", "text/x-markdown", "text/html"],
+  video: ["video/mp4", "video/x-m4v", "video/quicktime", "video/webm", "video/x-matroska", "video/x-msvideo", "video/avi", "video/3gpp", "video/3gpp2", "video/x-ms-wmv", "video/x-flv", "video/mpeg", "video/ogg"],
+  audio: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/ogg", "audio/opus", "audio/flac", "audio/x-flac", "audio/x-ms-wma", "audio/aiff", "audio/x-aiff", "audio/amr", "audio/webm"],
 };
 
 export const KIND_LABELS: Record<FileKind, string> = {
@@ -30,6 +35,8 @@ export const KIND_LABELS: Record<FileKind, string> = {
   excel: "Excel",
   powerpoint: "PowerPoint",
   text: "Text",
+  video: "Video",
+  audio: "Audio",
   unknown: "File",
 };
 
@@ -57,10 +64,17 @@ export function acceptFor(kinds: readonly FileKind[]): string {
     .join(",");
 }
 
-/** Extensions to show for the given kinds; a tool that takes "unknown" files takes any file. */
+/**
+ * What to show as the formats a tool takes: extensions, but one summary for the long video and
+ * audio lists. A tool that takes "unknown" files takes any file.
+ */
 export function extensionsFor(kinds: readonly FileKind[]): string[] {
   if (kinds.includes("unknown")) return ["Any file"];
-  return kinds.flatMap((kind) => (kind === "unknown" ? [] : EXTENSIONS[kind]));
+  return kinds.flatMap((kind) => {
+    if (kind === "unknown") return [];
+    if (kind === "video" || kind === "audio") return [`${kind} (${EXTENSIONS[kind].slice(0, 4).join(", ")}…)`];
+    return EXTENSIONS[kind];
+  });
 }
 
 export function formatBytes(bytes: number): string {
