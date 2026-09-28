@@ -17,7 +17,8 @@ describe("tool search", () => {
     expect(top("remove password")).toBe("unlock");
     expect(top("gps")).toBe("sanitize");
     expect(top("black out")).toBe("redact");
-    expect(top("signature")).toBe("sign");
+    expect(top("signature")).toBe("digital-signature");
+    expect(top("draw signature")).toBe("sign");
     expect(searchTools("iphone").map((t) => t.id).slice(0, 2).sort()).toEqual(["heic-to-jpg", "sanitize"]);
   });
 
@@ -81,6 +82,13 @@ describe("tool search", () => {
     expect(top("video metadata")).toBe("clean-media");
     expect(top("mp3 tags")).toBe("clean-media");
     expect(top("compress")).toBe("compress");
+  });
+
+  it("finds the certificate signature tools", () => {
+    expect(top("p12")).toBe("digital-signature");
+    expect(top("certificate")).toBe("digital-signature");
+    expect(top("verify signature")).toBe("verify-signatures");
+    expect(top("tampered")).toBe("verify-signatures");
   });
 
   it("needs every word to match, and lists all tools for an empty query", () => {

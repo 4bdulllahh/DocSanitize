@@ -14,7 +14,7 @@ Strip hidden metadata from photos and documents, find what files hide (fake reda
 
 ## Features
 
-52 tools in eight groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
+54 tools in eight groups; press **Ctrl K** (**⌘K** on a Mac) anywhere to find one by name or by task, such as "combine" or "iPhone photo". Every file opens in its own tab and stays open as you move between tools, so you can sanitize a scan, merge it with another file, number the pages and password-protect the result without downloading in between. Each result is previewed before you download it.
 
 ### Sanitize and privacy
 
@@ -34,6 +34,7 @@ Tools that show what a file carries besides what's on screen, and what it really
 - **Image Forensics.** Shows what a photo's file says about how it was made: editing apps and editing history, labels AI generators write (IPTC "digital source type", Stable Diffusion and ComfyUI settings, tool names), Content Credentials (C2PA), the camera, dates that disagree, a GPS position and the JPEG quality. It compares the thumbnail stored inside the file with the picture (a mismatch means the picture was cropped or changed later) and draws an **error level analysis**. It explains that none of this proves a picture genuine or fake.
 - **Check File & Hashes.** Opens any file and identifies it from its first bytes (about 60 formats), then warns about a program with a document's extension, double extensions (`invoice.pdf.exe`), names padded with spaces, hidden right-to-left characters that reverse a name, macros, programs inside ZIP files and scripts in SVG or HTML. Shows the SHA-256, SHA-512, SHA-1 and MD5 hashes, and checks a hash pasted from a download page.
 - **Check Links & QR Codes.** Collects a PDF's links, the web addresses written in its text and every QR code on its pages (or in a picture), and checks each address for phishing tricks: link text showing a different site, brand names on other domains, look-alike international characters, a real destination hidden after "@", bare IP addresses, link shorteners, redirects to another site, unencrypted http and file-like endings such as `.zip`. QR codes for Wi-Fi, payments, authenticator setup, texts and calls are explained too.
+- **Verify Signatures.** Checks every digital signature in a PDF on the device: that the signed bytes are unchanged and the signature was made with the certificate's key, who signed and when (and whether their certificate was valid then), the reason and place, certifications and what they allow, embedded timestamps, and whether the file was changed after each signature. You can download the exact version a signature covers. It can't ask certificate authorities about trust or revocation offline, so it says who issued the certificate and shows its fingerprint.
 - **Compare PDFs.** Open two versions and see what changed. **Text** compares the words in reading order, ignoring how lines wrap, ligatures and curly-versus-straight quotes, and lists every addition, removal and change with its page; click one to see both pages side by side with the changes highlighted. **Mark changes** gives you both files with highlight annotations (red on the original, green and amber on the new version, with a note wherever text was removed) and the list as a `.txt`. **Pictures** draws each page pair and shows every pixel that differs in red, for drawings, stamps and layout changes.
 
 ### Edit and sign
@@ -52,6 +53,7 @@ Tools that show what a file carries besides what's on screen, and what it really
 - **Bates Numbering.** One numbering sequence (prefix, zero-padded number, suffix) across every open PDF in tab order, as a ZIP.
 - **Flatten PDF.** Draws filled-in form fields, comments, highlights and stamps into the page and removes them, so they can't be changed. Links keep working.
 - **Bookmarks.** See, add, rename, re-target, nest and reorder a PDF's bookmarks.
+- **Digital Signature.** Signs a PDF with a certificate (a `.p12` or `.pfx` digital ID, RSA or ECDSA), in the PAdES format Adobe Acrobat and EU validators read, so anyone can check who signed it and that nothing has changed since. Add a reason, place and contact, and show a signature box in a corner of any page (upright on rotated pages) or keep it invisible. **Certify** instead to say what others may still change: nothing, form filling and signing, or also comments. The signature is added after the existing bytes, so earlier signatures stay valid, and the result is checked by reading it back. No certificate? **Create one** on the device (RSA 2048, self-signed) and download it as a password-protected `.p12`. Certificates stay in memory only.
 - **E-Sign PDF.** Draw a signature with a mouse, pen or finger, type it in a handwriting font, or upload a photo of one (the white background is removed). Drag it into place, resize it and add today's date. Signatures are kept only until you close the tab.
 - **Watermark.** Text or an image, in any of nine positions or repeated across the page, straight or angled, in any colour and opacity, on top of or behind the content, on all pages or the ones you choose. The live preview shows the real output.
 - **Page Numbers.** "1", "1 / 9", "Page 1 of 9" or your own format, in six positions, with a starting number and the option to skip the cover page.
@@ -141,6 +143,7 @@ Documents DocSanitize creates carry no author, software or tracking metadata of 
 | OCR and translation | [tesseract.js](https://github.com/naptha/tesseract.js) 7 (WebAssembly) with Tesseract's `best_int` models, served as add-ons; the browser's built-in Translator and LanguageDetector APIs |
 | Inspection | Our own PDF, Office XML, file-signature and URL checks; [jsQR](https://github.com/cozmo/jsQR) for reading QR codes |
 | Audio and video | [FFmpeg](https://ffmpeg.org) 5.1 compiled to WebAssembly by [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (single-threaded core, with x264, libvpx, LAME, Opus and Vorbis), served as an add-on and run in our own worker |
+| Digital signatures | Our own ASN.1, X.509 and CMS code over WebCrypto (RSA, RSA-PSS, ECDSA, SHA-2); [node-forge](https://github.com/digitalbazaar/forge) opens `.p12`/`.pfx` files, including older 3DES/RC2 ones; tested against [pyHanko](https://github.com/MatthiasValvekens/pyHanko) and OpenSSL |
 | Images and ZIP | exifr for EXIF, our own JPEG/PNG/WebP/HEIF parsers, [libheif](https://github.com/strukturag/libheif) (WebAssembly, via libheif-js) for decoding HEIC, OffscreenCanvas for re-encoding, [fflate](https://github.com/101arrowz/fflate) for ZIP |
 | Drag and drop | dnd-kit (mouse, touch and keyboard) |
 | Quality | ESLint, Vitest unit tests, Playwright browser tests, GitHub Actions CI |
@@ -213,6 +216,10 @@ Each page is rendered at 300 DPI (photos at their own resolution, small ones enl
 
 Pages are read the same way Edit PDF reads them, and their lines are grouped into blocks (a paragraph's lines follow each other at a steady spacing, in the same column, size and weight), so the translator sees whole sentences. Hyphenated words split across lines are rejoined. Each block's translation is wrapped to the block's width and shrunk in 5% steps, to no less than 60% of the original size, until it fits the space the original used. It's then written through Edit PDF's text replacement, which removes the original text from the page rather than covering it. Blocks without words (numbers, dates, symbols) are left as they are.
 
+## How digital signatures work
+
+Signing appends an incremental update to the PDF: a signature field and widget, a signature dictionary with a `/ByteRange` covering every byte of the file except its own `/Contents`, and, for certification, a DocMDP reference. The original bytes are never rewritten, which is what keeps earlier signatures valid. The signature itself is a detached CMS SignedData (`ETSI.CAdES.detached`) with the PAdES baseline signed attributes: content type, the SHA-256 message digest of the byte range, and the signing certificate's hash (`signingCertificateV2`); the signing time goes in the dictionary's `/M`. The key signs through WebCrypto and never leaves the signing worker. Verification recomputes the digest, checks the signature against the certificate it carries, follows the byte ranges to see what was added after each signature, and reads RFC 3161 timestamps. The unit tests check our signatures with our verifier and pyHanko's signatures with ours; our output was also validated by pyHanko and our `.p12` files opened by OpenSSL.
+
 ## How the media tools work
 
 The media tools share one engine: FFmpeg compiled to WebAssembly, run in a worker. Your file isn't copied into it: the worker reads it in place from the browser's File object (Emscripten's WORKERFS), and only the result is copied back. Every job runs FFmpeg with `-map_metadata -1` for the file and each track, drops chapters, data tracks and attachments, and sets FFmpeg's "bit-exact" flags so it writes no encoder version or creation time of its own. Remove Metadata copies the tracks with `-c copy`, so the picture and sound are bit-for-bit the same, and keeps a phone video's rotation (stored in the track header, not as metadata). The tools read the file with ffprobe first, to know its length (for progress), size, rotation and whether it's HDR. Cancel stops the worker immediately; the next job starts a fresh one.
@@ -262,6 +269,7 @@ flowchart LR
 | `src/lib/convert` | PowerPoint reading, drawing and writing, Markdown/HTML to layout blocks, PDF to Text/Markdown, Compare PDFs (word diff and pixel diff) |
 | `src/lib/scan` | The Inspect tools: personal data patterns, PDF and Office inspection and cleaning, hidden-text rendering check, file types and hashes, link and QR checks, image forensics |
 | `src/lib/ocr`, `src/lib/translate` | The OCR engine client, Tesseract result reading and languages; block grouping, text fitting and the browser translator |
+| `src/lib/sign` | Digital signatures: DER, X.509, `.p12` files, CMS, signing and verifying PDFs, creating certificates |
 | `src/lib/media` | The media engine client, ffprobe reading (tracks, rotation, HDR, revealing details) and the FFmpeg command for each tool |
 | `src/lib/image` | Image decoding and re-encoding (browser only), including the client for the HEIC decoder add-on |
 | `src/workers` | Web Worker entry points that expose `src/lib` functions over typed RPC |
@@ -341,7 +349,8 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - **OCR** reads printed text; handwriting, very small or blurred text and pages scanned sideways come out poorly. It doesn't turn pages upright or straighten them.
 - **Translate PDF** needs Chrome or Edge on a computer. Translated PDFs can be written in Latin, Greek and Cyrillic scripts; other languages come as text. Text in images isn't translated, and text drawn inside nested forms is covered by its translation rather than removed (you're warned).
 - **Redacted pages become images.** That guarantees nothing survives underneath, but their text can no longer be selected.
-- **E-Sign and Edit PDF add a visible signature**, not a certificate-based digital signature.
+- **E-Sign and Edit PDF add a visible signature**, not a certificate-based one; use Digital Signature for that.
+- **Digital signatures** use certificate files (`.p12`/`.pfx`), not smart cards or USB tokens, and can't add a trusted timestamp or long-term validation data, which need an online service. Verify Signatures can't check revocation or trust in certificate authorities offline. Certificates made in the app are self-signed: they prove a document hasn't changed, but others only trust your name if they trust your certificate.
 - **Edited text uses a standard font** (a sans, serif or monospaced face close to the original), not the document's own embedded font. Only left-to-right horizontal text can be edited in place.
 - **White-out and cropping hide**; they don't remove what's underneath or outside. Use Redact for that.
 - **Grayscale** rewrites colours directly. Where it can't (gradients, spot colours, patterns, unusual images) the page gets a "saturation" blend layer that current readers and printers show in gray, but the original colour data stays in the file.
@@ -374,7 +383,7 @@ The header allows `'unsafe-inline'` scripts only because a header can't list eac
 - [x] **M14** Scan tools: personal data finder, PDF and Office inspectors (including fake redactions), image forensics, file type check and hashes, link and QR checker
 - [x] **M15** More conversions: PDF and PowerPoint, PDF to text and Markdown, HTML/Markdown/text to PDF, image converter, Compare PDFs
 - [x] **M16** Audio and video: convert, compress, trim, video to GIF, and remove video and audio metadata
-- [ ] **M17** Certificate-based digital signatures and signature verification
+- [x] **M17** Certificate-based digital signatures (sign, certify, create a certificate) and signature verification
 - [ ] **M18** Batch processing
 - [ ] **M19** Interface languages, including right-to-left
 
@@ -389,6 +398,8 @@ Issues and pull requests are welcome. Please run `npm run lint`, `npm test` and,
 [MIT](LICENSE) © Abdullah
 
 The OCR add-on is [tesseract.js](https://github.com/naptha/tesseract.js) and [Tesseract](https://github.com/tesseract-ocr/tesseract) with its [tessdata_best](https://github.com/tesseract-ocr/tessdata_best) models, all Apache-2.0, served as separate files under `/addons/` with their licences.
+
+[node-forge](https://github.com/digitalbazaar/forge) (BSD-3-Clause) reads certificate files.
 
 The media add-on is [FFmpeg](https://ffmpeg.org) as compiled by [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (`@ffmpeg/core`), GPL-2.0-or-later. It's a separate program, served unmodified under `/addons/` with the GPL and a notice saying where to get its source; the app talks to it only by messages.
 

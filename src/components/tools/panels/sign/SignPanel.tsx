@@ -2,6 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import clsx from "clsx";
+import Link from "next/link";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, Plus, Signature, Trash2, X } from "lucide-react";
 import { PageStage, type StageSize } from "@/components/pdf/PageStage";
@@ -144,8 +145,11 @@ function Signer({ file, doc }: { file: WorkspaceFile; doc: PDFDocumentProxy }) {
             Sign
           </h2>
           <FidelityNote>
-            Adds a visible signature to the page. It isn&apos;t a certificate-based digital signature. Signatures stay in this browser tab only and are
-            forgotten when you close it.
+            Adds a visible signature to the page. It isn&apos;t a certificate-based digital signature; for one that others can verify, use{" "}
+            <Link href="/tools/digital-signature/" className="font-medium text-brand-text hover:underline">
+              Digital Signature
+            </Link>
+            . Signatures stay in this browser tab only and are forgotten when you close it.
           </FidelityNote>
 
           {assets.length > 0 && (

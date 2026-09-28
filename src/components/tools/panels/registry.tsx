@@ -67,6 +67,8 @@ export const TOOL_PANELS: Partial<Record<string, ComponentType<ToolPanelProps>>>
   "pdf-to-text": dynamic(() => import("./pdf-to-office/PdfToOfficePanels").then((m) => m.PdfToTextPanel), { ssr: false, loading: PanelSkeleton }),
   "pptx-to-pdf": dynamic(() => import("./office-to-pdf/OfficeToPdfPanels").then((m) => m.PowerPointToPdfPanel), { ssr: false, loading: PanelSkeleton }),
   "text-to-pdf": dynamic(() => import("./office-to-pdf/OfficeToPdfPanels").then((m) => m.TextToPdfPanel), { ssr: false, loading: PanelSkeleton }),
+  "digital-signature": dynamic(() => import("./certsign/DigitalSignaturePanel"), { ssr: false, loading: PanelSkeleton }),
+  "verify-signatures": dynamic(() => import("./certsign/VerifySignaturesPanel"), { ssr: false, loading: PanelSkeleton }),
   "clean-media": dynamic(() => import("./media/CleanMediaPanel"), { ssr: false, loading: PanelSkeleton }),
   "convert-video": dynamic(() => import("./media/MediaPanels").then((m) => m.ConvertVideoPanel), { ssr: false, loading: PanelSkeleton }),
   "compress-video": dynamic(() => import("./media/MediaPanels").then((m) => m.CompressVideoPanel), { ssr: false, loading: PanelSkeleton }),
